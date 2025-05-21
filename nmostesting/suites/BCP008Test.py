@@ -376,7 +376,7 @@ class BCP008Test(GenericTest):
         # Deactivate before the status reporting delay expires
         sleep(1.0)
         self.deactivate_resource(test, resource_id)
-        sleep(1.0)  # Let resource settle
+        sleep(2.0)  # Settling time
 
         # Process time stamped notifications
         notifications = self.is12_utils.get_notifications()
@@ -431,6 +431,7 @@ class BCP008Test(GenericTest):
         self.patch_resource(test, resource_id)
         sleep(status_reporting_delay + 1.0)  # This assumes the connection status becomes unhealty
         self.deactivate_resource(test, resource_id)
+        sleep(2.0)  # Settling time
 
         # check for status transitions
         non_zero_counters = self._get_non_zero_counters(test, monitor)
@@ -454,6 +455,7 @@ class BCP008Test(GenericTest):
         self.check_auto_reset_counters_metadata.checked = True
 
         self.deactivate_resource(test, resource_id)
+        sleep(2.0)  # Settling time
 
     def _check_monitor_status_changes(self, test):
         def is_monitor_valid(test, monitor):
@@ -516,7 +518,7 @@ class BCP008Test(GenericTest):
             if initial_statuses[NcStatusMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
                 # This test depends on the resource being inactive in the first instance
                 self.deactivate_resource(test, resource_id)
-                sleep(2.0)  # settling time
+                sleep(2.0)  # Settling time
                 initial_statuses = dict([(property_id,
                                           self._get_property(test,
                                                              property_id.value,
@@ -559,7 +561,7 @@ class BCP008Test(GenericTest):
             self._check_connection_status_transition_counter(notifications)
 
             self.deactivate_resource(test, resource_id)
-            sleep(2.0)  # Let resource settle
+            sleep(2.0)  # Settling time
 
             self._check_deactivate_resource(test, monitor.oid, monitor.role_path, resource_id)
 
