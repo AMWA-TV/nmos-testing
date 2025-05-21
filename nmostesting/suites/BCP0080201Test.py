@@ -193,7 +193,7 @@ class BCP0080201Test(BCP008Test):
 
     def deactivate_resource(self, test, resource_id):
         url = "single/senders/{}/staged".format(resource_id)
-        deactivate_json = {"master_enable": False, 'sender_id': None,
+        deactivate_json = {"master_enable": False, 'receiver_id': None,
                            "activation": {"mode": "activate_immediate"}}
 
         valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, deactivate_json)
