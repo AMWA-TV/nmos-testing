@@ -17,9 +17,9 @@ from jinja2 import Template
 from random import randint
 from requests.compat import json
 from uuid import uuid4
+from .BCP008Test import BCP008Test, NcLinkStatus, NcOverallStatus, NcStatusMonitorProperties, NcSynchronizationStatus
 from ..GenericTest import NMOSTestException
 from ..TestHelper import get_default_ip
-from ..BCP008Test import BCP008Test, NcLinkStatus, NcOverallStatus, NcStatusMonitorProperties, NcSynchronizationStatus
 from ..MS05Utils import NcMethodId, NcPropertyId
 from .. import Config as CONFIG
 

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from enum import Enum, IntEnum
-from ..BCP008Test import BCP008Test, NcLinkStatus, NcOverallStatus, NcStatusMonitorProperties, NcSynchronizationStatus
+from .BCP008Test import BCP008Test, NcLinkStatus, NcOverallStatus, NcStatusMonitorProperties, NcSynchronizationStatus
 from ..GenericTest import NMOSTestException
 from ..MS05Utils import NcMethodId, NcPropertyId
 

@@ -16,11 +16,11 @@
 from enum import Enum, IntEnum
 from time import sleep, time
 
-from .GenericTest import GenericTest, NMOSTestException
-from .IS05Utils import IS05Utils
-from .IS12Utils import IS12Utils
-from .MS05Utils import NcMethodStatus, NcObjectProperties, NcPropertyId, NcTouchpointNmos, NcWorkerProperties
-from .TestResult import TestStates
+from ..GenericTest import GenericTest, NMOSTestException
+from ..IS05Utils import IS05Utils
+from ..IS12Utils import IS12Utils
+from ..MS05Utils import NcMethodStatus, NcObjectProperties, NcPropertyId, NcTouchpointNmos, NcWorkerProperties
+from ..TestResult import TestStates
 
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
