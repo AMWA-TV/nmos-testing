@@ -1,0 +1,691 @@
+# Copyright (C) 2024 Advanced Media Workflow Association
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# from ..GenericTest import NMOSTestException
+from copy import copy, deepcopy
+from enum import IntEnum
+from functools import cmp_to_key
+import random
+import string
+from ..GenericTest import GenericTest, NMOSTestException
+from ..MS05Utils import NcBlock, NcBlockProperties, NcClassDescriptor, NcDatatypeDescriptor, \
+    NcMethodResult, NcMethodResultError, NcObject, NcObjectProperties, NcPropertyDescriptor, NcPropertyId, \
+    StandardClassIds
+from ..IS14Utils import IS14Utils
+from .MS0501Test import MS0501Test
+
+NODE_API_KEY = "node"
+CONFIGURATION_API_KEY = "configuration"
+
+
+class NcRestoreMode(IntEnum):
+    Modify = 0
+    Rebuild = 1
+
+
+class NcPropertyValueHolder():
+    def __init__(self, property_value_holder_json):
+        self.id = NcPropertyId(property_value_holder_json["id"])
+        self.name = property_value_holder_json["name"]
+        self.typeName = property_value_holder_json["typeName"]
+        self.isReadOnly = property_value_holder_json["isReadOnly"]
+        self.value = property_value_holder_json["value"]
+
+    def __str__(self):
+        return f"[id={self.id}, name={self.name}, typeName={self.typeName}, " \
+            f"isReadOnly={self.isReadOnly}, value={self.value}"
+
+
+class NcObjectPropertiesHolder():
+    def __init__(self, object_properties_holder_json):
+        self.path = object_properties_holder_json["path"]
+        self.dependencyPaths = object_properties_holder_json["dependencyPaths"]
+        self.allowedMembersClasses = object_properties_holder_json["allowedMembersClasses"]
+        self.values = [NcPropertyValueHolder(v) for v in object_properties_holder_json["values"]]
+        self.isRebuildable = object_properties_holder_json["isRebuildable"]
+
+
+class NcBulkValuesHolder():
+    def __init__(self, bulk_values_holder_json):
+        self.validationFingerprint = bulk_values_holder_json["validationFingerprint"]
+        self.values = [NcObjectPropertiesHolder(v) for v in bulk_values_holder_json["values"]]
+
+
+class NcRestoreValidationStatus(IntEnum):
+    Ok = 200  # Restore successful
+    Failed = 400  # Restore failed
+    NotFound = 404  # Role path not found
+    DeviceError = 500  # Internal device error
+
+
+class NcPropertyRestoreNoticeType(IntEnum):
+    Warning = 300
+    Error = 400
+
+
+class NcPropertyRestoreNotice():
+    def __init__(self, property_restore_notice_json):
+        self.id = NcPropertyId(property_restore_notice_json["id"])
+        self.name = property_restore_notice_json["name"]
+        self.noticeType = NcPropertyRestoreNoticeType(property_restore_notice_json["noticeType"])
+        self.noticeMessage = property_restore_notice_json["noticeMessage"]
+
+
+class NcObjectPropertiesSetValidation():
+    def __init__(self, object_properties_set_validation_json):
+        self.path = object_properties_set_validation_json["path"]
+        self.status = NcRestoreValidationStatus(object_properties_set_validation_json["status"])
+        self.notices = [NcPropertyRestoreNotice(n) for n in object_properties_set_validation_json["notices"]]
+        self.statusMessage = object_properties_set_validation_json["statusMessage"] \
+            if object_properties_set_validation_json["statusMessage"] else None
+
+
+class IS1401Test(MS0501Test):
+    """
+    Runs Tests covering MS-05 and IS-14
+    """
+    def __init__(self, apis, **kwargs):
+        # override the featuresets repos to only test against the device-configuration repo
+        apis['featuresets']['repo_paths'] = ['device-configuration']
+        self.is14_utils = IS14Utils(apis)
+        MS0501Test.__init__(self, apis, self.is14_utils, **kwargs)
+        self.node_url = apis[NODE_API_KEY]["url"]
+        self.configuration_url = apis[CONFIGURATION_API_KEY]["url"]
+
+    def set_up_tests(self):
+        super().set_up_tests()
+
+    def tear_down_tests(self):
+        super().tear_down_tests()
+
+    def _do_request_json(self, test, method, url, **kwargs):
+        valid, response = self.do_request(method, url, **kwargs)
+
+        if not valid or response.status_code != 200:
+            raise NMOSTestException(test.FAIL(f"Error from endpoint {url}: "
+                                              f"response code: {response.status_code}, "
+                                              f"response content: {response.content}"))
+
+        if "application/json" not in response.headers["Content-Type"]:
+            raise NMOSTestException(test.FAIL(f"JSON response expected from endpoint {url}"))
+
+        return response.json()
+
+    def _compare_property_ids(self, a: NcPropertyId, b: NcPropertyId):
+        if a.level > b.level:
+            return 1
+        elif a.level < b.level:
+            return -1
+        elif a.index > b.index:
+            return 1
+        elif a.index < b.index:
+            return -1
+        else:
+            return 0
+
+    def _compare_property_descriptors(self, a: NcPropertyDescriptor, b: NcPropertyDescriptor):
+        return self._compare_property_ids(a.id, b.id)
+
+    def _compare_property_value_holders(self, a: NcPropertyValueHolder, b: NcPropertyValueHolder):
+        return self._compare_property_ids(a.id, b.id)
+
+    def _to_dict(self, obj):
+        if isinstance(obj, dict):
+            data = {}
+            for (k, v) in obj.items():
+                data[k] = self._to_dict(v)
+            return data
+        elif isinstance(obj, list):
+            return [self._to_dict(e) for e in obj]
+        elif hasattr(obj, "__dict__"):
+            data = {}
+            for (k, v) in obj.__dict__.items():
+                data[k] = self._to_dict(v)
+            return data
+        else:
+            return obj
+
+    def _get_bulk_values_holder(self, test, endpoint):
+        method_result_json = self._do_request_json(test, "GET", endpoint)
+
+        # Check this is of type NcMethodResult
+        self.is14_utils.reference_datatype_schema_validate(test,
+                                                           method_result_json,
+                                                           NcMethodResult.__name__,
+                                                           role_path=f"{endpoint}")
+        method_result = NcMethodResult.factory(method_result_json)
+
+        # Check the result value is of type NcBulkValuesHolder
+        self.is14_utils.reference_datatype_schema_validate(test,
+                                                           method_result.value,
+                                                           NcBulkValuesHolder.__name__,
+                                                           role_path=f"{endpoint}")
+
+        return NcBulkValuesHolder(method_result.value)
+
+    def _apply_bulk_values_holder(self, test, method, endpoint, bulk_values_holder, recurse):
+        backup_dataset = {
+            "arguments": {
+                "dataSet": self._to_dict(bulk_values_holder),
+                "recurse": recurse,
+                "restoreMode": NcRestoreMode.Modify.value
+                }
+            }
+
+        # Attempt to set on Device
+        method_result_json = self._do_request_json(test, method, endpoint, json=backup_dataset)
+
+        # Check this is of type NcMethodResult
+        self.is14_utils.reference_datatype_schema_validate(test,
+                                                           method_result_json,
+                                                           NcMethodResult.__name__,
+                                                           role_path=f"{endpoint}")
+        method_result = NcMethodResult.factory(method_result_json)
+
+        # Check result value is
+        if not isinstance(method_result.value, list):
+            raise NMOSTestException(test.FAIL("Sequence of NcObjectPropertiesSetValidation expected"))
+
+        for value in method_result.value:
+            # Check this is of type NcMethodResult
+            self.is14_utils.reference_datatype_schema_validate(test,
+                                                               value,
+                                                               NcObjectPropertiesSetValidation.__name__,
+                                                               role_path=f"{endpoint}")
+
+        return [NcObjectPropertiesSetValidation(v) for v in method_result.value]
+
+    def _restore_bulk_values_holder(self, test, endpoint, bulk_values_holder, recurse):
+        return self._apply_bulk_values_holder(test, "PUT", endpoint, bulk_values_holder, recurse)
+
+    def _validate_bulk_values_holder(self, test, endpoint, bulk_values_holder, recurse):
+        return self._apply_bulk_values_holder(test, "PATCH", endpoint, bulk_values_holder, recurse)
+
+    def test_01(self, test):
+        """Control Endpoint: Node under test advertises IS-14 control endpoint matching API under test"""
+        # https://specs.amwa.tv/is-14/branches/v1.0-dev/docs/IS-04_interactions.html
+
+        control_type = "urn:x-nmos:control:configuration/" + self.apis[CONFIGURATION_API_KEY]["version"]
+        return self.is14_utils.do_test_device_control(
+            test,
+            self.node_url,
+            control_type,
+            self.configuration_url,
+            self.authorization
+        )
+
+    def test_02(self, test):
+        """Role Path Syntax: Use the '.' character to delimit roles in role paths"""
+
+        role_paths_endpoint = f"{self.configuration_url}rolePaths/"
+
+        response = self._do_request_json(test, "GET", role_paths_endpoint)
+
+        for role_path in response:
+            if role_path != "root" and not role_path.startswith("root."):
+                test.FAIL("Unexpected role path syntax.", "https://specs.amwa.tv/is-14/branches/"
+                          + f"{self.apis[CONFIGURATION_API_KEY]['spec_branch']}"
+                          + "/docs/API_requests.html#url-and-usage")
+        return test.PASS()
+
+    def check_block_member_role_syntax(self, test, role_path):
+        """Check syntax of roles in this block"""
+        method_result = self.is14_utils.get_property(test, NcBlockProperties.MEMBERS.value, role_path=role_path)
+
+        if isinstance(method_result, NcMethodResultError):
+            raise NMOSTestException(test.FAIL(f"{self.is14_utils.create_role_path_string(role_path)}: "
+                                              f"Error getting members property: {str(method_result.errorMessage)}. "))
+
+        response = method_result.value
+        for member in response:
+            # check the class descriptor schema
+            if "." in member["role"]:
+                raise NMOSTestException(test.FAIL(f"Illegal role syntax: {member['role']}. "
+                                                  + "Roles must not contain a '.' character",
+                                                  "https://specs.amwa.tv/is-14/branches/"
+                                                  + f"{self.apis[CONFIGURATION_API_KEY]['spec_branch']}"
+                                                  + "/docs/API_requests.html#url-and-usage"))
+            if self.is14_utils.is_block(member["classId"]):
+                child_role_path = copy(role_path)
+                child_role_path.append(member["role"])
+                self.check_block_member_role_syntax(test, child_role_path)
+
+    def test_03(self, test):
+        """Role Syntax: Check the `.` character is not be used in roles"""
+        # https://specs.amwa.tv/is-14/branches/v1.0-dev/docs/API_requests.html#url-and-usage
+
+        self.check_block_member_role_syntax(test, ["root"])
+
+        return test.PASS()
+
+    def test_04(self, test):
+        """RolePaths endpoint returns all the device model's role paths"""
+
+        # Get expected role paths from device model
+        device_model = self.is14_utils.query_device_model(test)
+
+        device_model_role_paths = device_model.get_role_paths()
+
+        expected_role_paths = ([f"root.{'.'.join(p)}/" for p in device_model_role_paths])
+        expected_role_paths.append("root/")
+
+        # Get actual role paths from IS-14 endpoint
+        role_paths_endpoint = f"{self.configuration_url}rolePaths/"
+
+        actual_role_paths = self._do_request_json(test, "GET", role_paths_endpoint)
+
+        difference = list(set(expected_role_paths) - set(actual_role_paths))
+
+        if len(difference) > 0:
+            return test.FAIL(f"Expected role paths not returned from role paths endpoint: {str(difference)}")
+
+        return test.PASS()
+
+    def test_05(self, test):
+        """Class descriptor endpoint returns NcMethodResultClassDescriptor including all inherited elements."""
+
+        class_manager = self.is14_utils.get_class_manager(test)
+
+        # Get role paths from IS-14 endpoint
+        role_paths_endpoint = f"{self.configuration_url}rolePaths/"
+
+        role_paths = self._do_request_json(test, "GET", role_paths_endpoint)
+
+        for role_path in role_paths:
+            class_descriptor_endpoint = f"{role_paths_endpoint}{role_path}descriptor"
+
+            method_result_json = self._do_request_json(test, "GET", class_descriptor_endpoint)
+
+            # Check this is of type NcMethodResult
+            self.is14_utils.reference_datatype_schema_validate(test,
+                                                               method_result_json,
+                                                               NcMethodResult.__name__,
+                                                               role_path=f"{role_path}descriptor")
+            method_result = NcMethodResult.factory(method_result_json)
+
+            # Check the result value is of type NcClassDescriptor
+            self.is14_utils.reference_datatype_schema_validate(test,
+                                                               method_result.value,
+                                                               NcClassDescriptor.__name__,
+                                                               role_path=f"{role_path}descriptor")
+
+            actual_descriptor = NcClassDescriptor(method_result.value)
+
+            # Yes, we already have the class descriptor, but we might want its inherited attributes
+
+            expected_descriptor = class_manager.get_control_class(actual_descriptor.classId, True)
+
+            self.is14_utils.validate_descriptor(
+                test,
+                expected_descriptor,
+                actual_descriptor,
+                f"role path={role_path}, class={str(actual_descriptor.name)}: ")
+
+        return test.PASS()
+
+    def test_06(self, test):
+        """Role path endpoint returns a response of type NcMethodResultError or a derived datatype on error"""
+
+        # Force an error with a bogus role path
+        role_paths_endpoint = f"{self.configuration_url}rolePaths/this.url.does.not.exist"
+
+        valid, response = self.do_request("GET", role_paths_endpoint)
+
+        if not valid:
+            raise NMOSTestException(test.FAIL(f"Failed to access endpoint {role_paths_endpoint}"))
+
+        if response.status_code != 404:
+            raise NMOSTestException(test.FAIL(f"Expected 404 status code for {role_paths_endpoint}"))
+
+        if "application/json" not in response.headers["Content-Type"]:
+            raise NMOSTestException(test.FAIL(f"JSON response expected from endpoint {role_paths_endpoint}"))
+
+        method_result_json = response.json()
+
+        # Check this is of type NcMethodResult
+        self.is14_utils.reference_datatype_schema_validate(test,
+                                                           method_result_json,
+                                                           NcMethodResult.__name__,
+                                                           role_path=role_paths_endpoint)
+        method_result = NcMethodResult.factory(method_result_json)
+
+        if not isinstance(method_result, NcMethodResultError):
+            return test.FAIL("Expected a response of type NcMethodResultError")
+
+        return test.PASS()
+
+    def test_07(self, test):
+        """Datatype descriptor endpoint returns NcMethodResultDatatypeDescriptor including all inherited elements."""
+
+        class_manager = self.is14_utils.get_class_manager(test)
+
+        # Get role paths from IS-14 endpoint
+        role_paths_endpoint = f"{self.configuration_url}rolePaths/"
+
+        role_paths = self._do_request_json(test, "GET", role_paths_endpoint)
+
+        for role_path in role_paths:
+            properties_endpoint = f"{role_paths_endpoint}{role_path}properties/"
+
+            properties_json = self._do_request_json(test, "GET", properties_endpoint)
+
+            for property_id in properties_json:
+                descriptor_endpoint = f"{properties_endpoint}{property_id}descriptor/"
+
+                method_result_json = self._do_request_json(test, "GET", descriptor_endpoint)
+
+                # Check this is of type NcMethodResult
+                self.is14_utils.reference_datatype_schema_validate(
+                    test,
+                    method_result_json,
+                    NcMethodResult.__name__,
+                    role_path=f"{role_path}properties/{property_id}descriptor/")
+
+                method_result = NcMethodResult.factory(method_result_json)
+
+                # Check the result value is of type NcClassDescriptor
+                self.is14_utils.reference_datatype_schema_validate(
+                    test,
+                    method_result.value,
+                    NcDatatypeDescriptor.__name__,
+                    role_path=f"{role_path}properties/{property_id}descriptor/")
+
+                actual_descriptor = NcDatatypeDescriptor.factory(method_result.value)
+
+                # Yes, we already have the descriptor, but we might want its inherited attributes
+
+                expected_descriptor = class_manager.get_datatype(actual_descriptor.name, True)
+
+                self.is14_utils.validate_descriptor(
+                    test,
+                    expected_descriptor,
+                    actual_descriptor,
+                    f"role path={role_path}properties/{property_id}descriptor/, "
+                    f"datatype={str(actual_descriptor.name)}: ")
+
+        return test.PASS()
+
+    def test_08(self, test):
+        """Properties endpoint returns a response of type NcMethodResultError or a derived datatype on error"""
+
+        # Force an error with a bogus property endpoint
+        property_endpoint = f"{self.configuration_url}rolePaths/root/properties/999p999/"
+
+        valid, response = self.do_request("GET", property_endpoint)
+
+        if not valid:
+            raise NMOSTestException(test.FAIL(f"Failed to access endpoint {property_endpoint}"))
+
+        if response.status_code != 404:
+            raise NMOSTestException(test.FAIL(f"Expected 404 status code for {property_endpoint}"))
+
+        if "application/json" not in response.headers["Content-Type"]:
+            raise NMOSTestException(test.FAIL(f"JSON response expected from endpoint {property_endpoint}"))
+
+        method_result_json = response.json()
+
+        # Check this is of type NcMethodResult
+        self.is14_utils.reference_datatype_schema_validate(test,
+                                                           method_result_json,
+                                                           NcMethodResult.__name__,
+                                                           role_path=property_endpoint)
+        method_result = NcMethodResult.factory(method_result_json)
+
+        if not isinstance(method_result, NcMethodResultError):
+            return test.FAIL("Expected a response of type NcMethodResultError")
+
+        return test.PASS()
+
+    def _check_bulk_properties_recurse_param(self, test, nc_block):
+
+        role_paths = nc_block.get_role_paths()
+        root_role_path = '.'.join(nc_block.role_path)
+        formatted_role_paths = ([f"{root_role_path}.{'.'.join(p)}/" for p in role_paths])
+        formatted_role_paths.append(f"{root_role_path}/")
+
+        conditions = [{"query_string": "", "expected_object_count": len(formatted_role_paths)},
+                      {"query_string": "?recurse=true", "expected_object_count": len(formatted_role_paths)},
+                      {"query_string": "?recurse=false", "expected_object_count": 1}]
+
+        for condition in conditions:
+
+            bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{root_role_path}/" \
+                f"bulkProperties{condition['query_string']}"
+
+            bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+
+            if len(bulk_values_holder.values) != condition["expected_object_count"]:
+                raise NMOSTestException(test.FAIL("Unexpected NcBulkValueHolders returned. "
+                                                  f"Expected {condition['expected_object_count']}, "
+                                                  f"actual {len(bulk_values_holder.values)} "
+                                                  f"for endpoint {bulk_properties_endpoint}"))
+
+    def test_09(self, test):
+        """Recurse query parameter defaults to true on bulkProperties endpoint"""
+
+        device_model = self.is14_utils.query_device_model(test)
+
+        # Check root block
+        self._check_bulk_properties_recurse_param(test, device_model)
+
+        blocks = device_model.find_members_by_class_id(class_id=StandardClassIds.NCBLOCK.value,
+                                                       include_derived=False,
+                                                       recurse=True,
+                                                       get_objects=True)
+        # Check other blocks in Device Model
+        for block in blocks:
+            self._check_bulk_properties_recurse_param(test, block)
+
+        return test.PASS()
+
+    def _check_bulk_properties(self, test: GenericTest, nc_object: NcObject):
+        if isinstance(nc_object, NcBlock):
+            for child in nc_object.child_objects:
+                self._check_bulk_properties(test, child)
+
+        role_path = ".".join(nc_object.role_path)
+
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{role_path}/bulkProperties?recurse=false"
+
+        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+
+        if len(bulk_values_holder.values) != 1:
+            raise NMOSTestException(test.FAIL("Expected number of NcObjectPropertiesHolder "
+                                              f"in NcBulkValuesHolder for endpoint {bulk_properties_endpoint}"))
+
+        class_manager = self.is14_utils.get_class_manager(test)
+
+        class_descriptor = class_manager.get_control_class(nc_object.class_id,
+                                                           include_inherited=True)
+
+        # Check all NcPropertyIds have been returned
+        expected_property_ids = [p.id for p in class_descriptor.properties]
+        actual_property_ids = [p.id for p in bulk_values_holder.values[0].values]
+
+        difference = list(set(expected_property_ids) - set(actual_property_ids))
+
+        if len(difference) > 0:
+            raise NMOSTestException(test.FAIL("Expected properties not returned from bulkProperties endpoint. "
+                                              f"Missing properties={str(difference)}, "
+                                              f"endpoint={bulk_properties_endpoint}"))
+
+        # Compare NcPropertyDescriptors from class descriptor to the NcPropertyValueHolders from bulk values holder
+        property_descriptors = sorted(class_descriptor.properties,
+                                      key=cmp_to_key(self._compare_property_descriptors))
+        property_value_holders = sorted(bulk_values_holder.values[0].values,
+                                        key=cmp_to_key(self._compare_property_value_holders))
+
+        for property_descriptor, property_value_holder in zip(property_descriptors, property_value_holders):
+            if property_descriptor.name != property_value_holder.name or \
+                    property_descriptor.typeName != property_value_holder.typeName or \
+                    property_descriptor.isReadOnly != property_value_holder.isReadOnly:
+                raise NMOSTestException(
+                    test.FAIL("Definition of property in NcPropertyValueHolder inconsistant with class "
+                              f"descriptor's NcPropertyDescriptor. NcPropertyDescriptor={property_descriptor}, "
+                              f"NcPropertyValueHolder={property_value_holder} "
+                              f"for endpoint {bulk_properties_endpoint}"))
+
+    def test_10(self, test):
+        """All properties of the target role path are returned from bulkProperties endpoint"""
+
+        device_model = self.is14_utils.query_device_model(test)
+
+        self._check_bulk_properties(test, device_model)
+
+        return test.PASS()
+
+    def test_11(self, test):
+        """BulkProperties endpoint returns a response of type NcMethodResultError or a derived datatype on PUT error."""
+
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties/"
+
+        bogus_backup_dataset = {"this": "is", "not": "a", "backup": "dataset"}
+
+        valid, response = self.do_request("PUT", bulk_properties_endpoint, json=bogus_backup_dataset)
+
+        if not valid:
+            raise NMOSTestException(test.FAIL(f"Failed to access endpoint {bulk_properties_endpoint}"))
+
+        if response.status_code < 300:
+            raise NMOSTestException(test.FAIL(f"Expected error status code for {bulk_properties_endpoint}"))
+
+        if "application/json" not in response.headers["Content-Type"]:
+            raise NMOSTestException(test.FAIL(f"JSON response expected from endpoint {bulk_properties_endpoint}"))
+
+        method_result_json = response.json()
+
+        # Check this is of type NcMethodResult
+        self.is14_utils.reference_datatype_schema_validate(test,
+                                                           method_result_json,
+                                                           NcMethodResult.__name__,
+                                                           role_path=bulk_properties_endpoint)
+        method_result = NcMethodResult.factory(method_result_json)
+
+        if not isinstance(method_result, NcMethodResultError):
+            return test.FAIL("Expected a response of type NcMethodResultError")
+
+        return test.PASS()
+
+    def _check_bulk_properties_restore(self, test, role_path, recurse):
+        role_path_formatted = ".".join(role_path)
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{role_path_formatted}/bulkProperties"
+
+        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+
+        # Cache bulk_values_holder
+        original_bulk_values_holder = deepcopy(bulk_values_holder)
+
+        user_labels = []
+        # Remove property value holders other than user label
+        for object_property_holder in bulk_values_holder.values:
+            object_property_holder.values = [v for v in object_property_holder.values
+                                             if v.id == NcObjectProperties.USER_LABEL.value]
+            user_labels.extend(object_property_holder.values)
+
+        # Generate random labels
+        for property_value_holder in user_labels:
+            property_value_holder.value = "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
+
+        validations = self._restore_bulk_values_holder(test, bulk_properties_endpoint, bulk_values_holder, recurse)
+
+        # Check there is one validation per object changed
+        expected_object_holder_paths = [o.path for o in bulk_values_holder.values if recurse or o.path == role_path]
+        actual_validation_paths = [v.path for v in validations]
+
+        if len(expected_object_holder_paths) != len(actual_validation_paths):
+            raise NMOSTestException(
+                test.FAIL(f"Expected {len(expected_object_holder_paths)} "
+                          "NcObjectPropertiesSetValidation "
+                          f"objects, actually got {len(actual_validation_paths)}"))
+
+        for e, a in zip(expected_object_holder_paths, actual_validation_paths):
+            if e != a:
+                raise NMOSTestException(
+                    test.FAIL("Unexpected NcObjectPropertiesSetValidation objects "
+                              "returned from bulkProperties endpoint "
+                              f"for role paths={str(a)}, "
+                              f"endpoint={bulk_properties_endpoint}"))
+
+        # Check status is OK
+        for validation in validations:
+            if validation.status != NcRestoreValidationStatus.Ok.value:
+                raise NMOSTestException(
+                    test.FAIL(f"Unexpected NcRestoreValidationStatus. "
+                              f"Expected OK but got {validation.status.name} "
+                              f"for role path {validation.path}"))
+
+        # Verify the labels have changed
+        updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+
+        # Compare backup datasets
+        # Create dict from original bulk values holder
+        original_bulk_values_holder_properties = {}
+        for object_property_holder in original_bulk_values_holder.values:
+            for property_value_holder in object_property_holder.values:
+                key = ".".join(object_property_holder.path) + str(property_value_holder.id)
+                original_bulk_values_holder_properties[key] = property_value_holder
+
+        # Create dict from restore bulk values holder
+        restore_properties = {}
+        for object_property_holder in bulk_values_holder.values:
+            for property_value_holder in object_property_holder.values:
+                key = ".".join(object_property_holder.path) + str(property_value_holder.id)
+                restore_properties[key] = property_value_holder
+
+        # Check updated bulk values holder against restored buk value holder
+        for object_property_holder in updated_bulk_values_holder.values:
+            for property_value_holder in object_property_holder.values:
+                key = ".".join(object_property_holder.path) + str(property_value_holder.id)
+                if (object_property_holder.path == role_path or recurse) \
+                        and key in restore_properties \
+                        and property_value_holder.value != restore_properties[key].value:
+                    raise NMOSTestException(
+                        test.FAIL("Property not updated by restore "
+                                  f"for role path {object_property_holder.path} "
+                                  f"and property {str(property_value_holder.id)} "
+                                  f"when restoring to {bulk_properties_endpoint} "
+                                  f"with recurse={recurse}"))
+                if not recurse and object_property_holder.path != role_path \
+                        and key in restore_properties \
+                        and property_value_holder.value != original_bulk_values_holder_properties[key].value:
+                    raise NMOSTestException(
+                        test.FAIL("Property unexpectedly updated by restore "
+                                  f"for role path {object_property_holder.path} "
+                                  f"and property {str(property_value_holder.id)} "
+                                  f"when restoring to {bulk_properties_endpoint} "
+                                  f"with recurse={recurse}"))
+
+    def test_12(self, test):
+        """Restore backup dataset to bulkProperties endpoint"""
+        device_model = self.is14_utils.query_device_model(test)
+
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties"
+        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+        # Cache bulk_values_holder
+        original_bulk_values_holder = deepcopy(bulk_values_holder)
+
+        partial_role_paths = device_model.get_role_paths()
+
+        role_paths = [["root"] + partial_role_path for partial_role_path in partial_role_paths]
+        role_paths.append(["root"])
+
+        # Check backup and restore to each role path
+        for role_path in role_paths:
+            self._check_bulk_properties_restore(test, role_path, recurse=True)
+            self._check_bulk_properties_restore(test, role_path, recurse=False)
+
+        # Reset to original backup dataset
+        self._restore_bulk_values_holder(test, bulk_properties_endpoint, original_bulk_values_holder, recurse=True)
+
+        return test.PASS()
