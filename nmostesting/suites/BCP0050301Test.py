@@ -239,7 +239,18 @@ class BCP0050301Test(GenericTest):
         if len(self.is04_resources["senders"].values()) == 0:
             return test.UNCLEAR("No Senders were found on the Node")
 
+        no_privacy_senders = True
+
         for sender in self.is04_resources["senders"].values():
+
+            # REFERENCE: A Sender compliant with this specification MUST provide a privacy Sender attribute to
+            # indicate that privacy encryption and the PEP protocol are used by the Sender.
+            #
+            # being compliant with BCP-005-03 (IPMX/PEP).
+            if not has_key(sender, "privacy"):
+                continue
+
+            no_privacy_senders = False
 
             reg_schema = load_resolved_schema(reg_path, "ext-constraints-schema.json", path_prefix=False)
 
@@ -342,6 +353,7 @@ class BCP0050301Test(GenericTest):
                 if not valid:
                     return test.FAIL("sender {} : active transport parameters is not valid against minimum requirements"
                                      ", error {}".format(sender["id"], msg))
+
                 valid, generic, elliptic, msg = self.hasSenderTransportParametersPEP(
                     sender["transport"],
                     c_params,
@@ -367,7 +379,9 @@ class BCP0050301Test(GenericTest):
                     if msg != "":
                         warning += "|" + msg
 
-                    null_mode = "NULL" in constraints[i][privacy_mode]["enum"]
+                    null_mode = (privacy_mode in constraints[i] and
+                                 "enum" in constraints[i][privacy_mode] and
+                                 "NULL" in constraints[i][privacy_mode]["enum"])
 
                     # check sender capability if present
                     if "constraint_sets" in sender["caps"]:
@@ -390,6 +404,14 @@ class BCP0050301Test(GenericTest):
                                             return test.FAIL("sender {} : privacy capability must match "
                                                              "privacy transport parameters".format(sender["id"]))
 
+                    # REFERENCE: If the Sender's privacy attribute is false, the ext_privacy_protocol and
+                    # ext_privacy_mode transport parameters MUST be "NULL". If the Sender's privacy attribute
+                    # is true, the ext_privacy_protocol and ext_privacy_mode transport parameters MUST NOT be
+                    # "NULL".
+                    if get_key_value(sender, "privacy") == null_mode:
+                        return test.FAIL("sender {} : privacy attribute must match "
+                                         "privacy transport parameters".format(sender["id"]))
+
                     # check uniqueness of iv among all the senders (not matter what PSK is used)
                     params = active["transport_params"][i]
 
@@ -398,6 +420,18 @@ class BCP0050301Test(GenericTest):
                             sender["id"], params[privacy_iv])
                     else:
                         iv[params[privacy_iv]] = None  # must be unique among all senders
+                else:
+
+                    # REFERENCE: For transport protocols using an SDP transport file: a Sender MUST communicate
+                    # privacy encryption parameters in the SDP transport file associated with a privacy-encrypted
+                    # stream, and MUST also communicate these parameters using the extended NMOS transport parameters.
+                    # For transport protocols that do not use an SDP transport file: a Sender or Receiver MUST
+                    # communicate the privacy encryption parameters using the extended NMOS transport parameters.
+                    #
+                    # REFERENCE: A Sender implementing privacy encryption and the PEP protocol MUST provide IS-05
+                    # ext_privacy_* extended transport parameters and associated constraints that specify the extent
+                    # of support for the features defined in TR-10-13.
+                    return test.FAIL("sender {} : missing privacy transport parameters".format(sender["id"]))
 
                 i = i + 1
 
@@ -443,8 +477,11 @@ class BCP0050301Test(GenericTest):
                 all_active = False
 
         if not all_active:
-            return test.UNCLEAR("sender {} : one or more of the tested Senders has master_enable set to false."
-                                " Please ensure all Senders are enabled and re-test.".format(sender["id"]))
+            return test.UNCLEAR("One or more of the tested Senders has master_enable set to false."
+                                " Please ensure all Senders are enabled and re-test.")
+
+        if no_privacy_senders:
+            return test.OPTIONAL("No BCP-005-03 (IPMX/PEP) Sender found")
 
         if warning != "":
             return test.WARNING(warning)
@@ -471,7 +508,18 @@ class BCP0050301Test(GenericTest):
         if len(self.is04_resources["senders"].values()) == 0:
             return test.UNCLEAR("No Senders were found on the Node")
 
+        no_privacy_senders = True
+
         for sender in self.is04_resources["senders"].values():
+
+            # REFERENCE: A Sender compliant with this specification MUST provide a privacy Sender attribute to
+            # indicate that privacy encryption and the PEP protocol are used by the Sender.
+            #
+            # being compliant with BCP-005-03 (IPMX/PEP).
+            if not has_key(sender, "privacy"):
+                continue
+
+            no_privacy_senders = False
 
             reg_schema = load_resolved_schema(reg_path, "ext-constraints-schema.json", path_prefix=False)
 
@@ -555,7 +603,9 @@ class BCP0050301Test(GenericTest):
                     return test.FAIL("sender {} : active transport parameters is not valid against minimum requirements"
                                      ", error {}".format(sender["id"], msg))
 
-                null_mode = "NULL" in constraints[i][privacy_mode]["enum"]
+                null_mode = (privacy_mode in constraints[i] and
+                             "enum" in constraints[i][privacy_mode] and
+                             "NULL" in constraints[i][privacy_mode]["enum"])
 
                 if generic:
 
@@ -632,6 +682,9 @@ class BCP0050301Test(GenericTest):
                                         else:
                                             pass
 
+                        # REFERENCE: An NMOS API MUST NOT allow to change the state (enabled or disabled) of
+                        # privacy encryption.
+                        #
                         # It must not be possible to disable privacy encryption unless already disabled
                         if not null_mode:
 
@@ -661,6 +714,9 @@ class BCP0050301Test(GenericTest):
 
                 i = i + 1
 
+        if no_privacy_senders:
+            return test.OPTIONAL("No BCP-005-03 (IPMX/PEP) Sender found")
+
         if warning != "":
             return test.WARNING(warning)
         else:
@@ -685,6 +741,8 @@ class BCP0050301Test(GenericTest):
 
         if len(self.is04_resources["receivers"].values()) == 0:
             return test.UNCLEAR("No Receivers were found on the Node")
+
+        no_privacy_receivers = True
 
         for receiver in self.is04_resources["receivers"].values():
 
@@ -782,6 +840,8 @@ class BCP0050301Test(GenericTest):
                         return test.FAIL("receiver {} : active parameters are inconsistent".format(receiver["id"]))
 
             # now check transport minimum requirements
+            privacy = False
+
             i = 0
             for c_params in constraints:
 
@@ -804,6 +864,8 @@ class BCP0050301Test(GenericTest):
 
                 if generic:
 
+                    privacy = True
+
                     ok, msg = self.check_generic_attribute_values(
                         False,
                         receiver,
@@ -818,7 +880,9 @@ class BCP0050301Test(GenericTest):
                     if msg != "":
                         warning += "|" + msg
 
-                    null_mode = "NULL" in constraints[i][privacy_mode]["enum"]
+                    null_mode = (privacy_mode in constraints[i] and
+                                 "enum" in constraints[i][privacy_mode] and
+                                 "NULL" in constraints[i][privacy_mode]["enum"])
 
                     # check receiver capability if present
                     if "constraint_sets" in receiver["caps"]:
@@ -858,33 +922,40 @@ class BCP0050301Test(GenericTest):
 
             # We do require an active receiver to get final parameters and to know if there
             # is really no SDP transport file
-            if active["master_enable"]:
+            if privacy:
 
-                # in an NMOS environment the SDP privacy attribute is required if an SDP transport file is used
-                # check SDP transport file matching transport parameters, check RTP Extension header declaration
-                if active["transport_file"]["data"] is not None:
+                no_privacy_receivers = False
 
-                    sdp_lines = [sdp_line.replace("\r", "")
-                                 for sdp_line in active["transport_file"]["data"].split("\n")]
+                if active["master_enable"]:
 
-                    ok, msg = self.check_privacy_attribute(
-                        False,
-                        receiver,
-                        len(constraints),
-                        constraints[0],
-                        active["transport_params"][0],
-                        sdp_lines)
-                    if not ok:
-                        return test.FAIL("receiver {} : invalid privacy capability, error {}"
-                                         .format(receiver["id"], msg))
-                    if msg != "":
-                        warning += "|" + msg
-            else:
-                all_active = False
+                    # in an NMOS environment the SDP privacy attribute is required if an SDP transport file is used
+                    # check SDP transport file matching transport parameters, check RTP Extension header declaration
+                    if active["transport_file"]["data"] is not None:
+
+                        sdp_lines = [sdp_line.replace("\r", "")
+                                     for sdp_line in active["transport_file"]["data"].split("\n")]
+
+                        ok, msg = self.check_privacy_attribute(
+                            False,
+                            receiver,
+                            len(constraints),
+                            constraints[0],
+                            active["transport_params"][0],
+                            sdp_lines)
+                        if not ok:
+                            return test.FAIL("receiver {} : invalid privacy capability, error {}"
+                                             .format(receiver["id"], msg))
+                        if msg != "":
+                            warning += "|" + msg
+                else:
+                    all_active = False
 
         if not all_active:
-            return test.UNCLEAR("receiver {} : one or more of the tested Receivers has master_enable set to false."
-                                " Please ensure all Receivers are enabled and re-test.".format(receiver["id"]))
+            return test.UNCLEAR("One or more of the tested Receivers has master_enable set to false."
+                                " Please ensure all Receivers are enabled and re-test.")
+
+        if no_privacy_receivers:
+            return test.OPTIONAL("No BCP-005-03 (IPMX/PEP) Receiver found")
 
         if warning != "":
             return test.WARNING(warning)
@@ -910,6 +981,8 @@ class BCP0050301Test(GenericTest):
 
         if len(self.is04_resources["receivers"].values()) == 0:
             return test.UNCLEAR("No Receivers were found on the Node")
+
+        no_privacy_receivers = True
 
         for receiver in self.is04_resources["receivers"].values():
 
@@ -997,9 +1070,13 @@ class BCP0050301Test(GenericTest):
                     return test.FAIL("receiver {} : active transport parameters is not valid against"
                                      " minimum requirements, error {}".format(receiver["id"], msg))
 
-                null_mode = "NULL" in constraints[i][privacy_mode]["enum"]
+                null_mode = (privacy_mode in constraints[i] and
+                             "enum" in constraints[i][privacy_mode] and
+                             "NULL" in constraints[i][privacy_mode]["enum"])
 
                 if generic:
+
+                    no_privacy_receivers = False
 
                     if active["master_enable"]:
 
@@ -1037,6 +1114,12 @@ class BCP0050301Test(GenericTest):
                                 else:
                                     pass
 
+                        # REFERENCE: A Receiver MUST fail activation if the provided key_id is not provisioned in the
+                        # device or is not listed in the Receiver's ext_privacy_key_id transport parameter constraints.
+                        # >>> Note: The test suite cannot activate an inactive Receiver, the best we can do it to set
+                        #           invalid values while inactive assuming that the parameters are considered
+                        #           individually independently of the value of master_enable.
+                        #
                         # It must not be possible to change any privacy attribute if inactive to an invalid value
                         # if a constraint is declared
                         for name in c_params.keys():
@@ -1074,6 +1157,9 @@ class BCP0050301Test(GenericTest):
                                         else:
                                             pass
 
+                        # REFERENCE: An NMOS API MUST NOT allow to change the state (enabled or disabled) of
+                        # privacy encryption.
+                        #
                         # It must not be possible to disable privacy encryption unless already disabled
                         if not null_mode:
 
@@ -1103,6 +1189,9 @@ class BCP0050301Test(GenericTest):
 
                 i = i + 1
 
+        if no_privacy_receivers:
+            return test.OPTIONAL("No BCP-005-03 (IPMX/PEP) Receiver found")
+
         if warning != "":
             return test.WARNING(warning)
         else:
@@ -1128,7 +1217,18 @@ class BCP0050301Test(GenericTest):
         if len(self.is04_resources["senders"].values()) == 0:
             return test.UNCLEAR("No Senders were found on the Node")
 
+        no_privacy_senders = True
+
         for sender in self.is04_resources["senders"].values():
+
+            # REFERENCE: A Sender compliant with this specification MUST provide a privacy Sender attribute to
+            # indicate that privacy encryption and the PEP protocol are used by the Sender.
+            #
+            # being compliant with BCP-005-03 (IPMX/PEP).
+            if not has_key(sender, "privacy"):
+                continue
+
+            no_privacy_senders = False
 
             reg_schema = load_resolved_schema(reg_path, "ext-constraints-schema.json", path_prefix=False)
 
@@ -1212,7 +1312,9 @@ class BCP0050301Test(GenericTest):
                     return test.FAIL("sender {} : active transport parameters is not valid against"
                                      " minimum requirements, error {}".format(sender["id"], msg))
 
-                null_curve = "NULL" in constraints[i][privacy_ecdh_curve]["enum"]
+                null_curve = (privacy_ecdh_curve in constraints[i] and
+                              "enum" in constraints[i][privacy_ecdh_curve] and
+                              "NULL" in constraints[i][privacy_ecdh_curve]["enum"])
 
                 if generic and elliptic:
 
@@ -1285,6 +1387,9 @@ class BCP0050301Test(GenericTest):
 
                 i = i + 1
 
+        if no_privacy_senders:
+            return test.OPTIONAL("No BCP-005-03 (IPMX/PEP) Sender found")
+
         if warning != "":
             return test.WARNING(warning)
         else:
@@ -1309,6 +1414,8 @@ class BCP0050301Test(GenericTest):
 
         if len(self.is04_resources["receivers"].values()) == 0:
             return test.UNCLEAR("No Receivers were found on the Node")
+
+        no_privacy_receivers = True
 
         for receiver in self.is04_resources["receivers"].values():
 
@@ -1396,7 +1503,12 @@ class BCP0050301Test(GenericTest):
                     return test.FAIL("receiver {} : active transport parameters is not valid against"
                                      " minimum requirements, error {}".format(receiver["id"], msg))
 
-                null_curve = "NULL" in constraints[i][privacy_ecdh_curve]["enum"]
+                null_curve = (privacy_ecdh_curve in constraints[i] and
+                              "enum" in constraints[i][privacy_ecdh_curve] and
+                              "NULL" in constraints[i][privacy_ecdh_curve]["enum"])
+
+                if generic:
+                    no_privacy_receivers = False
 
                 if generic and elliptic:
 
@@ -1469,6 +1581,9 @@ class BCP0050301Test(GenericTest):
 
                 i = i + 1
 
+        if no_privacy_receivers:
+            return test.OPTIONAL("No BCP-005-03 (IPMX/PEP) Receiver found")
+
         if warning != "":
             return test.WARNING(warning)
         else:
@@ -1538,7 +1653,7 @@ class BCP0050301Test(GenericTest):
 
         for sender in self.is04_resources["senders"].values():
 
-            # being compliant with BCP-005-02 (IPMX/HKEP).
+            # being compliant with BCP-005-03 (IPMX/PEP).
             if has_key(sender, "privacy"):
 
                 no_privacy_senders = False
@@ -1587,9 +1702,24 @@ class BCP0050301Test(GenericTest):
                                     only_allow_true = False
                                     if only_allow_false is None:
                                         only_allow_false = True
+
+                                # REFERENCE: The urn:x-nmos:cap:transport:privacy capability MUST NOT allow
+                                # both true and false values.
+                                if len(param_constraint["enum"]) != 1:
+                                    return test.FAIL(
+                                        "Sender {} has an invalid 'privacy' capabilities "
+                                        "which is must be either 'true' or 'false'".format(
+                                            sender["id"]))
                             else:
                                 only_allow_true = False
                                 only_allow_false = False
+
+                                # REFERENCE: The urn:x-nmos:cap:transport:privacy capability MUST NOT allow
+                                # both true and false values.
+                                return test.FAIL(
+                                    "Sender {} has an invalid 'privacy' capabilities "
+                                    "which is must be either 'true' or 'false'".format(
+                                        sender["id"]))
 
                 # Check that the sender state does not contradict its explicit capabilities
                 if only_allow_true is not None:
@@ -1663,6 +1793,13 @@ class BCP0050301Test(GenericTest):
                             "which is not allowed by the Sender's capabilities only allowing 'false'".format(
                                 sender["id"]))
 
+                # REFERENCE: For transport protocols using an SDP transport file: a Sender MUST communicate privacy
+                # encryption parameters in the SDP transport file associated with a privacy-encrypted stream, and
+                # MUST also communicate these parameters using the extended NMOS transport parameters.
+                #
+                # REFERENCE: This attribute MUST be true if a privacy attribute is present in the Sender's SDP transport
+                # file, and MUST be false if no privacy attributes are present.
+                #
                 # sender state must match with SDP transport file
                 if privacy != found_privacy:
                     return test.FAIL(
@@ -1702,7 +1839,7 @@ class BCP0050301Test(GenericTest):
             reg_schema_obj = json.load(f)
         reg_schema = load_resolved_schema(api["spec_path"], schema_obj=reg_schema_obj)
 
-        no_hkep_receivers = True
+        no_privacy_receivers = True
         no_constraint_sets = True
 
         warning = ""
@@ -1738,12 +1875,12 @@ class BCP0050301Test(GenericTest):
                     # REFERENCE: A Receiver SHOULD provide a `urn:x-nmos:cap:transport:privacy` capability to indicate
                     #            its support for Senders that use privacy encryption protocol.
                     if has_key(constraint_set, "cap:transport:privacy"):
-                        no_hkep_receivers = False
+                        no_privacy_receivers = False
 
         if no_constraint_sets:
             return test.OPTIONAL("No Receiver describing BCP-004-01 Capabilities found")
 
-        if no_hkep_receivers:
+        if no_privacy_receivers:
             return test.OPTIONAL("No BCP-005-03 (IPMX/PEP) Receiver found")
 
         if warning != "":
@@ -1882,6 +2019,22 @@ class BCP0050301Test(GenericTest):
     def check_generic_attribute_values(self, is_sender, sender_receiver, constraints, staged, active,
                                        elliptic, master_enable):
 
+        # REFERENCE: Each ext_privacy_* transport parameter MUST have an associated constraint that
+        # either indicates that the parameter is unconstrained, allowing any valid value, or that it
+        # is constrained to a specific set of values. A parameter identified as read-only in the
+        # parameter definitions table MUST always be constrained to a single value. A Sender/Receiver
+        # MUST fail activation if any IS-05 ext_privacy_* transport parameter violates its defined
+        # constraints.
+        #
+        # The constraints endpoint of the parameters ext_privacy_protocol and ext_privacy_mode on both
+        # Senders and Receivers MUST enumerate all supported protocols and modes. These parameters MUST
+        # NOT be unconstrained, and their constraints MUST NOT change when the master_enable attribute
+        # of a Sender/Receiver active endpoint is true.
+        #
+        # The constraints endpoint of the parameter ext_privacy_ecdh_curve on both Senders and Receivers
+        # MUST enumerate all supported curves. This parameter MUST NOT be unconstrained, and its constraints
+        # MUST NOT change when the master_enable attribute of a Sender/Receiver active endpoint is true.
+
         warning = ""
 
         if is_sender:
@@ -1915,6 +2068,16 @@ class BCP0050301Test(GenericTest):
                 return False, "{} {} : {} constraint value must be one of {}".format(
                     identity, sender_receiver["id"], privacy_protocol, allowed_protocols)
 
+        # REFERENCE: The protocol parameter MUST be one of the following: "RTP", "RTP_KV",
+        # "USB", "USB_KV", or "NULL".
+        #
+        # REFERENCE: If privacy encryption is disabled or not supported by a Sender/Receiver,
+        # and the ext_privacy_* transport parameters are present, the "NULL" protocol MUST be
+        # used for the ext_privacy_protocol transport parameter in the active and staged endpoints
+        # to indicate that privacy encryption is not available or is disabled. The associated
+        # constraints MUST allow only the "NULL" protocol when the ext_privacy_protocol parameter
+        # is "NULL".
+
         # If NULL is allowed, it must be the only one allowed
         if "NULL" in enums:
             null_protocol = True
@@ -1925,6 +2088,11 @@ class BCP0050301Test(GenericTest):
         else:
             if sender_receiver["transport"] in ("urn:x-nmos:transport:rtp",
                                                 "urn:x-nmos:transport:rtp.mcast" and "urn:x-nmos:transport:rtp.ucast"):
+
+                # REFERENCE: The "RTP" protocol MUST be supported by all devices implementing TR-10-13 for the
+                # urn:x-nmos:transport:rtp, urn:x-nmos:transport:rtp.mcast, and urn:x-nmos:transport:rtp.ucast
+                # transports.
+
                 # for RTP based transport, the RTP protocol adaptation MUST be supported
                 if "RTP" not in enums:
                     return False, "{} {} : {} constraint value must allow 'RTP' for transport {}".format(
@@ -1936,7 +2104,11 @@ class BCP0050301Test(GenericTest):
                             identity, sender_receiver["id"], privacy_protocol, sender_receiver["transport"])
                         return False, msg
 
-            if sender_receiver["transport"] in ("urn:x-nmos:transport:usb"):
+            if urn_without_namespace(sender_receiver["transport"]) in ("transport:usb"):
+
+                # REFERENCE: The "USB_KV" protocol MUST be supported by all devices implementing TR-10-13
+                # and TR-10-14 for the urn:x-nmos:transport:usb transport.
+                #
                 # for USB based transport, the USB_KV protocol adaptation MUST be supported
                 if "USB_KV" not in enums:
                     return False, "{} {} : {} constraint value must allow 'USB_KV' for transport {}".format(
@@ -1960,6 +2132,10 @@ class BCP0050301Test(GenericTest):
         ecdh = False
 
         if elliptic:
+
+            # REFERENCE: The ecdh_curve parameter MUST be one of the following: "secp256r1",
+            # "secp521r1", "25519", "448", or "NULL".
+            #
             # if ECDH privacy parameters are present
             allowed_curves = ("secp256r1", "secp521r1", "25519", "448", "NULL")
 
@@ -1980,12 +2156,20 @@ class BCP0050301Test(GenericTest):
                     return False, "{} {} : {} constraint value must be one of {}".format(
                         identity, sender_receiver["id"], privacy_ecdh_curve, allowed_curves)
 
+            # REFERENCE: If the ECDH modes are not supported by a Sender/Receiver and the ext_privacy_* transport
+            # parameters are present, the "NULL" curve MUST be used for the ext_privacy_ecdh_curve transport
+            # parameter in the active and staged endpoints to indicate that ECDH modes are not available. The
+            # associated constraints MUST allow only the "NULL" curve when the ext_privacy_ecdh_curve parameter
+            # is "NULL".
+            #
             # If NULL is allowed, it must be the only one allowed
             if "NULL" in enums:
                 if len(enums) != 1:
                     return False, "{} {} : {} constraint cannot have other values if 'NULL' is allowed".format(
                         identity, sender_receiver["id"], privacy_ecdh_curve)
             else:
+
+                # REFERENCE: The "secp256r1" ecdh_curve MUST be supported by all devices that implement ECDH modes.
                 if "secp256r1" not in enums:
                     return False, "{} {} : {} constraint value must allow 'secp256r1'".format(
                         identity, sender_receiver["id"], privacy_ecdh_curve)
@@ -2037,6 +2221,12 @@ class BCP0050301Test(GenericTest):
                 return False, "{} {} : {} constraint value must be one of {}".format(
                     identity, sender_receiver["id"], privacy_mode, allowed_modes)
 
+        # REFERENCE: If privacy encryption is disabled or not supported by a Sender/Receiver, and the
+        # ext_privacy_* transport parameters are present, the "NULL" mode MUST be used for the
+        # ext_privacy_mode transport parameter in the active and staged endpoints to indicate that
+        # privacy encryption is not available or is disabled. The associated constraints MUST allow
+        # only the "NULL" mode when the ext_privacy_mode parameter is "NULL".
+        #
         # If NULL is allowed, it must be the only one allowed and must match with protocol
         if "NULL" in enums:
             if not null_protocol:
@@ -2048,22 +2238,41 @@ class BCP0050301Test(GenericTest):
         # if not NULL then verify against the protocol adaptation being used
         else:
             if all(item in ("RTP", "RTP_KV") for item in constraints[privacy_protocol]["enum"]):
+
+                # REFERENCE: The "AES-128-CTR" mode MUST be supported by all devices implementing the
+                # "RTP" or "RTP_KV" protocols.
+                #
                 # for RTP, RTP_KV adaptations the AES-128-CTR mode MUST be supported
                 if "AES-128-CTR" not in enums:
                     return False, "{} {} : {} constraint value must allow 'AES-128-CTR' for protocol {}".format(
                         identity, sender_receiver["id"], privacy_mode, constraints[privacy_protocol]["enum"])
+
+                # REFERENCE: The mode parameter MUST be one of the following: "AES-128-CTR", "AES-256-CTR",
+                # "AES-128-CTR_CMAC-64", "AES-256-CTR_CMAC-64", "AES-128-CTR_CMAC-64-AAD", "AES-256-CTR_CMAC-64-AAD",
+                # "ECDH_AES-128-CTR", "ECDH_AES-256-CTR", "ECDH_AES-128-CTR_CMAC-64", "ECDH_AES-256-CTR_CMAC-64",
+                # "ECDH_AES-128-CTR_CMAC-64-AAD", or "ECDH_AES-256-CTR_CMAC-64-AAD".
+                #
                 # for RTP, RTP_KV adaptations the mode MUST be on of the RTP modes
                 for c in enums:
                     if c not in allowed_rtp_modes:
                         return False, "{} {} : {} constraint value must be one of {} for protocol {}".format(
                             identity, sender_receiver["id"], privacy_mode, allowed_modes,
                             constraints[privacy_protocol]["enum"])
+
             if all(item in ("USB", "USB_KV") for item in constraints[privacy_protocol]["enum"]):
+
+                # REFERENCE: The "AES-128-CTR_CMAC-64-AAD" mode MUST be supported by all devices implementing
+                # the "USB" or "USB_KV" protocols.
+                #
                 # for USB, USB_KV adaptations the AES-128-CTR_CMAC-64-AAD mode MUST be supported
                 if "AES-128-CTR_CMAC-64-AAD" not in enums:
                     msg = "{} {} : {} constraint value must allow 'AES-128-CTR_CMAC-64-AAD' for protocol {}".format(
                         identity, sender_receiver["id"], privacy_mode, constraints[privacy_protocol]["enum"])
                     return False, msg
+
+                # REFERENCE: The mode parameter MUST be one of the following: "AES-128-CTR_CMAC-64-AAD",
+                # "AES-256-CTR_CMAC-64-AAD", "ECDH_AES-128-CTR_CMAC-64-AAD", or "ECDH_AES-256-CTR_CMAC-64-AAD".
+                #
                 # for USB, USB_KV adaptations the mode MUST be on of the USB modes
                 for c in enums:
                     if c not in allowed_usb_modes:
@@ -2548,6 +2757,12 @@ class BCP0050301Test(GenericTest):
         return True, ""
 
 
+# REFERENCE: A Sender/Receiver implementing TR-10-13 MUST provide the following extended transport parameters
+# in the IS-05 active, staged and constraints endpoints: ext_privacy_protocol, ext_privacy_mode, ext_privacy_iv,
+# ext_privacy_key_generator, ext_privacy_key_version, and ext_privacy_key_id. A Sender/Receiver implementing
+# TR-10-13 and supporting ECDH modes MUST also provide the following extended transport parameters in the IS-05
+# active, staged, and constraints endpoints: ext_privacy_ecdh_sender_public_key, ext_privacy_ecdh_receiver_public_key,
+# and ext_privacy_ecdh_curve.
 def checkSenderTransportParametersPEP(transport, constraints, staged, active):
 
     pep_required = ('ext_privacy_protocol', 'ext_privacy_mode', 'ext_privacy_iv', 'ext_privacy_key_generator',
@@ -2590,6 +2805,12 @@ def checkSenderTransportParametersPEP(transport, constraints, staged, active):
     return True, None
 
 
+# REFERENCE: A Sender/Receiver implementing TR-10-13 MUST provide the following extended transport parameters
+# in the IS-05 active, staged and constraints endpoints: ext_privacy_protocol, ext_privacy_mode, ext_privacy_iv,
+# ext_privacy_key_generator, ext_privacy_key_version, and ext_privacy_key_id. A Sender/Receiver implementing
+# TR-10-13 and supporting ECDH modes MUST also provide the following extended transport parameters in the IS-05
+# active, staged, and constraints endpoints: ext_privacy_ecdh_sender_public_key, ext_privacy_ecdh_receiver_public_key,
+# and ext_privacy_ecdh_curve.
 def checkReceiverTransportParametersPEP(transport, constraints, staged, active):
 
     pep_required = ('ext_privacy_protocol', 'ext_privacy_mode', 'ext_privacy_iv', 'ext_privacy_key_generator',
@@ -2634,11 +2855,13 @@ def checkReceiverTransportParametersPEP(transport, constraints, staged, active):
 
 def getPrivacyProtocolFromTransport(transport):
 
-    if transport in ('urn:x-nmos:transport:ndi'):
+    transport = urn_without_namespace(transport)
+
+    if transport in ('transport:ndi'):
         return ("NULL")
-    elif transport in ('urn:x-nmos:transport:usb'):
+    elif transport in ('transport:usb'):
         return ("NULL", "USB", "USB_KV")
-    elif transport in ('urn:x-nmos:transport:rtp', 'urn:x-nmos:transport:rtp.mcast', 'urn:x-nmos:transport:rtp.ucast'):
+    elif transport in ('transport:rtp', 'transport:rtp.mcast', 'transport:rtp.ucast'):
         return ("NULL", "RTP", "RTP_KV")
 
     return None
