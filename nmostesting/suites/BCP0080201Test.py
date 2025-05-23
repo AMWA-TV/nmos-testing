@@ -167,29 +167,21 @@ class BCP0080201Test(BCP008Test):
     def get_touchpoint_resource_type(self):
         return "sender"
 
-    def patch_resource(self, test, receiver_id):
-        url = "single/senders/{}/staged".format(receiver_id)
+    def patch_resource(self, test, sender_id):
         activate_json = {
             "receiver_id": None,
             "master_enable": True,
             "activation": {
                 "mode": "activate_immediate",
                 "requested_time": None
-            },
-            "transport_params": [
-                {
-                    "source_ip": "auto",
-                    "destination_ip": "auto",
-                    "source_port": "auto",
-                    "destination_port": "auto",
-                    "rtp_enabled": True
-                }
-            ]
+            }
         }
+
+        url = f"single/senders/{sender_id}/staged"
 
         valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, activate_json)
         if not valid:
-            raise NMOSTestException(test.FAIL("Error patching Sender " + str(response)))
+            raise NMOSTestException(test.FAIL(f"Error patching Sender. {str(response)}"))
 
     def deactivate_resource(self, test, resource_id):
         url = "single/senders/{}/staged".format(resource_id)
@@ -198,13 +190,13 @@ class BCP0080201Test(BCP008Test):
 
         valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, deactivate_json)
         if not valid:
-            raise NMOSTestException(test.FAIL("Error patching Receiver " + str(response)))
+            raise NMOSTestException(test.FAIL(f"Error patching Receiver {str(response)}"))
 
     # Validation
     def is_valid_resource(self, test, touchpoint_resource):
         # Check it's an RTP resource
         if touchpoint_resource is not None:
-            url = "single/senders/{}/transporttype".format(touchpoint_resource.resource["id"])
+            url = f"single/senders/{touchpoint_resource.resource["id"]}/transporttype"
 
             valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
             if not valid:
