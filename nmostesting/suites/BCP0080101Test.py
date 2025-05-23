@@ -89,7 +89,7 @@ class BCP0080101Test(BCP008Test):
         # For each receiver in the NuT make appropriate SDP params
         valid, resources = self.do_request("GET", self.node_url + "receivers")
         if not valid:
-            return False, "Node API did not respond as expected: {}".format(resources)
+            return False, f"Node API did not respond as expected: {resources}"
 
         try:
             for resource in resources.json():
@@ -146,7 +146,7 @@ class BCP0080101Test(BCP008Test):
             template = Template(template_file, keep_trailing_newline=True)
 
             src_ip = get_default_ip()
-            dst_ip = "232.40.50.{}".format(randint(1, 254))
+            dst_ip = f"232.40.50.{randint(1, 254)}"
             dst_port = (randint(5000, 5999) >> 1) << 1  # Choose a random even port
 
             sdp_params[receiver["id"]] = template.render({**CONFIG.SDP_PREFERENCES,
@@ -255,7 +255,7 @@ class BCP0080101Test(BCP008Test):
         if not self.sdp_params:
             self.sdp_params = self._make_receiver_sdp_params(test)
 
-        url = "single/receivers/{}/staged".format(receiver_id)
+        url = f"single/receivers/{receiver_id}/staged"
         activate_json = {"activation": {"mode": "activate_immediate"},
                          "master_enable": True,
                          "sender_id": str(uuid4()),
@@ -263,16 +263,16 @@ class BCP0080101Test(BCP008Test):
 
         valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, activate_json)
         if not valid:
-            raise NMOSTestException(test.FAIL("Error patching Receiver " + str(response)))
+            raise NMOSTestException(test.FAIL(f"Error patching Receiver {str(response)}"))
 
     def deactivate_resource(self, test, resource_id):
-        url = "single/receivers/{}/staged".format(resource_id)
+        url = f"single/receivers/{resource_id}/staged"
         deactivate_json = {"master_enable": False, 'sender_id': None,
                            "activation": {"mode": "activate_immediate"}}
 
         valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, deactivate_json)
         if not valid:
-            raise NMOSTestException(test.FAIL("Error patching Receiver " + str(response)))
+            raise NMOSTestException(test.FAIL(f"Error patching Receiver {str(response)}"))
 
     # Validation
     def is_valid_resource(self, test, touchpoint_resource):
