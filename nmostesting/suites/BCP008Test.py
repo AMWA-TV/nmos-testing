@@ -14,7 +14,7 @@
 
 
 from enum import Enum, IntEnum
-from time import sleep, time
+from time import sleep
 
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS05Utils import IS05Utils
@@ -203,10 +203,10 @@ class BCP008Test(GenericTest):
     def is_valid_resource(self, touchpoint_resource):
         pass
 
-    def check_overall_status(self, statuses, oid, role_path):
+    def check_overall_status(self, monitor, statuses):
         pass
 
-    def validate_status_values(self, statuses, oid, role_path):
+    def validate_status_values(self, monitor, statuses):
         pass
 
     def _get_property(self, test, property_id, oid, role_path):
@@ -227,7 +227,7 @@ class BCP008Test(GenericTest):
 
         return method_result
 
-    def _get_touchpoint_resource(self, test, oid, role_path):
+    def _get_touchpoint_resource(self, test, monitor):
         # The touchpoints property of any Monitor MUST have one or more touchpoints of which
         # one and only one entry MUST be of type NcTouchpointNmos where
         # the resourceType field MUST be set to correct resource type and
@@ -236,14 +236,14 @@ class BCP008Test(GenericTest):
 
         touchpoint_resources = []
 
-        touchpoints = self._get_property(test, NcObjectProperties.TOUCHPOINTS.value, oid, role_path)
+        touchpoints = self._get_property(test, NcObjectProperties.TOUCHPOINTS.value, monitor.oid, monitor.role_path)
 
         for touchpoint in touchpoints:
             if "contextNamespace" not in touchpoint:
                 self.check_touchpoint_metadata.error = True
                 self.check_touchpoint_metadata.error_msg = "Touchpoint doesn't obey MS-05-02 schema " \
-                    f"for Monitor, oid={oid}, " \
-                    f"role path={role_path}; "
+                    f"for Monitor, oid={monitor.oid}, " \
+                    f"role path={monitor.role_path}; "
                 self.check_touchpoint_metadata.link = f"{CONTROL_FRAMEWORK_SPEC_ROOT}" \
                     f"{self.apis[CONTROL_API_KEY]['spec_branch']}/Framework.html#nctouchpoint"
                 continue
@@ -254,8 +254,8 @@ class BCP008Test(GenericTest):
         if len(touchpoint_resources) != 1:
             self.check_touchpoint_metadata.error = True
             self.check_touchpoint_metadata.error_msg = "One and only one touchpoint MUST be of type NcTouchpointNmos " \
-                f"for Monitor, oid={oid}, " \
-                f"role path={role_path}; "
+                f"for Monitor, oid={monitor.oid}, " \
+                f"role path={monitor.role_path}; "
             self.check_touchpoint_metadata.link = spec_link
             return None
 
@@ -267,8 +267,8 @@ class BCP008Test(GenericTest):
             self.check_touchpoint_metadata.error = True
             self.check_touchpoint_metadata.error_msg = \
                 f"Touchpoint resourceType field MUST be set to '{expected_resource_type}' " \
-                f"for Monitor, oid={oid}, " \
-                f"role path={role_path}; "
+                f"for Monitor, oid={monitor.oid}, " \
+                f"role path={monitor.role_path}; "
             self.check_touchpoint_metadata.link = spec_link
             return None
 
@@ -276,7 +276,7 @@ class BCP008Test(GenericTest):
 
         return touchpoint_resource
 
-    def _check_statuses(self, initial_statuses, notifications, oid, role_path):
+    def _check_statuses(self, monitor, initial_statuses, notifications):
 
         def _get_status_from_notifications(initial_status, notifications, property_id):
             # Aggregate initial status with any status change notifications
@@ -289,16 +289,17 @@ class BCP008Test(GenericTest):
                           _get_status_from_notifications(initial_status, notifications, property_id))
                         for property_id, initial_status in initial_statuses.items()])
 
-        self.check_overall_status(statuses, oid, role_path)
-        self.validate_status_values(statuses, oid, role_path)
+        self.check_overall_status(monitor, statuses)
+        self.validate_status_values(monitor, statuses)
 
-    def _check_connection_status(self, monitor, start_time, status_reporting_delay, notifications):
+    def _check_connection_status(self, monitor, activation_time, status_reporting_delay, notifications):
         # A resource is expected to go through a period of instability upon activation.
         # Therefore, on resource activation domain specific statuses offering an Inactive option
         # MUST transition immediately to the Healthy state. Furthermore, after activation,
         # as long as the resource isn’t being deactivated, it MUST delay the reporting of
         # non Healthy states for the duration specified by statusReportingDelay, and then
         # transition to any other appropriate state.
+        tolerance = 0.2  # Allow for delays in notifications after activation
         connection_status_property = self.get_connection_status_property_id()
 
         # These values are common across NcConnectionStatus (Receivers) and NcTransmissionStatus (Senders)
@@ -308,7 +309,7 @@ class BCP008Test(GenericTest):
         connection_status_notifications = \
             [n for n in notifications
                 if n.eventData.propertyId == connection_status_property.value
-                and n.received_time >= start_time]
+                and n.received_time >= activation_time]
 
         self.check_activation_metadata.link = self.get_reporting_delay_spec_link()
 
@@ -329,9 +330,10 @@ class BCP008Test(GenericTest):
 
         # Check that the monitor stayed in the healthy state (unless transitioned to Inactive)
         # during the status reporting delay period
+        end_of_reporting_delay_period = activation_time + status_reporting_delay - tolerance
         if len(connection_status_notifications) > 1 \
                 and connection_status_notifications[1].eventData.value != CONNECTION_STATUS_INACTIVE \
-                and connection_status_notifications[1].received_time < start_time + status_reporting_delay:
+                and connection_status_notifications[1].received_time < end_of_reporting_delay_period:
             self.check_activation_metadata.error = True
             self.check_activation_metadata.error_msg += \
                 "Expect status to remain healthy for at least the status reporting delay for Monitor, " \
@@ -359,7 +361,7 @@ class BCP008Test(GenericTest):
         if len(connection_status_transition_counter_notifications) > 0:
             self.check_transitions_counted_metadata.checked = True
 
-    def _check_deactivate_resource(self, test, monitor_oid, monitor_role_path, resource_id):
+    def _check_deactivate_resource(self, test, monitor, resource_id):
         # When a resource is being deactivated it MUST cleanly disconnect from the current stream by not
         # generating intermediate unhealthy states (PartiallyHealthy or Unhealthy) and instead transition
         # directly and immediately (without being delayed by the statusReportingDelay)
@@ -369,7 +371,8 @@ class BCP008Test(GenericTest):
         CONNECTION_STATUS_INACTIVE = 0
 
         # Check deactivation of resource during status replorting delay
-        start_time = time()
+        # Assume that resource is inactive before this check
+        notifications = self.is12_utils.reset_notifications()
 
         self.patch_resource(test, resource_id)
 
@@ -381,7 +384,9 @@ class BCP008Test(GenericTest):
         # Process time stamped notifications
         notifications = self.is12_utils.get_notifications()
 
-        deactivate_resource_notifications = [n for n in notifications if n.received_time >= start_time]
+        activation_time = self._get_activation_time(test, monitor, notifications)
+
+        deactivate_resource_notifications = [n for n in notifications if n.received_time >= activation_time]
 
         self.check_deactivate_monitor_metadata.link = self.get_deactivating_monitor_spec_link()
 
@@ -396,7 +401,7 @@ class BCP008Test(GenericTest):
                 self.check_deactivate_monitor_metadata.error = True
                 self.check_deactivate_monitor_metadata.error_msg += \
                     "No status notifications received for Monitor, " \
-                    f"oid={monitor_oid}, role path={monitor_role_path}; "
+                    f"oid={monitor.oid}, role path={monitor.role_path}; "
 
             # Check that the monitor transitioned to inactive
             if len(filtered_notifications) > 0 \
@@ -404,7 +409,7 @@ class BCP008Test(GenericTest):
                 self.check_deactivate_monitor_metadata.error = True
                 self.check_deactivate_monitor_metadata.error_msg += \
                     "Expect status to transition to Inactive for Monitor, " \
-                    f"oid={monitor_oid}, role path={monitor_role_path}; "
+                    f"oid={monitor.oid}, role path={monitor.role_path}; "
 
             self.check_deactivate_monitor_metadata.checked = True
 
@@ -457,11 +462,22 @@ class BCP008Test(GenericTest):
         self.deactivate_resource(test, resource_id)
         sleep(2.0)  # Settling time
 
+    def _get_activation_time(self, test, monitor, notifications):
+        # On activation the overall status MUST transition to healthy
+        activation_notification = [n for n in notifications if n.eventData.propertyId != NcOverallStatus]
+
+        if len(activation_notification) == 0:
+            raise NMOSTestException(
+                test.FAIL("Overall status did not transition to Healthy on activation for Monitor: "
+                          f"oid={monitor.oid}, "
+                          f"role path={monitor.role_path}: "))
+
+        # The received time of the first transition to Healthy is assumed to be the activation time
+        return activation_notification[0].received_time
+
     def _check_monitor_status_changes(self, test):
         def is_monitor_valid(test, monitor):
-            touchpoint_resource = self._get_touchpoint_resource(test,
-                                                                monitor.oid,
-                                                                monitor.role_path)
+            touchpoint_resource = self._get_touchpoint_resource(test, monitor)
             return self.is_valid_resource(test, touchpoint_resource)
 
         if self.check_activation_metadata.checked:
@@ -490,16 +506,6 @@ class BCP008Test(GenericTest):
                               f"{CONTROL_PROTOCOL_SPEC_ROOT}{self.apis[CONTROL_API_KEY]['spec_branch']}"
                               "/docs/Protocol_messaging.html#subscription-response-message-type"))
 
-            # Capture initial states of domain statuses
-            initial_statuses = dict([(property_id,
-                                      self._get_property(test,
-                                                         property_id.value,
-                                                         role_path=monitor.role_path,
-                                                         oid=monitor.oid))
-                                     for property_id in status_properties])
-
-            self.is12_utils.reset_notifications()
-
             # Set status reporting delay to the specification default
             status_reporting_delay = 3
             self._set_property(test,
@@ -509,61 +515,66 @@ class BCP008Test(GenericTest):
                                role_path=monitor.role_path)
 
             # Get associated resource for this monitor
-            touchpoint_resource = self._get_touchpoint_resource(test,
-                                                                monitor.oid,
-                                                                monitor.role_path)
+            touchpoint_resource = self._get_touchpoint_resource(test, monitor)
 
             resource_id = touchpoint_resource.resource["id"]
 
-            if initial_statuses[NcStatusMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
+            overall_status = self._get_property(test,
+                                                NcStatusMonitorProperties.OVERALL_STATUS.value,
+                                                role_path=monitor.role_path,
+                                                oid=monitor.oid)
+
+            if overall_status != NcOverallStatus.Inactive.value:
                 # This test depends on the resource being inactive in the first instance
                 self.deactivate_resource(test, resource_id)
                 sleep(2.0)  # Settling time
-                initial_statuses = dict([(property_id,
-                                          self._get_property(test,
-                                                             property_id.value,
-                                                             role_path=monitor.role_path,
-                                                             oid=monitor.oid))
-                                         for property_id in status_properties])
 
-            # Assume that the resource patch happens immediately after start_time
-            start_time = time()
+            # Reset the notifications
+            self.is12_utils.reset_notifications()
+            # Capture initial states of domain statuses
+            initial_statuses = dict([(property_id,
+                                      self._get_property(test,
+                                                         property_id.value,
+                                                         role_path=monitor.role_path,
+                                                         oid=monitor.oid))
+                                     for property_id in status_properties])
 
             self.patch_resource(test, resource_id)
 
-            # Wait until one second more that status reporting delay to capture transition to less healthy state
+            # Wait until slightly more that status reporting delay to
+            # potentially capture transition to less healthy state
             sleep(status_reporting_delay + 2.0)
 
-            # Ensure ResetCounter method resets counters to zero
-            self._check_reset_counters(test, monitor)
-
-            # Now process historic, time stamped, notifications
+            # Capture historic, time stamped, notifications for processing
             notifications = self.is12_utils.get_notifications()
 
+            activation_time = self._get_activation_time(test, monitor, notifications)
+
             # Check statuses before resource patched
-            status_notifications = [n for n in notifications if n.received_time < start_time]
-            self._check_statuses(initial_statuses, status_notifications, monitor.oid, monitor.role_path)
+            status_notifications = [n for n in notifications if n.received_time < activation_time]
+            self._check_statuses(monitor, initial_statuses, status_notifications)
 
             # Check statuses during status reporting delay
             status_notifications = \
-                [n for n in notifications if n.received_time < start_time + status_reporting_delay]
-            self._check_statuses(initial_statuses, status_notifications, monitor.oid, monitor.role_path)
+                [n for n in notifications if n.received_time < activation_time + status_reporting_delay]
+            self._check_statuses(monitor, initial_statuses, status_notifications)
 
-            # Check statuses after status reporting delay
-            status_notifications = \
-                [n for n in notifications if n.received_time >= start_time + status_reporting_delay]
-            self._check_statuses(initial_statuses, status_notifications, monitor.oid, monitor.role_path)
+            # Check latest statuses, after reporting delay
+            self._check_statuses(monitor, initial_statuses, notifications)
 
             # Check the Connection Status stayed healthy during status reporting delay
             # and transitioned to unhealthy afterwards (assuming not deactivated during delay)
-            self._check_connection_status(monitor, start_time, status_reporting_delay, notifications)
+            self._check_connection_status(monitor, activation_time, status_reporting_delay, notifications)
 
             self._check_connection_status_transition_counter(notifications)
 
             self.deactivate_resource(test, resource_id)
             sleep(2.0)  # Settling time
 
-            self._check_deactivate_resource(test, monitor.oid, monitor.role_path, resource_id)
+            # Ensure ResetCounter method resets counters to zero
+            self._check_reset_counters(test, monitor)
+
+            self._check_deactivate_resource(test, monitor, resource_id)
 
             self._check_auto_reset_counters(test, monitor, resource_id)
 
@@ -706,7 +717,7 @@ class BCP008Test(GenericTest):
         return test.PASS()
 
     def test_03(self, test):
-        """Transition to Non-healthy states at activation"""
+        """Transition to non-healthy states delayed until status reporting delay period passed"""
 
         self._check_monitor_status_changes(test)
 

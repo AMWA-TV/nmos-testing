@@ -284,7 +284,7 @@ class BCP0080101Test(BCP008Test):
 
         return True
 
-    def check_overall_status(self, statuses, oid, role_path):
+    def check_overall_status(self, monitor, statuses):
         # Devices MUST follow the rules listed below when mapping specific domain statuses
         # in the combined overallStatus:
         # * When the Receiver is Inactive the overallStatus uses the Inactive option
@@ -305,7 +305,7 @@ class BCP0080101Test(BCP008Test):
                 "Overall Status expected to be Inactive when Connection Status is Inactive, " \
                 f"actual Overall Status {NcOverallStatus(statuses[NcStatusMonitorProperties.OVERALL_STATUS]).name}" \
                 " for Monitor, " \
-                f"oid={oid}, role path={role_path}; "
+                f"oid={monitor.oid}, role path={monitor.role_path}; "
 
         if statuses[NcReceiverMonitorProperties.STREAM_STATUS] == NcStreamStatus.Inactive.value \
                 and statuses[NcStatusMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
@@ -314,7 +314,7 @@ class BCP0080101Test(BCP008Test):
                 "Overall Status expected to be Inactive when Stream Status is Inactive, " \
                 f"actual Overall Status {NcOverallStatus(statuses[NcStatusMonitorProperties.OVERALL_STATUS]).name}" \
                 " for Monitor, " \
-                f"oid={oid}, role path={role_path}; "
+                f"oid={monitor.oid}, role path={monitor.role_path}; "
 
         # Test Active states
         if statuses[NcReceiverMonitorProperties.CONNECTION_STATUS] != NcConnectionStatus.Inactive.value \
@@ -326,12 +326,12 @@ class BCP0080101Test(BCP008Test):
                 self.check_overall_status_metadata.error_msg += \
                     f"Expected Overall Status was {NcOverallStatus(least_healthy_state).name}, " \
                     f"actual {NcOverallStatus(statuses[NcStatusMonitorProperties.OVERALL_STATUS]).name} " \
-                    f"for Monitor, oid={oid}, " \
-                    f"role path={role_path}; "
+                    f"for Monitor, oid={monitor.oid}, " \
+                    f"role path={monitor.role_path}; "
 
         self.check_overall_status_metadata.checked = True
 
-    def validate_status_values(self, statuses, oid, role_path):
+    def validate_status_values(self, monitor, statuses):
         spec_link_root = f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#"
         invalid_statuses = []
@@ -360,8 +360,8 @@ class BCP0080101Test(BCP008Test):
             self.check_status_values_valid_metadata.error = True
             self.check_status_values_valid_metadata.error_msg = \
                 f"Invalid status found in following properties: {', '.join(invalid_statuses)} " \
-                f"for Monitor, oid={oid}, " \
-                f"role path={role_path}; "
+                f"for Monitor, oid={monitor.oid}, " \
+                f"role path={monitor.role_path}; "
             self.check_status_values_valid_metadata.link = f"{spec_link_root}{spec_section}"
         else:
             self.check_status_values_valid_metadata.checked = True
