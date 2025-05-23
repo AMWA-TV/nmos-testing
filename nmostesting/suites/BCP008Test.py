@@ -91,6 +91,8 @@ class BCP008Test(GenericTest):
         # Prevent auto testing of IS-04 and IS-05 APIs
         apis[NODE_API_KEY].pop("raml", None)
         apis[CONN_API_KEY].pop("raml", None)
+        # override the featuresets repos to only test against the monitoring feature set
+        apis['featuresets']['repo_paths'] = ['monitoring']
         GenericTest.__init__(self, apis, omit_paths, **kwargs)
         self.is05_utils = IS05Utils(self.apis[CONN_API_KEY]["url"])
         self.is12_utils = IS12Utils(self.apis)
