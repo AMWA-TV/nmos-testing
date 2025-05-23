@@ -209,18 +209,20 @@ class BCP008Test(GenericTest):
     def validate_status_values(self, monitor, statuses):
         pass
 
-    def _get_property(self, test, property_id, oid, role_path):
+    def _get_property(self, test, monitor, property_id):
         """Get a property and handle any error"""
-        method_result = self.is12_utils.get_property(test, property_id, oid=oid, role_path=role_path)
+        method_result = self.is12_utils.get_property(test, property_id,
+                                                     oid=monitor.oid, role_path=monitor.role_path)
 
         if not self._status_ok(method_result):
             raise NMOSTestException(test.FAIL(method_result.errorMessage))
 
         return method_result.value
 
-    def _set_property(self, test, property_id, value, oid, role_path):
+    def _set_property(self, test, monitor, property_id, value):
         """Set a property and handle any error"""
-        method_result = self.is12_utils.set_property(test, property_id, value, oid=oid, role_path=role_path)
+        method_result = self.is12_utils.set_property(test, property_id, value,
+                                                     oid=monitor.oid, role_path=monitor.role_path)
 
         if not self._status_ok(method_result):
             raise NMOSTestException(test.FAIL(method_result.errorMessage))
@@ -236,14 +238,13 @@ class BCP008Test(GenericTest):
 
         touchpoint_resources = []
 
-        touchpoints = self._get_property(test, NcObjectProperties.TOUCHPOINTS.value, monitor.oid, monitor.role_path)
+        touchpoints = self._get_property(test, monitor, NcObjectProperties.TOUCHPOINTS.value)
 
         for touchpoint in touchpoints:
             if "contextNamespace" not in touchpoint:
                 self.check_touchpoint_metadata.error = True
                 self.check_touchpoint_metadata.error_msg = "Touchpoint doesn't obey MS-05-02 schema " \
-                    f"for Monitor, oid={monitor.oid}, " \
-                    f"role path={monitor.role_path}; "
+                    f"for Monitor: {monitor}; "
                 self.check_touchpoint_metadata.link = f"{CONTROL_FRAMEWORK_SPEC_ROOT}" \
                     f"{self.apis[CONTROL_API_KEY]['spec_branch']}/Framework.html#nctouchpoint"
                 continue
@@ -254,8 +255,7 @@ class BCP008Test(GenericTest):
         if len(touchpoint_resources) != 1:
             self.check_touchpoint_metadata.error = True
             self.check_touchpoint_metadata.error_msg = "One and only one touchpoint MUST be of type NcTouchpointNmos " \
-                f"for Monitor, oid={monitor.oid}, " \
-                f"role path={monitor.role_path}; "
+                f"for Monitor: {monitor}; "
             self.check_touchpoint_metadata.link = spec_link
             return None
 
@@ -267,8 +267,7 @@ class BCP008Test(GenericTest):
             self.check_touchpoint_metadata.error = True
             self.check_touchpoint_metadata.error_msg = \
                 f"Touchpoint resourceType field MUST be set to '{expected_resource_type}' " \
-                f"for Monitor, oid={monitor.oid}, " \
-                f"role path={monitor.role_path}; "
+                f"for Monitor: {monitor}; "
             self.check_touchpoint_metadata.link = spec_link
             return None
 
@@ -316,8 +315,7 @@ class BCP008Test(GenericTest):
         if len(connection_status_notifications) == 0:
             self.check_activation_metadata.error = True
             self.check_activation_metadata.error_msg += \
-                "No status notifications received for Monitor, " \
-                f"oid={monitor.oid}, role path={monitor.role_path}; "
+                f"No status notifications received for Monitor: {monitor}"
             return
 
         # Check that the monitor transitioned to healthy
@@ -325,8 +323,7 @@ class BCP008Test(GenericTest):
                 and connection_status_notifications[0].eventData.value != CONNECTION_STATUS_HEALTHY:
             self.check_activation_metadata.error = True
             self.check_activation_metadata.error_msg += \
-                "Expect status to transition to healthy for Monitor, " \
-                f"oid={monitor.oid}, role path={monitor.role_path}; "
+                f"Expect status to transition to healthy for Monitor: {monitor}"
 
         # Check that the monitor stayed in the healthy state (unless transitioned to Inactive)
         # during the status reporting delay period
@@ -336,8 +333,7 @@ class BCP008Test(GenericTest):
                 and connection_status_notifications[1].received_time < end_of_reporting_delay_period:
             self.check_activation_metadata.error = True
             self.check_activation_metadata.error_msg += \
-                "Expect status to remain healthy for at least the status reporting delay for Monitor, " \
-                f"oid={monitor.oid}, role path={monitor.role_path}; "
+                f"Expect status to remain healthy for at least the status reporting delay for Monitor: {monitor}; "
 
         # There is no *actual* stream so we expect connection to transition
         # to a less healthy state after the status reporting delay
@@ -400,16 +396,14 @@ class BCP008Test(GenericTest):
             if len(filtered_notifications) == 0:
                 self.check_deactivate_monitor_metadata.error = True
                 self.check_deactivate_monitor_metadata.error_msg += \
-                    "No status notifications received for Monitor, " \
-                    f"oid={monitor.oid}, role path={monitor.role_path}; "
+                    f"No status notifications received for Monitor: {monitor}; "
 
             # Check that the monitor transitioned to inactive
             if len(filtered_notifications) > 0 \
                     and filtered_notifications[-1].eventData.value != CONNECTION_STATUS_INACTIVE:
                 self.check_deactivate_monitor_metadata.error = True
                 self.check_deactivate_monitor_metadata.error_msg += \
-                    "Expect status to transition to Inactive for Monitor, " \
-                    f"oid={monitor.oid}, role path={monitor.role_path}; "
+                    f"Expect status to transition to Inactive for Monitor: {monitor}; "
 
             self.check_deactivate_monitor_metadata.checked = True
 
@@ -422,17 +416,15 @@ class BCP008Test(GenericTest):
 
         # Make sure autoResetCounters enabled
         self._set_property(test,
+                           monitor,
                            auto_reset_counter_property.value,
-                           True,
-                           oid=monitor.oid,
-                           role_path=monitor.role_path)
+                           True)
 
         # generate status transitions
         status_reporting_delay = \
             self._get_property(test,
-                               NcStatusMonitorProperties.STATUS_REPORTING_DELAY.value,
-                               oid=monitor.oid,
-                               role_path=monitor.role_path)
+                               monitor,
+                               NcStatusMonitorProperties.STATUS_REPORTING_DELAY.value)
         self.patch_resource(test, resource_id)
         sleep(status_reporting_delay + 1.0)  # This assumes the connection status becomes unhealty
         self.deactivate_resource(test, resource_id)
@@ -453,9 +445,7 @@ class BCP008Test(GenericTest):
         if len(non_zero_counters) > 0:
             self.check_auto_reset_counters_metadata.error = True
             self.check_auto_reset_counters_metadata.error_msg = \
-                f"Transition counters {', '.join(non_zero_counters)} not reset for Monitor, " \
-                f"oid={monitor.oid}, " \
-                f"role path={monitor.role_path}: "
+                f"Transition counters {', '.join(non_zero_counters)} not reset for Monitor: {monitor}; "
 
         self.check_auto_reset_counters_metadata.checked = True
 
@@ -468,9 +458,7 @@ class BCP008Test(GenericTest):
 
         if len(activation_notification) == 0:
             raise NMOSTestException(
-                test.FAIL("Overall status did not transition to Healthy on activation for Monitor: "
-                          f"oid={monitor.oid}, "
-                          f"role path={monitor.role_path}: "))
+                test.FAIL(f"Overall status did not transition to Healthy on activation for Monitor: {monitor}"))
 
         # The received time of the first transition to Healthy is assumed to be the activation time
         return activation_notification[0].received_time
@@ -509,10 +497,9 @@ class BCP008Test(GenericTest):
             # Set status reporting delay to the specification default
             status_reporting_delay = 3
             self._set_property(test,
+                               monitor,
                                NcStatusMonitorProperties.STATUS_REPORTING_DELAY.value,
-                               status_reporting_delay,
-                               oid=monitor.oid,
-                               role_path=monitor.role_path)
+                               status_reporting_delay)
 
             # Get associated resource for this monitor
             touchpoint_resource = self._get_touchpoint_resource(test, monitor)
@@ -520,9 +507,8 @@ class BCP008Test(GenericTest):
             resource_id = touchpoint_resource.resource["id"]
 
             overall_status = self._get_property(test,
-                                                NcStatusMonitorProperties.OVERALL_STATUS.value,
-                                                role_path=monitor.role_path,
-                                                oid=monitor.oid)
+                                                monitor,
+                                                NcStatusMonitorProperties.OVERALL_STATUS.value)
 
             if overall_status != NcOverallStatus.Inactive.value:
                 # This test depends on the resource being inactive in the first instance
@@ -534,9 +520,8 @@ class BCP008Test(GenericTest):
             # Capture initial states of domain statuses
             initial_statuses = dict([(property_id,
                                       self._get_property(test,
-                                                         property_id.value,
-                                                         role_path=monitor.role_path,
-                                                         oid=monitor.oid))
+                                                         monitor,
+                                                         property_id.value))
                                      for property_id in status_properties])
 
             self.patch_resource(test, resource_id)
@@ -595,15 +580,11 @@ class BCP008Test(GenericTest):
                 role_path=monitor.role_path)
 
             if not self._status_ok(method_result):
-                return test.FAIL("Method invokation failed for Monitor, "
-                                 f"oid={monitor.oid}, "
-                                 f"role path={monitor.role_path}: "
+                return test.FAIL(f"Method invokation failed for Monitor: {monitor}: "
                                  f"{method_result.errorMessage}", spec_link)
 
             if method_result.value is None or not isinstance(method_result.value, list):
-                return test.FAIL(f"Expected an array, got {str(method_result.value)} for Monitor, "
-                                 f"oid={monitor.oid}, "
-                                 f"role path={monitor.role_path}: ", spec_link)
+                return test.FAIL(f"Expected an array, got {str(method_result.value)} for Monitor: {monitor}", spec_link)
 
             for counter in method_result.value:
                 self.is12_utils.reference_datatype_schema_validate(test, counter, "NcCounter")
@@ -615,9 +596,8 @@ class BCP008Test(GenericTest):
 
         counter_values = dict([(key,
                                 self._get_property(test,
-                                                   property_id.value,
-                                                   role_path=monitor.role_path,
-                                                   oid=monitor.oid))
+                                                   monitor,
+                                                   property_id.value))
                                for key, property_id in transition_counters.items()])
 
         return [c for c, v in counter_values.items() if v > 0]
@@ -648,8 +628,7 @@ class BCP008Test(GenericTest):
         if not self._status_ok(method_result):
             self.check_reset_counters_metadata.error = True
             self.check_reset_counters_metadata.error_msg = \
-                "Method invokation ResetCounters failed for Monitor, " \
-                f"oid={monitor.oid}, role path={monitor.role_path}: " \
+                f"Method invokation ResetCounters failed for Monitor: {monitor}: " \
                 f"{method_result.errorMessage}. "
             return
 
@@ -658,8 +637,7 @@ class BCP008Test(GenericTest):
         if len(non_zero_counters) > 0:
             self.check_reset_counters_metadata.error = True
             self.check_reset_counters_metadata.error_msg = \
-                f"Transition counters {', '.join(non_zero_counters)} not reset for Monitor, " \
-                f"oid={monitor.oid}, role path={monitor.role_path}: "
+                f"Transition counters {', '.join(non_zero_counters)} not reset for Monitor: {monitor}; "
 
         self.check_reset_counters_metadata.checked = True
 
@@ -678,24 +656,19 @@ class BCP008Test(GenericTest):
                 oid=monitor.oid, role_path=monitor.role_path)
 
             if not self._status_ok(method_result):
-                return test.FAIL("SetProperty error: Error setting statusReportingDelay on Monitor, "
-                                 f"oid={monitor.oid}, "
-                                 f"role path={monitor.role_path}")
+                return test.FAIL(f"SetProperty error: Error setting statusReportingDelay on Monitor: {monitor}")
 
             method_result = self.is12_utils.get_property(
                 test, NcStatusMonitorProperties.STATUS_REPORTING_DELAY.value,
                 oid=monitor.oid, role_path=monitor.role_path)
 
             if not self._status_ok(method_result):
-                return test.FAIL("GetProperty error: Error getting statusReportingDelay on Monitor, "
-                                 f"oid={monitor.oid}, "
-                                 f"role path={monitor.role_path}")
+                return test.FAIL(f"GetProperty error: Error getting statusReportingDelay on Monitor: {monitor}")
 
             if method_result.value != default_status_reporting_delay:
                 return test.FAIL("Unexpected status reporting delay on Monitor. "
-                                 f"Expected={default_status_reporting_delay} actual={method_result.value}, "
-                                 f"oid={monitor.oid}, "
-                                 f"role path={monitor.role_path}")
+                                 f"Expected={default_status_reporting_delay} "
+                                 f"actual={method_result.value} for Monitor: {monitor}")
 
         return test.PASS()
 
@@ -857,16 +830,13 @@ class BCP008Test(GenericTest):
 
         for monitor in monitors:
             syncSourceId = self._get_property(test,
-                                              sync_source_id_property.value,
-                                              oid=monitor.oid,
-                                              role_path=monitor.role_path)
+                                              monitor,
+                                              sync_source_id_property.value)
 
             # Synchronization source id can be null, "internal" or some identifier, but it can't be empty
             if syncSourceId == "":
                 return test.FAIL("Synchronization source id MUST be either null, 'internal' "
-                                 "or an identifer for Monitor, "
-                                 f"oid={monitor.oid}, "
-                                 f"role path={monitor.role_path}.", spec_link)
+                                 f"or an identifer for Monitor: {monitor}", spec_link)
 
         return test.PASS()
 
@@ -915,14 +885,12 @@ class BCP008Test(GenericTest):
 
         for monitor in monitors:
             enabled = self._get_property(test,
-                                         NcWorkerProperties.ENABLED.value,
-                                         oid=monitor.oid,
-                                         role_path=monitor.role_path)
+                                         monitor,
+                                         NcWorkerProperties.ENABLED.value)
 
             if enabled is not True:
                 return test.FAIL("Monitors MUST always have the enabled property set to true "
-                                 f"for Monitor, oid={monitor.oid}, "
-                                 f"role path={monitor.role_path}.", spec_link)
+                                 f"for Monitor: {monitor}", spec_link)
 
             method_result = self.is12_utils.set_property(test,
                                                          NcWorkerProperties.ENABLED.value,
@@ -932,12 +900,10 @@ class BCP008Test(GenericTest):
 
             if method_result.status == NcMethodStatus.OK:
                 return test.FAIL("Monitors MUST NOT allow changes to the enabled property "
-                                 f"for Monitor, oid={monitor.oid}, "
-                                 f"role path={monitor.role_path}.", spec_link)
+                                 f"for Monitor: {monitor}", spec_link)
 
             if method_result.status != NcMethodStatus.InvalidRequest:
                 return test.FAIL("Monitors MUST return InvalidRequest "
                                  "to Set method invocations for this property "
-                                 f"for Monitor, oid={monitor.oid}, "
-                                 f"role path={monitor.role_path}.", spec_link)
+                                 f"for Monitor: {monitor}", spec_link)
         return test.PASS()

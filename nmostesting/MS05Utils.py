@@ -1217,6 +1217,9 @@ class NcObject():
         self.runtime_constraints = runtime_constraints
         self.member_descriptor = member_descriptor
 
+    def __str__(self):
+        return f"[oid={self.oid}, role_path={self.role_path}]"
+
 
 class NcBlock(NcObject):
     def __init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor):
