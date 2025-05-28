@@ -431,6 +431,14 @@ class MS0501Test(ControllerTest):
             self.unique_oids_metadata.checked = True
             self.oid_cache.append(oid)
 
+    def _check_owner(self, parent_oid, role_path, owner):
+        """Check owner is correct"""
+        if parent_oid != owner:
+            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
+            self.device_model_metadata.error = True
+            self.device_model_metadata.error_msg = f"{error_msg_base}Incorrect owner; " \
+                f"expected {parent_oid}, actual {owner}; "
+
     def _check_manager(self, class_id, owner, class_descriptors, manager_cache, role_path):
         """Check manager is singleton and that it inherits from NcManager"""
         # detemine the standard base class name
@@ -748,6 +756,8 @@ class MS0501Test(ControllerTest):
 
             self._check_unique_roles(descriptor.role, role_cache, block.role_path)
             self._check_unique_oid(descriptor.oid, block.role_path)
+            self._check_owner(block.oid, child_object.role_path, child_object.owner)
+
             # check for non-standard classes
             if self.ms05_utils.is_non_standard_class(descriptor.classId):
                 self.organization_metadata.checked = True
@@ -1697,96 +1707,6 @@ class MS0501Test(ControllerTest):
                                            test_type="multi_choice",
                                            test_method_name=test_method_name)["answer_response"]
 
-    def _get_constraints(self, test, class_property, datatype_descriptors, object_runtime_constraints):
-        datatype_constraints = None
-        runtime_constraints = None
-        # Level 0: Datatype constraints
-        if class_property.typeName:
-            datatype_constraints = datatype_descriptors.get(class_property.typeName).constraints
-        # Level 1: Property constraints
-        property_constraints = class_property.constraints
-        # Level 3: Runtime constraints
-        if object_runtime_constraints:
-            for object_runtime_constraint in object_runtime_constraints:
-                if object_runtime_constraint.propertyId == class_property.id:
-                    runtime_constraints = object_runtime_constraint
-
-        return runtime_constraints or property_constraints or datatype_constraints
-
-    def _get_properties(self, test, block, get_constraints=True, get_sequences=False, get_readonly=False):
-        results = []
-
-        class_manager = self.ms05_utils.get_class_manager(test)
-
-        # Note that the userLabel of the block may also be changed, and therefore might be
-        # subject to runtime constraints constraints
-        for child in block.child_objects:
-            class_descriptor = class_manager.get_control_class(child.class_id, include_inherited=True)
-
-            if not class_descriptor:
-                continue
-            role_path = self.ms05_utils.create_role_path(block.role_path, child.role)
-
-            for property_descriptor in class_descriptor.properties:
-                constraints = self._get_constraints(test,
-                                                    property_descriptor,
-                                                    class_manager.datatype_descriptors,
-                                                    child.runtime_constraints)
-                if get_readonly == property_descriptor.isReadOnly \
-                        and property_descriptor.isSequence == get_sequences \
-                        and bool(constraints) == get_constraints:
-                    datatype = class_manager.get_datatype(property_descriptor.typeName, include_inherited=False)
-
-                    results.append(MS0501Test.PropertyMetadata(
-                        child.oid, role_path,
-                        f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
-                        f"class name={class_descriptor.name}: "
-                        f"property name={property_descriptor.name}",
-                        constraints,
-                        datatype.type,
-                        property_descriptor))
-            if type(child) is NcBlock:
-                results += (self._get_properties(test, child, get_constraints, get_sequences, get_readonly))
-
-        return results
-
-    def _get_methods(self, test, block, get_constraints=False):
-        results = []
-
-        class_manager = self.ms05_utils.get_class_manager(test)
-
-        for child in block.child_objects:
-            class_descriptor = class_manager.get_control_class(child.class_id, include_inherited=True)
-
-            if not class_descriptor:
-                continue
-
-            if type(child) is NcBlock:
-                results += (self._get_methods(test, child, get_constraints))
-
-            # Only test methods on non-standard classes, as the standard classes are already tested elsewhere
-            if not self.ms05_utils.is_non_standard_class(class_descriptor.classId):
-                continue
-
-            role_path = self.ms05_utils.create_role_path(block.role_path, child.role)
-
-            for method_descriptor in class_descriptor.methods:
-                # Check for parameter constraints
-                parameter_constraints = False
-                for parameter in method_descriptor.parameters:
-                    if parameter.constraints:
-                        parameter_constraints = True
-
-                if parameter_constraints == get_constraints:
-                    results.append(MS0501Test.MethodMetadata(
-                        child.oid, role_path,
-                        f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
-                        f"class name={class_descriptor.name}: "
-                        f"method name={method_descriptor.name}",
-                        method_descriptor))
-
-        return results
-
     def _invasive_check_constrained_parameter(self, test, constrained_property, value, expect_error=True):
         error_msg_base = f"role path={self.ms05_utils.create_role_path_string(constrained_property.role_path)}, " \
                          f"property id={constrained_property.descriptor.id}, " \
@@ -1973,7 +1893,7 @@ class MS0501Test(ControllerTest):
         try:
             device_model = self.ms05_utils.query_device_model(test)
 
-            constrained_properties = self._get_properties(test, device_model, get_constraints, get_sequences)
+            constrained_properties = self.ms05_utils.get_properties(test, device_model, get_constraints, get_sequences)
 
             # Filter constrained properties according to datatype_type
             constrained_properties = [p for p in constrained_properties
@@ -2131,8 +2051,8 @@ class MS0501Test(ControllerTest):
         try:
             device_model = self.ms05_utils.query_device_model(test)
 
-            readonly_properties = self._get_properties(test, device_model, get_constraints=False,
-                                                       get_sequences=get_sequences, get_readonly=True)
+            readonly_properties = self.ms05_utils.get_properties(test, device_model, get_constraints=False,
+                                                                 get_sequences=get_sequences, get_readonly=True)
 
             possible_properties = [{"answer_id": f"answer_{str(i)}",
                                     "display_answer": p.name,
@@ -2342,7 +2262,7 @@ class MS0501Test(ControllerTest):
         """Test methods of non-standard objects within the Device Model"""
         device_model = self.ms05_utils.query_device_model(test)
 
-        methods = self._get_methods(test, device_model, get_constraints)
+        methods = self.ms05_utils.get_methods(test, device_model, get_constraints)
 
         possible_methods = [{"answer_id": f"answer_{str(i)}",
                              "display_answer": p.name,
@@ -2629,7 +2549,8 @@ class MS0501Test(ControllerTest):
         """Test all writable sequences"""
         device_model = self.ms05_utils.query_device_model(test)
 
-        constrained_properties = self._get_properties(test, device_model, get_constraints=False, get_sequences=True)
+        constrained_properties = self.ms05_utils.get_properties(test, device_model,
+                                                                get_constraints=False, get_sequences=True)
 
         possible_properties = [{"answer_id": f"answer_{str(i)}",
                                 "display_answer": p.name,

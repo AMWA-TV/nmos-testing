@@ -18,10 +18,11 @@ from enum import IntEnum
 from functools import cmp_to_key
 import random
 import string
+from ..Config import MS05_INVASIVE_TESTING
 from ..GenericTest import GenericTest, NMOSTestException
-from ..MS05Utils import NcBlock, NcBlockProperties, NcClassDescriptor, NcDatatypeDescriptor, \
-    NcMethodResult, NcMethodResultError, NcObject, NcObjectProperties, NcPropertyDescriptor, NcPropertyId, \
-    StandardClassIds
+from ..MS05Utils import NcBlock, NcBlockProperties, NcClassDescriptor, NcClassManager, NcDatatypeDescriptor, \
+    NcDatatypeType, NcMethodResult, NcMethodResultError, NcObject, NcObjectProperties, NcPropertyDescriptor, \
+    NcPropertyId, StandardClassIds
 from ..IS14Utils import IS14Utils
 from .MS0501Test import MS0501Test
 
@@ -81,6 +82,10 @@ class NcPropertyRestoreNotice():
         self.noticeType = NcPropertyRestoreNoticeType(property_restore_notice_json["noticeType"])
         self.noticeMessage = property_restore_notice_json["noticeMessage"]
 
+    def __str__(self):
+        return f"[id={self.id}, name={self.name}, statusMessage={self.noticeType}, " \
+            f"noticeMessage={self.noticeMessage}]"
+
 
 class NcObjectPropertiesSetValidation():
     def __init__(self, object_properties_set_validation_json):
@@ -90,13 +95,17 @@ class NcObjectPropertiesSetValidation():
         self.statusMessage = object_properties_set_validation_json["statusMessage"] \
             if object_properties_set_validation_json["statusMessage"] else None
 
+    def __str__(self):
+        return f"[path={self.path}, status={self.status}, statusMessage={self.statusMessage}, " \
+            f"notices=[{', '.join(self.notices)}]]"
+
 
 class IS1401Test(MS0501Test):
     """
     Runs Tests covering MS-05 and IS-14
     """
     def __init__(self, apis, **kwargs):
-        # override the featuresets repos to only test against the device-configuration repo
+        # override the featuresets repo_paths to only test against the device-configuration feature set
         apis['featuresets']['repo_paths'] = ['device-configuration']
         self.is14_utils = IS14Utils(apis)
         MS0501Test.__init__(self, apis, self.is14_utils, **kwargs)
@@ -114,8 +123,7 @@ class IS1401Test(MS0501Test):
 
         if not valid or response.status_code != 200:
             raise NMOSTestException(test.FAIL(f"Error from endpoint {url}: "
-                                              f"response code: {response.status_code}, "
-                                              f"response content: {response.content}"))
+                                              f"response: {response}"))
 
         if "application/json" not in response.headers["Content-Type"]:
             raise NMOSTestException(test.FAIL(f"JSON response expected from endpoint {url}"))
@@ -206,10 +214,18 @@ class IS1401Test(MS0501Test):
 
         return [NcObjectPropertiesSetValidation(v) for v in method_result.value]
 
-    def _restore_bulk_values_holder(self, test, endpoint, bulk_values_holder, recurse):
+    def _restore_bulk_values_holder(self,
+                                    test: GenericTest,
+                                    endpoint: string,
+                                    bulk_values_holder: NcBulkValuesHolder,
+                                    recurse=True):
         return self._apply_bulk_values_holder(test, "PUT", endpoint, bulk_values_holder, recurse)
 
-    def _validate_bulk_values_holder(self, test, endpoint, bulk_values_holder, recurse):
+    def _validate_bulk_values_holder(self,
+                                     test: GenericTest,
+                                     endpoint: string,
+                                     bulk_values_holder: NcBulkValuesHolder,
+                                     recurse=True):
         return self._apply_bulk_values_holder(test, "PATCH", endpoint, bulk_values_holder, recurse)
 
     def test_01(self, test):
@@ -546,7 +562,39 @@ class IS1401Test(MS0501Test):
         return test.PASS()
 
     def test_11(self, test):
-        """BulkProperties endpoint returns a response of type NcMethodResultError or a derived datatype on PUT error."""
+        """BulkProperties endpoint returns NcMethodResultError or a derived datatype on PATCH error."""
+
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties/"
+
+        bogus_backup_dataset = {"this": "is", "not": "a", "backup": "dataset"}
+
+        valid, response = self.do_request("PATCH", bulk_properties_endpoint, json=bogus_backup_dataset)
+
+        if not valid:
+            raise NMOSTestException(test.FAIL(f"Failed to access endpoint {bulk_properties_endpoint}"))
+
+        if response.status_code < 300:
+            raise NMOSTestException(test.FAIL(f"Expected error status code for {bulk_properties_endpoint}"))
+
+        if "application/json" not in response.headers["Content-Type"]:
+            raise NMOSTestException(test.FAIL(f"JSON response expected from endpoint {bulk_properties_endpoint}"))
+
+        method_result_json = response.json()
+
+        # Check this is of type NcMethodResult
+        self.is14_utils.reference_datatype_schema_validate(test,
+                                                           method_result_json,
+                                                           NcMethodResult.__name__,
+                                                           role_path=bulk_properties_endpoint)
+        method_result = NcMethodResult.factory(method_result_json)
+
+        if not isinstance(method_result, NcMethodResultError):
+            return test.FAIL("Expected a response of type NcMethodResultError")
+
+        return test.PASS()
+
+    def test_12(self, test):
+        """BulkProperties endpoint returns NcMethodResultError or a derived datatype on PUT error."""
 
         bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties/"
 
@@ -577,96 +625,195 @@ class IS1401Test(MS0501Test):
 
         return test.PASS()
 
-    def _check_bulk_properties_restore(self, test, role_path, recurse):
-        role_path_formatted = ".".join(role_path)
-        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{role_path_formatted}/bulkProperties"
-
-        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
-
-        # Cache bulk_values_holder
-        original_bulk_values_holder = deepcopy(bulk_values_holder)
-
-        user_labels = []
-        # Remove property value holders other than user label
+    def _create_object_properties_dict(self, bulk_values_holder: NcBulkValuesHolder):
+        """Creates a dict keyed on formatted role path and property id"""
+        bulk_values_holder_properties = {}
         for object_property_holder in bulk_values_holder.values:
-            object_property_holder.values = [v for v in object_property_holder.values
-                                             if v.id == NcObjectProperties.USER_LABEL.value]
-            user_labels.extend(object_property_holder.values)
+            for property_value_holder in object_property_holder.values:
+                key = ".".join(object_property_holder.path) + str(property_value_holder.id)
+                bulk_values_holder_properties[key] = property_value_holder
+        return bulk_values_holder_properties
 
-        # Generate random labels
-        for property_value_holder in user_labels:
-            property_value_holder.value = "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
+    def _compare_backup_datasets(self,
+                                 test: GenericTest,
+                                 original_bulk_values_holder: NcBulkValuesHolder,
+                                 applied_bulk_values_holder: NcBulkValuesHolder,
+                                 updated_bulk_values_holder: NcBulkValuesHolder,
+                                 target_role_path: list[str], recurse: bool, validate=False):
+        # original_bulk_values_holder is the state before dataset applied
+        # applied_bulk_values_holder is the dataset applied to the Node under test
+        # updated_bulk_values_holder is the state after dataset applied
 
-        validations = self._restore_bulk_values_holder(test, bulk_properties_endpoint, bulk_values_holder, recurse)
+        # Compare backup datasets
+        # Create dict from original bulk values holder
+        original_properties = self._create_object_properties_dict(original_bulk_values_holder)
 
+        # Create dict from applied bulk values holder
+        applied_properties = self._create_object_properties_dict(applied_bulk_values_holder)
+
+        # Check updated bulk values holder against restored and original bulk value holders
+        for object_property_holder in updated_bulk_values_holder.values:
+            for property_value_holder in object_property_holder.values:
+                key = ".".join(object_property_holder.path) + str(property_value_holder.id)
+                if (object_property_holder.path == target_role_path or recurse) \
+                        and not validate \
+                        and key in applied_properties \
+                        and property_value_holder.value != applied_properties[key].value:
+                    raise NMOSTestException(
+                        test.FAIL("Property not updated by restore "
+                                  f"for role path {object_property_holder.path} "
+                                  f"and property {str(property_value_holder.id)} "
+                                  f"when restoring to {target_role_path} "
+                                  f"with recurse={recurse}"))
+                if not recurse and object_property_holder.path != target_role_path \
+                        and not validate \
+                        and key in applied_properties \
+                        and property_value_holder.value != original_properties[key].value:
+                    raise NMOSTestException(
+                        test.FAIL("Property unexpectedly updated by restore "
+                                  f"for role path {object_property_holder.path} "
+                                  f"and property {str(property_value_holder.id)} "
+                                  f"when restoring to {target_role_path} "
+                                  f"with recurse={recurse}"))
+                if validate and key in applied_properties \
+                        and property_value_holder.value == applied_properties[key].value:
+                    raise NMOSTestException(
+                        test.FAIL("Property unexpectedly updated by validate "
+                                  f"for role path {object_property_holder.path} "
+                                  f"and property {str(property_value_holder.id)} "
+                                  f"when restoring to {target_role_path} "
+                                  f"with recurse={recurse}"))
+
+    def _check_object_properties_set_validations(self, test: GenericTest,
+                                                 bulk_values_holder: NcBulkValuesHolder,
+                                                 validations: list[NcObjectPropertiesSetValidation],
+                                                 target_role_path: list[str],
+                                                 recurse: bool):
         # Check there is one validation per object changed
-        expected_object_holder_paths = [o.path for o in bulk_values_holder.values if recurse or o.path == role_path]
-        actual_validation_paths = [v.path for v in validations]
+        expected_role_paths = [o.path for o in bulk_values_holder.values if recurse or o.path == target_role_path]
+        actual_role_paths = [v.path for v in validations]
 
-        if len(expected_object_holder_paths) != len(actual_validation_paths):
+        if len(expected_role_paths) != len(actual_role_paths):
             raise NMOSTestException(
-                test.FAIL(f"Expected {len(expected_object_holder_paths)} "
-                          "NcObjectPropertiesSetValidation "
-                          f"objects, actually got {len(actual_validation_paths)}"))
+                test.FAIL(f"Unexpected number of NcObjectPropertiesSetValidation objects "
+                          f"expected {len(expected_role_paths)} role paths={str(expected_role_paths)}, "
+                          f"actual {len(actual_role_paths)} role paths = {str(actual_role_paths)} for "
+                          f"target role path={target_role_path}"))
 
-        for e, a in zip(expected_object_holder_paths, actual_validation_paths):
-            if e != a:
+        # Check the role paths are correct
+        bulk_value_holders_dict = self._create_object_properties_dict(bulk_values_holder)
+        bulk_value_holders_dict = {}
+        for object_property_holder in bulk_values_holder.values:
+            key = ".".join(object_property_holder.path)
+            bulk_value_holders_dict[key] = object_property_holder
+
+        for validation in validations:
+            key = ".".join(validation.path)
+            if key not in bulk_value_holders_dict.keys():
                 raise NMOSTestException(
-                    test.FAIL("Unexpected NcObjectPropertiesSetValidation objects "
-                              "returned from bulkProperties endpoint "
-                              f"for role paths={str(a)}, "
-                              f"endpoint={bulk_properties_endpoint}"))
+                    test.FAIL("Unexpected NcObjectPropertiesSetValidation object "
+                              "returned from bulkProperties endpoint. "
+                              f"{str(validation)}"))
 
         # Check status is OK
         for validation in validations:
             if validation.status != NcRestoreValidationStatus.Ok.value:
                 raise NMOSTestException(
                     test.FAIL(f"Unexpected NcRestoreValidationStatus. "
-                              f"Expected OK but got {validation.status.name} "
-                              f"for role path {validation.path}"))
+                              f"Expected OK but got {validation.status} "
+                              f"for role path {validation.path}, "
+                              f"target role path={target_role_path} "
+                              f"{str(validation)}"))
+
+    def _check_bulk_properties_validate(self, test: GenericTest, target_role_path: list[str], recurse: bool):
+        target_role_path_formatted = ".".join(target_role_path)
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{target_role_path_formatted}/bulkProperties"
+
+        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+
+        # Cache bulk_values_holder
+        original_bulk_values_holder = deepcopy(bulk_values_holder)
+
+        # Remove all property_value_holders apart from user label properties
+        for object_property_holder in bulk_values_holder.values:
+            object_property_holder.values = [v for v in object_property_holder.values
+                                             if v.id == NcObjectProperties.USER_LABEL.value]
+
+            # Change the user labels to random ten character strings
+            for property_value_holder in object_property_holder.values:
+                property_value_holder.value = "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
+
+        # Validate Bulk Values returns an array of NcObjectPropertiesSetValidation objects
+        validations = self._validate_bulk_values_holder(test, bulk_properties_endpoint, bulk_values_holder, recurse)
+
+        self._check_object_properties_set_validations(test, bulk_values_holder, validations, target_role_path, recurse)
+
+        # Verify the labels have NOT changed
+        updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+
+        self._compare_backup_datasets(test,
+                                      original_bulk_values_holder,
+                                      bulk_values_holder,
+                                      updated_bulk_values_holder,
+                                      target_role_path, recurse, validate=True)
+
+    def test_13(self, test):
+        """Validate backup dataset on bulkProperties endpoint"""
+        device_model = self.is14_utils.query_device_model(test)
+
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties"
+        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+        # Cache bulk_values_holder
+        original_bulk_values_holder = deepcopy(bulk_values_holder)
+
+        partial_role_paths = device_model.get_role_paths()
+
+        role_paths = [["root"] + partial_role_path for partial_role_path in partial_role_paths]
+        role_paths.append(["root"])
+
+        # Check backup and restore to each role path
+        for role_path in role_paths:
+            self._check_bulk_properties_validate(test, role_path, recurse=True)
+            self._check_bulk_properties_validate(test, role_path, recurse=False)
+
+        # Reset to original backup dataset
+        self._restore_bulk_values_holder(test, bulk_properties_endpoint, original_bulk_values_holder)
+
+        return test.PASS()
+
+    def _check_bulk_properties_restore(self, test, target_role_path, recurse):
+        target_role_path_formatted = ".".join(target_role_path)
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{target_role_path_formatted}/bulkProperties"
+
+        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+
+        # Cache bulk_values_holder
+        original_bulk_values_holder = deepcopy(bulk_values_holder)
+
+        # Remove all property_value_holders apart from user label properties
+        for object_property_holder in bulk_values_holder.values:
+            object_property_holder.values = [v for v in object_property_holder.values
+                                             if v.id == NcObjectProperties.USER_LABEL.value]
+
+            # Change the user labels to random ten character strings
+            for property_value_holder in object_property_holder.values:
+                property_value_holder.value = "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
+
+        # Restore Bulk Values returns an array of NcObjectPropertiesSetValidation objects
+        validations = self._restore_bulk_values_holder(test, bulk_properties_endpoint, bulk_values_holder, recurse)
+
+        self._check_object_properties_set_validations(test, bulk_values_holder, validations, target_role_path, recurse)
 
         # Verify the labels have changed
         updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
 
-        # Compare backup datasets
-        # Create dict from original bulk values holder
-        original_bulk_values_holder_properties = {}
-        for object_property_holder in original_bulk_values_holder.values:
-            for property_value_holder in object_property_holder.values:
-                key = ".".join(object_property_holder.path) + str(property_value_holder.id)
-                original_bulk_values_holder_properties[key] = property_value_holder
+        # Compare original, applied and updated bulk value holders
+        self._compare_backup_datasets(test,
+                                      original_bulk_values_holder,
+                                      bulk_values_holder,
+                                      updated_bulk_values_holder, target_role_path, recurse)
 
-        # Create dict from restore bulk values holder
-        restore_properties = {}
-        for object_property_holder in bulk_values_holder.values:
-            for property_value_holder in object_property_holder.values:
-                key = ".".join(object_property_holder.path) + str(property_value_holder.id)
-                restore_properties[key] = property_value_holder
-
-        # Check updated bulk values holder against restored buk value holder
-        for object_property_holder in updated_bulk_values_holder.values:
-            for property_value_holder in object_property_holder.values:
-                key = ".".join(object_property_holder.path) + str(property_value_holder.id)
-                if (object_property_holder.path == role_path or recurse) \
-                        and key in restore_properties \
-                        and property_value_holder.value != restore_properties[key].value:
-                    raise NMOSTestException(
-                        test.FAIL("Property not updated by restore "
-                                  f"for role path {object_property_holder.path} "
-                                  f"and property {str(property_value_holder.id)} "
-                                  f"when restoring to {bulk_properties_endpoint} "
-                                  f"with recurse={recurse}"))
-                if not recurse and object_property_holder.path != role_path \
-                        and key in restore_properties \
-                        and property_value_holder.value != original_bulk_values_holder_properties[key].value:
-                    raise NMOSTestException(
-                        test.FAIL("Property unexpectedly updated by restore "
-                                  f"for role path {object_property_holder.path} "
-                                  f"and property {str(property_value_holder.id)} "
-                                  f"when restoring to {bulk_properties_endpoint} "
-                                  f"with recurse={recurse}"))
-
-    def test_12(self, test):
+    def test_14(self, test):
         """Restore backup dataset to bulkProperties endpoint"""
         device_model = self.is14_utils.query_device_model(test)
 
@@ -686,6 +833,127 @@ class IS1401Test(MS0501Test):
             self._check_bulk_properties_restore(test, role_path, recurse=False)
 
         # Reset to original backup dataset
-        self._restore_bulk_values_holder(test, bulk_properties_endpoint, original_bulk_values_holder, recurse=True)
+        self._restore_bulk_values_holder(test, bulk_properties_endpoint, original_bulk_values_holder)
+
+        return test.PASS()
+
+    # Invasive testing
+
+    def _generate_property_value(self, test: GenericTest, class_manager: NcClassManager, type_name: str, value: any):
+        """Generate a new value based on the existing value"""
+        datatype_descriptor = class_manager.get_datatype(type_name)
+
+        if datatype_descriptor.type == NcDatatypeType.Primitive:
+            resolved_type = self.is14_utils.resolve_datatype(test, type_name)
+
+            if resolved_type in ["NcInt16", "NcInt32", "NcInt64", "NcUint16", "NcUint32", "NcUint64"]:
+                return value + 1
+            elif resolved_type in ["NcFloat32", "NcFloat64"]:
+                return value + 0.5
+            elif resolved_type == "NcBoolean":
+                return not value
+            else:
+                return "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
+
+        if datatype_descriptor.type == NcDatatypeType.Enum:
+            for item in datatype_descriptor.items:
+                if item.value == value + 1:
+                    return value + 1
+                if item.value == value - 1:
+                    return value - 1
+            return value
+
+        if datatype_descriptor.type == NcDatatypeType.Struct:
+            ret_value = {}
+            for field in datatype_descriptor.fields:
+                ret_value[field.name] = self._generate_property_value(test,
+                                                                      class_manager,
+                                                                      field.typeName,
+                                                                      value[field.name])
+            return ret_value
+
+        if datatype_descriptor.type == NcDatatypeType.Typedef:
+            return self._generate_property_value(test, class_manager, datatype_descriptor.parentType, value)
+
+        # If it got this far something has gone badly wrong
+        raise NMOSTestException(test.FAIL(f"Unknown MS-05 datatype type: {datatype_descriptor.type}"))
+
+    def test_15(self, test):
+        """Perform Modify restore on Node under test"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
+
+        device_model = self.is14_utils.query_device_model(test)
+
+        class_manager = self.is14_utils.get_class_manager(test)
+
+        # Find the writable properties in model with no constraints
+        writable_properties = self.is14_utils.get_properties(test, device_model)
+
+        # Create a dict from properties
+        writable_properties_dict = {}
+        for ms05_property in writable_properties:
+            key = ".".join(ms05_property.role_path) + str(ms05_property.descriptor.id)
+            writable_properties_dict[key] = ms05_property
+
+        target_role_path = ["root"]
+        recurse = True
+        # Get the backup dataset
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{'.'.join(target_role_path)}/bulkProperties"
+        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+
+        # Cache original bulk values holder
+        original_bulk_values_holder = deepcopy(bulk_values_holder)
+
+        # Update the writable properties of the bulk_values_holder
+        for object_property_holder in bulk_values_holder.values:
+            filtered_property_value_holders = []
+            for property_value_holder in object_property_holder.values:
+                key = ".".join(object_property_holder.path) + str(property_value_holder.id)
+                if key in writable_properties_dict:
+                    # Modify value in the
+                    property_value_holder.value = self._generate_property_value(test,
+                                                                                class_manager,
+                                                                                property_value_holder.typeName,
+                                                                                property_value_holder.value)
+                    filtered_property_value_holders.append(property_value_holder)
+            object_property_holder.values = filtered_property_value_holders
+
+        # Validate
+        validations = self._validate_bulk_values_holder(test, bulk_properties_endpoint, bulk_values_holder, recurse)
+
+        # Create a dict from validation warnings and errors
+        problem_properties = {}
+        for validation in validations:
+            for notice in validation.notices:
+                key = ".".join(validation.path) + str(notice.id)
+                problem_properties[key] = notice
+
+        # Remove any problem properties from the dataset
+
+        for object_property_holder in bulk_values_holder.values:
+            filtered_property_value_holders = []
+            for property_value_holder in object_property_holder.values:
+                key = ".".join(object_property_holder.path) + str(property_value_holder.id)
+                if key not in problem_properties:
+                    filtered_property_value_holders.append(property_value_holder)
+            object_property_holder.values = filtered_property_value_holders
+
+        # Apply bulk values holder to Node
+        validations = self._restore_bulk_values_holder(test, bulk_properties_endpoint, bulk_values_holder, recurse)
+
+        # Check there were no errors
+        self._check_object_properties_set_validations(test, bulk_values_holder, validations, target_role_path, recurse)
+
+        # Check the properties were changed
+        updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+
+        self._compare_backup_datasets(test,
+                                      original_bulk_values_holder,
+                                      bulk_values_holder,
+                                      updated_bulk_values_holder, target_role_path, recurse)
+
+        # Restore the original bulk values holder
+        self._restore_bulk_values_holder(test, bulk_properties_endpoint, original_bulk_values_holder)
 
         return test.PASS()
