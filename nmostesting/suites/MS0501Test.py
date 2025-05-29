@@ -431,13 +431,32 @@ class MS0501Test(ControllerTest):
             self.unique_oids_metadata.checked = True
             self.oid_cache.append(oid)
 
-    def _check_owner(self, parent_oid, role_path, owner):
+    def _check_owner(self, test, block_oid, member_desc_owner, oid, role_path):
         """Check owner is correct"""
-        if parent_oid != owner:
+        # Check the oid of the containing NcBlock (block_oid) is consistant with both the
+        # NcBlockMemberDescriptor owner (member_desc_owner) and the owner property queried from the
+        # NcObject (method_result.value)
+
+        method_result = self.ms05_utils.get_property(test, NcObjectProperties.OWNER.value, oid=oid, role_path=role_path)
+
+        if isinstance(method_result, NcMethodResultError):
             error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
             self.device_model_metadata.error = True
-            self.device_model_metadata.error_msg = f"{error_msg_base}Incorrect owner; " \
-                f"expected {parent_oid}, actual {owner}; "
+            self.device_model_metadata.error_msg = f"{error_msg_base}Unable to get owner property; " \
+                f"{method_result.errorMessage}; "
+            return
+
+        if block_oid != method_result.value:
+            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
+            self.device_model_metadata.error = True
+            self.device_model_metadata.error_msg = f"{error_msg_base} inconsistent owner property; " \
+                f"containing NcBlock oid: {block_oid}, NcObject owner property: {method_result.value}; "
+
+        if block_oid != member_desc_owner:
+            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
+            self.device_model_metadata.error = True
+            self.device_model_metadata.error_msg = f"{error_msg_base} inconsistent owner property; " \
+                f"containing NcBlock oid: {block_oid}, NcBlockMemberDescriptor owner property: {member_desc_owner}; "
 
     def _check_manager(self, class_id, owner, class_descriptors, manager_cache, role_path):
         """Check manager is singleton and that it inherits from NcManager"""
@@ -756,7 +775,7 @@ class MS0501Test(ControllerTest):
 
             self._check_unique_roles(descriptor.role, role_cache, block.role_path)
             self._check_unique_oid(descriptor.oid, block.role_path)
-            self._check_owner(block.oid, child_object.role_path, child_object.owner)
+            self._check_owner(test, block.oid, child_object.owner, child_object.oid, child_object.role_path)
 
             # check for non-standard classes
             if self.ms05_utils.is_non_standard_class(descriptor.classId):
