@@ -851,6 +851,9 @@ class NcElementId():
     def __str__(self):
         return f"[level={self.level}, index={self.index}]"
 
+    def __hash__(self):
+        return hash(str(self))
+
 
 class NcPropertyId(NcElementId):
     def __init__(self, id_json):

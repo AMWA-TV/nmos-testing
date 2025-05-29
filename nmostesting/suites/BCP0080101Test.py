@@ -190,7 +190,7 @@ class BCP0080101Test(BCP008Test):
             "/docs/Overview.html#late-and-lost-packets"
 
     # Status property and method IDs
-    def get_status_property_ids(self):
+    def get_domain_statuses(self):
         return [NcStatusMonitorProperties.OVERALL_STATUS,
                 NcReceiverMonitorProperties.LINK_STATUS,
                 NcReceiverMonitorProperties.CONNECTION_STATUS,
@@ -198,21 +198,31 @@ class BCP0080101Test(BCP008Test):
                 NcReceiverMonitorProperties.STREAM_STATUS]
 
     def get_connection_status_property_id(self):
-        return NcReceiverMonitorProperties.CONNECTION_STATUS
+        return NcReceiverMonitorProperties.CONNECTION_STATUS.value
 
     def get_connection_status_transition_counter_property_id(self):
-        return NcReceiverMonitorProperties.CONNECTION_STATUS_TRANSITION_COUNTER
+        return NcReceiverMonitorProperties.CONNECTION_STATUS_TRANSITION_COUNTER.value
 
     def get_inactiveable_status_property_ids(self):
-        return [NcStatusMonitorProperties.OVERALL_STATUS,
-                NcReceiverMonitorProperties.CONNECTION_STATUS,
-                NcReceiverMonitorProperties.STREAM_STATUS]
+        return [NcStatusMonitorProperties.OVERALL_STATUS.value,
+                NcReceiverMonitorProperties.CONNECTION_STATUS.value,
+                NcReceiverMonitorProperties.STREAM_STATUS.value]
 
     def get_auto_reset_counter_property_id(self):
-        return NcReceiverMonitorProperties.AUTO_RESET_COUNTERS
+        return NcReceiverMonitorProperties.AUTO_RESET_COUNTERS.value
 
     def get_sync_source_id_property_id(self):
-        return NcReceiverMonitorProperties.SYNCHRONIZATION_SOURCE_ID
+        return NcReceiverMonitorProperties.SYNCHRONIZATION_SOURCE_ID.value
+
+    def get_healthy_statuses_dict(self):
+        return {NcStatusMonitorProperties.OVERALL_STATUS.value: NcOverallStatus.Healthy,
+                NcReceiverMonitorProperties.CONNECTION_STATUS.value: NcConnectionStatus.Healthy,
+                NcReceiverMonitorProperties.STREAM_STATUS.value: NcStreamStatus.Healthy}
+
+    def get_inactive_statuses_dict(self):
+        return {NcStatusMonitorProperties.OVERALL_STATUS.value: NcOverallStatus.Inactive,
+                NcReceiverMonitorProperties.CONNECTION_STATUS.value: NcConnectionStatus.Inactive,
+                NcReceiverMonitorProperties.STREAM_STATUS.value: NcStreamStatus.Inactive}
 
     def get_transition_counter_property_map(self):
         # Ignore late and lost packets in this check:

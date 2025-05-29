@@ -107,7 +107,7 @@ class BCP0080201Test(BCP008Test):
             "/docs/Overview.html#transmission-error-counters"
 
     # Status property and method IDs
-    def get_status_property_ids(self):
+    def get_domain_statuses(self):
         return [NcStatusMonitorProperties.OVERALL_STATUS,
                 NcSenderMonitorProperties.LINK_STATUS,
                 NcSenderMonitorProperties.TRANSMISSION_STATUS,
@@ -115,21 +115,31 @@ class BCP0080201Test(BCP008Test):
                 NcSenderMonitorProperties.ESSENCE_STATUS]
 
     def get_connection_status_property_id(self):
-        return NcSenderMonitorProperties.TRANSMISSION_STATUS
+        return NcSenderMonitorProperties.TRANSMISSION_STATUS.value
 
     def get_connection_status_transition_counter_property_id(self):
-        return NcSenderMonitorProperties.TRANSMISSION_STATUS_TRANSITION_COUNTER
+        return NcSenderMonitorProperties.TRANSMISSION_STATUS_TRANSITION_COUNTER.value
 
     def get_inactiveable_status_property_ids(self):
-        return [NcStatusMonitorProperties.OVERALL_STATUS,
-                NcSenderMonitorProperties.TRANSMISSION_STATUS,
-                NcSenderMonitorProperties.ESSENCE_STATUS]
+        return [NcStatusMonitorProperties.OVERALL_STATUS.value,
+                NcSenderMonitorProperties.TRANSMISSION_STATUS.value,
+                NcSenderMonitorProperties.ESSENCE_STATUS.value]
 
     def get_auto_reset_counter_property_id(self):
-        return NcSenderMonitorProperties.AUTO_RESET_COUNTERS
+        return NcSenderMonitorProperties.AUTO_RESET_COUNTERS.value
 
     def get_sync_source_id_property_id(self):
-        return NcSenderMonitorProperties.SYNCHRONIZATION_SOURCE_ID
+        return NcSenderMonitorProperties.SYNCHRONIZATION_SOURCE_ID.value
+
+    def get_healthy_statuses_dict(self):
+        return {NcStatusMonitorProperties.OVERALL_STATUS.value: NcOverallStatus.Healthy,
+                NcSenderMonitorProperties.TRANSMISSION_STATUS.value: NcTransmissionStatus.Healthy,
+                NcSenderMonitorProperties.ESSENCE_STATUS.value: NcEssenceStatus.Healthy}
+
+    def get_inactive_statuses_dict(self):
+        return {NcStatusMonitorProperties.OVERALL_STATUS.value: NcOverallStatus.Inactive,
+                NcSenderMonitorProperties.TRANSMISSION_STATUS.value: NcTransmissionStatus.Inactive,
+                NcSenderMonitorProperties.ESSENCE_STATUS.value: NcEssenceStatus.Inactive}
 
     def get_transition_counter_property_map(self):
         # Ignore tranmission error counter in this check:
@@ -196,7 +206,7 @@ class BCP0080201Test(BCP008Test):
     def is_valid_resource(self, test, touchpoint_resource):
         # Check it's an RTP resource
         if touchpoint_resource is not None:
-            url = f"single/senders/{touchpoint_resource.resource["id"]}/transporttype"
+            url = f"single/senders/{touchpoint_resource.resource['id']}/transporttype"
 
             valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
             if not valid:

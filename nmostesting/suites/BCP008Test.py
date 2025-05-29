@@ -161,7 +161,7 @@ class BCP008Test(GenericTest):
         pass
 
     # Status property and method IDs
-    def get_status_property_ids(self):
+    def get_domain_statuses(self):
         pass
 
     def get_connection_status_property_id(self):
@@ -177,6 +177,12 @@ class BCP008Test(GenericTest):
         pass
 
     def get_sync_source_id_property_id(self):
+        pass
+
+    def get_healthy_statuses_dict(self):
+        pass
+
+    def get_inactive_statuses_dict(self):
         pass
 
     def get_transition_counter_property_map(self):
@@ -304,12 +310,12 @@ class BCP008Test(GenericTest):
         connection_status_property = self.get_connection_status_property_id()
 
         # These values are common across NcConnectionStatus (Receivers) and NcTransmissionStatus (Senders)
-        CONNECTION_STATUS_INACTIVE = 0
-        CONNECTION_STATUS_HEALTHY = 1
+        healthy_statuses_dict = self.get_healthy_statuses_dict()
+        inactive_statuses_dict = self.get_inactive_statuses_dict()
 
         connection_status_notifications = \
             [n for n in notifications
-                if n.eventData.propertyId == connection_status_property.value
+                if n.eventData.propertyId == connection_status_property
                 and n.received_time >= activation_time]
 
         self.check_activation_metadata.link = self.get_reporting_delay_spec_link()
@@ -322,7 +328,8 @@ class BCP008Test(GenericTest):
 
         # Check that the monitor transitioned to healthy
         if len(connection_status_notifications) > 0 \
-                and connection_status_notifications[0].eventData.value != CONNECTION_STATUS_HEALTHY:
+                and connection_status_notifications[0].eventData.value \
+                != healthy_statuses_dict[connection_status_notifications[0].eventData.propertyId]:
             self.check_activation_metadata.error = True
             self.check_activation_metadata.error_msg += \
                 f"Expect status to transition to healthy for Monitor: {monitor}"
@@ -331,7 +338,8 @@ class BCP008Test(GenericTest):
         # during the status reporting delay period
         end_of_reporting_delay_period = activation_time + status_reporting_delay - tolerance
         if len(connection_status_notifications) > 1 \
-                and connection_status_notifications[1].eventData.value != CONNECTION_STATUS_INACTIVE \
+                and connection_status_notifications[1].eventData.value \
+                != inactive_statuses_dict[connection_status_notifications[1].eventData.propertyId]  \
                 and connection_status_notifications[1].received_time < end_of_reporting_delay_period:
             self.check_activation_metadata.error = True
             self.check_activation_metadata.error_msg += \
@@ -351,7 +359,7 @@ class BCP008Test(GenericTest):
 
         connection_status_transition_counter_notifications = \
             [n for n in notifications
-                if n.eventData.propertyId == connection_status_transition_counter_property.value
+                if n.eventData.propertyId == connection_status_transition_counter_property
                 and n.eventData.value > 0]
 
         # Given the transition to a less healthy state we expect the transition counter to increment
@@ -375,7 +383,7 @@ class BCP008Test(GenericTest):
         self.patch_resource(test, resource_id)
 
         # Deactivate before the status reporting delay expires
-        sleep(1.0)
+        sleep(2.0)
         self.deactivate_resource(test, resource_id)
         sleep(2.0)  # Settling time
 
@@ -393,7 +401,7 @@ class BCP008Test(GenericTest):
         for property_id in status_property_ids:
             filtered_notifications = \
                     [n for n in deactivate_resource_notifications
-                     if n.eventData.propertyId == property_id.value]
+                     if n.eventData.propertyId == property_id]
 
             if len(filtered_notifications) == 0:
                 self.check_deactivate_monitor_metadata.error = True
@@ -419,7 +427,7 @@ class BCP008Test(GenericTest):
         # Make sure autoResetCounters enabled
         self._set_property(test,
                            monitor,
-                           auto_reset_counter_property.value,
+                           auto_reset_counter_property,
                            True)
 
         # generate status transitions
@@ -456,11 +464,20 @@ class BCP008Test(GenericTest):
 
     def _get_activation_time(self, test, monitor, notifications):
         # On activation the overall status MUST transition to healthy
-        activation_notification = [n for n in notifications if n.eventData.propertyId != NcOverallStatus]
+
+        # Dict of healthy statuses keyed on property id
+        healthy_statuses_dict = self.get_healthy_statuses_dict()
+
+        # "inactiveable" properties will transition from Inactive to Healthy on activation
+        inactiveable_status_property_ids = self.get_inactiveable_status_property_ids()
+
+        activation_notification = [n for n in notifications if
+                                   n.eventData.propertyId in inactiveable_status_property_ids
+                                   and n.eventData.value == healthy_statuses_dict[n.eventData.propertyId]]
 
         if len(activation_notification) == 0:
             raise NMOSTestException(
-                test.FAIL(f"Overall status did not transition to Healthy on activation for Monitor: {monitor}"))
+                test.FAIL(f"No transition to Healthy on activation for Monitor: {monitor}"))
 
         # The received time of the first transition to Healthy is assumed to be the activation time
         return activation_notification[0].received_time
@@ -484,7 +501,7 @@ class BCP008Test(GenericTest):
 
         testable_monitors = IS12Utils.sampled_list(valid_monitors)
 
-        status_properties = self.get_status_property_ids()
+        status_properties = self.get_domain_statuses()
 
         for monitor in testable_monitors:
 
@@ -833,7 +850,7 @@ class BCP008Test(GenericTest):
         for monitor in monitors:
             syncSourceId = self._get_property(test,
                                               monitor,
-                                              sync_source_id_property.value)
+                                              sync_source_id_property)
 
             # Synchronization source id can be null, "internal" or some identifier, but it can't be empty
             if syncSourceId == "":
