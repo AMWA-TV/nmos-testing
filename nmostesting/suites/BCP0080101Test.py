@@ -224,18 +224,18 @@ class BCP0080101Test(BCP008Test):
                 NcReceiverMonitorProperties.CONNECTION_STATUS.value: NcConnectionStatus.Inactive,
                 NcReceiverMonitorProperties.STREAM_STATUS.value: NcStreamStatus.Inactive}
 
-    def get_transition_counter_property_map(self):
+    def get_transition_counter_property_dict(self):
         # Ignore late and lost packets in this check:
         # late and lost packet counters increment independantly of these tests and therefore
         # cannot be predicted or their value guaranteed at any given time
         return {"LinkStatusTransitionCounter":
-                NcReceiverMonitorProperties.LINK_STATUS_TRANSITION_COUNTER,
+                NcReceiverMonitorProperties.LINK_STATUS_TRANSITION_COUNTER.value,
                 "ConnectionStatusTransitionCounter":
-                NcReceiverMonitorProperties.CONNECTION_STATUS_TRANSITION_COUNTER,
+                NcReceiverMonitorProperties.CONNECTION_STATUS_TRANSITION_COUNTER.value,
                 "ExternalSynchronizationStatusTransitionCounter":
-                NcReceiverMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS_TRANSITION_COUNTER,
+                NcReceiverMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS_TRANSITION_COUNTER.value,
                 "StreamStatusTransitionCounter":
-                NcReceiverMonitorProperties.STREAM_STATUS_TRANSITION_COUNTER}
+                NcReceiverMonitorProperties.STREAM_STATUS_TRANSITION_COUNTER.value}
 
     def get_counter_method_ids(self):
         return [NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS,

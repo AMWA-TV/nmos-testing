@@ -185,7 +185,7 @@ class BCP008Test(GenericTest):
     def get_inactive_statuses_dict(self):
         pass
 
-    def get_transition_counter_property_map(self):
+    def get_transition_counter_property_dict(self):
         pass
 
     def get_counter_method_ids(self):
@@ -611,12 +611,12 @@ class BCP008Test(GenericTest):
         return test.PASS()
 
     def _get_non_zero_counters(self, test, monitor):
-        transition_counters = self.get_transition_counter_property_map()
+        transition_counters = self.get_transition_counter_property_dict()
 
         counter_values = dict([(key,
                                 self._get_property(test,
                                                    monitor,
-                                                   property_id.value))
+                                                   property_id))
                                for key, property_id in transition_counters.items()])
 
         return [c for c, v in counter_values.items() if v > 0]

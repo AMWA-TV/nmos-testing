@@ -141,18 +141,18 @@ class BCP0080201Test(BCP008Test):
                 NcSenderMonitorProperties.TRANSMISSION_STATUS.value: NcTransmissionStatus.Inactive,
                 NcSenderMonitorProperties.ESSENCE_STATUS.value: NcEssenceStatus.Inactive}
 
-    def get_transition_counter_property_map(self):
+    def get_transition_counter_property_dict(self):
         # Ignore tranmission error counter in this check:
         # tranmission error counter increments independantly of these tests and therefore
         # cannot be predicted or its value guaranteed at any given time
         return {"LinkStatusTransitionCounter":
-                NcSenderMonitorProperties.LINK_STATUS_TRANSITION_COUNTER,
+                NcSenderMonitorProperties.LINK_STATUS_TRANSITION_COUNTER.value,
                 "TransmissionStatusTransitionCounter":
-                NcSenderMonitorProperties.TRANSMISSION_STATUS_TRANSITION_COUNTER,
+                NcSenderMonitorProperties.TRANSMISSION_STATUS_TRANSITION_COUNTER.value,
                 "ExternalSynchronizationStatusTransitionCounter":
-                NcSenderMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS_TRANSITION_COUNTER,
+                NcSenderMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS_TRANSITION_COUNTER.value,
                 "EssenceStatusTransitionCounter":
-                NcSenderMonitorProperties.ESSENCE_STATUS_TRANSITION_COUNTER}
+                NcSenderMonitorProperties.ESSENCE_STATUS_TRANSITION_COUNTER.value}
 
     def get_counter_method_ids(self):
         return [NcSenderMonitorMethods.GET_TRANSMISSION_ERROR_COUNTERS]
