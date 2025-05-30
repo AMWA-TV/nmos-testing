@@ -433,7 +433,7 @@ TEST_DEFINITIONS = {
         "class": BCP0060102Test.BCP0060102Test
     },
     "BCP-004-02": {
-        "name": "Sender Capabilities",
+        "name": "BCP-004-02 Sender Capabilities",
         "specs": [{
             "spec_key": "is-04",
             "api_key": "node"
