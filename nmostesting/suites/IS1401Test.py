@@ -104,6 +104,13 @@ class IS1401Test(MS0501Test):
     """
     Runs Tests covering MS-05 and IS-14
     """
+    class TestMetadata():
+        def __init__(self, checked=False, error=False, error_msg="", unclear=False):
+            self.checked = checked
+            self.error = error
+            self.error_msg = error_msg
+            self.unclear = unclear
+
     def __init__(self, apis, **kwargs):
         # override the featuresets repo_paths to only test against the device-configuration feature set
         apis['featuresets']['repo_paths'] = ['device-configuration']
@@ -113,6 +120,13 @@ class IS1401Test(MS0501Test):
         self.configuration_url = apis[CONFIGURATION_API_KEY]["url"]
 
     def set_up_tests(self):
+        self.bulk_properties_checked = False
+        self.check_validate_return_type_metadata = IS1401Test.TestMetadata()
+        self.check_restore_return_type_metadata = IS1401Test.TestMetadata()
+        self.check_validate_return_objects_metadata = IS1401Test.TestMetadata()
+        self.check_restore_return_objects_metadata = IS1401Test.TestMetadata()
+        self.check_validate_does_not_modify_metadata = IS1401Test.TestMetadata()
+        self.check_restore_does_modify_metadata = IS1401Test.TestMetadata()
         super().set_up_tests()
 
     def tear_down_tests(self):
@@ -182,12 +196,19 @@ class IS1401Test(MS0501Test):
 
         return NcBulkValuesHolder(method_result.value)
 
-    def _apply_bulk_values_holder(self, test, method, endpoint, bulk_values_holder, recurse):
+    def _apply_bulk_values_holder(self,
+                                  test: GenericTest,
+                                  test_metadata: TestMetadata,
+                                  method: str,
+                                  endpoint: str,
+                                  bulk_values_holder: NcBulkValuesHolder,
+                                  restoreMode: NcRestoreMode,
+                                  recurse: bool):
         backup_dataset = {
             "arguments": {
                 "dataSet": self._to_dict(bulk_values_holder),
                 "recurse": recurse,
-                "restoreMode": NcRestoreMode.Modify.value
+                "restoreMode": restoreMode.value
                 }
             }
 
@@ -201,32 +222,41 @@ class IS1401Test(MS0501Test):
                                                            role_path=f"{endpoint}")
         method_result = NcMethodResult.factory(method_result_json)
 
-        # Check result value is
+        # Devices MUST return a response of type NcMethodResultObjectPropertiesSetValidation.
         if not isinstance(method_result.value, list):
             raise NMOSTestException(test.FAIL("Sequence of NcObjectPropertiesSetValidation expected"))
 
         for value in method_result.value:
-            # Check this is of type NcMethodResult
+            # Check this is an array of NcObjectPropertiesSetValidation
             self.is14_utils.reference_datatype_schema_validate(test,
                                                                value,
                                                                NcObjectPropertiesSetValidation.__name__,
                                                                role_path=f"{endpoint}")
+        test_metadata.checked = True
 
         return [NcObjectPropertiesSetValidation(v) for v in method_result.value]
 
     def _restore_bulk_values_holder(self,
                                     test: GenericTest,
+                                    test_metadata: TestMetadata,
                                     endpoint: string,
                                     bulk_values_holder: NcBulkValuesHolder,
+                                    restoreMode=NcRestoreMode.Modify,
                                     recurse=True):
-        return self._apply_bulk_values_holder(test, "PUT", endpoint, bulk_values_holder, recurse)
+        return self._apply_bulk_values_holder(test,
+                                              test_metadata,
+                                              "PUT", endpoint, bulk_values_holder, restoreMode, recurse)
 
     def _validate_bulk_values_holder(self,
                                      test: GenericTest,
+                                     test_metadata: TestMetadata,
                                      endpoint: string,
                                      bulk_values_holder: NcBulkValuesHolder,
+                                     restoreMode=NcRestoreMode.Modify,
                                      recurse=True):
-        return self._apply_bulk_values_holder(test, "PATCH", endpoint, bulk_values_holder, recurse)
+        return self._apply_bulk_values_holder(test,
+                                              test_metadata,
+                                              "PATCH", endpoint, bulk_values_holder, restoreMode, recurse)
 
     def test_01(self, test):
         """Control Endpoint: Node under test advertises IS-14 control endpoint matching API under test"""
@@ -354,7 +384,7 @@ class IS1401Test(MS0501Test):
         """Role path endpoint returns a response of type NcMethodResultError or a derived datatype on error"""
 
         # Force an error with a bogus role path
-        role_paths_endpoint = f"{self.configuration_url}rolePaths/this.url.does.not.exist"
+        role_paths_endpoint = f"{self.configuration_url}rolePaths/root.this.path.does.not.exist"
 
         valid, response = self.do_request("GET", role_paths_endpoint)
 
@@ -636,6 +666,7 @@ class IS1401Test(MS0501Test):
 
     def _compare_backup_datasets(self,
                                  test: GenericTest,
+                                 test_metadata: TestMetadata,
                                  original_bulk_values_holder: NcBulkValuesHolder,
                                  applied_bulk_values_holder: NcBulkValuesHolder,
                                  updated_bulk_values_holder: NcBulkValuesHolder,
@@ -659,32 +690,34 @@ class IS1401Test(MS0501Test):
                         and not validate \
                         and key in applied_properties \
                         and property_value_holder.value != applied_properties[key].value:
-                    raise NMOSTestException(
-                        test.FAIL("Property not updated by restore "
-                                  f"for role path {object_property_holder.path} "
-                                  f"and property {str(property_value_holder.id)} "
-                                  f"when restoring to {target_role_path} "
-                                  f"with recurse={recurse}"))
+                    test_metadata.error = True
+                    test_metadata.error_msg += "Property not updated by restore " \
+                        f"for role path {object_property_holder.path} " \
+                        f"and property {str(property_value_holder.id)} " \
+                        f"when restoring to {target_role_path} " \
+                        f"with recurse={recurse}; "
                 if not recurse and object_property_holder.path != target_role_path \
                         and not validate \
                         and key in applied_properties \
                         and property_value_holder.value != original_properties[key].value:
-                    raise NMOSTestException(
-                        test.FAIL("Property unexpectedly updated by restore "
-                                  f"for role path {object_property_holder.path} "
-                                  f"and property {str(property_value_holder.id)} "
-                                  f"when restoring to {target_role_path} "
-                                  f"with recurse={recurse}"))
+                    test_metadata.error = True
+                    test_metadata.error_msg += "Property unexpectedly updated by restore " \
+                        f"for role path {object_property_holder.path} " \
+                        f"and property {str(property_value_holder.id)} " \
+                        f"when restoring to {target_role_path} " \
+                        f"with recurse={recurse}; "
                 if validate and key in applied_properties \
                         and property_value_holder.value == applied_properties[key].value:
-                    raise NMOSTestException(
-                        test.FAIL("Property unexpectedly updated by validate "
-                                  f"for role path {object_property_holder.path} "
-                                  f"and property {str(property_value_holder.id)} "
-                                  f"when restoring to {target_role_path} "
-                                  f"with recurse={recurse}"))
+                    test_metadata.error = True
+                    test_metadata.error_msg += "Property unexpectedly updated by validate " \
+                        f"for role path {object_property_holder.path} " \
+                        f"and property {str(property_value_holder.id)} " \
+                        f"when restoring to {target_role_path} " \
+                        f"with recurse={recurse}; "
+        test_metadata.checked = True
 
     def _check_object_properties_set_validations(self, test: GenericTest,
+                                                 test_metadata: TestMetadata,
                                                  bulk_values_holder: NcBulkValuesHolder,
                                                  validations: list[NcObjectPropertiesSetValidation],
                                                  target_role_path: list[str],
@@ -694,11 +727,11 @@ class IS1401Test(MS0501Test):
         actual_role_paths = [v.path for v in validations]
 
         if len(expected_role_paths) != len(actual_role_paths):
-            raise NMOSTestException(
-                test.FAIL(f"Unexpected number of NcObjectPropertiesSetValidation objects "
-                          f"expected {len(expected_role_paths)} role paths={str(expected_role_paths)}, "
-                          f"actual {len(actual_role_paths)} role paths = {str(actual_role_paths)} for "
-                          f"target role path={target_role_path}"))
+            test_metadata.error = True
+            test_metadata.error_msg += f"Unexpected number of NcObjectPropertiesSetValidation objects " \
+                f"expected {len(expected_role_paths)} role paths={str(expected_role_paths)}, " \
+                f"actual {len(actual_role_paths)} role paths = {str(actual_role_paths)} for " \
+                f"target role path={target_role_path}; "
 
         # Check the role paths are correct
         bulk_value_holders_dict = self._create_object_properties_dict(bulk_values_holder)
@@ -710,22 +743,27 @@ class IS1401Test(MS0501Test):
         for validation in validations:
             key = ".".join(validation.path)
             if key not in bulk_value_holders_dict.keys():
-                raise NMOSTestException(
-                    test.FAIL("Unexpected NcObjectPropertiesSetValidation object "
-                              "returned from bulkProperties endpoint. "
-                              f"{str(validation)}"))
+                test_metadata.error = True
+                test_metadata.error_msg += "Unexpected NcObjectPropertiesSetValidation object " \
+                    "returned from bulkProperties endpoint. " \
+                    f"{str(validation)}; "
 
         # Check status is OK
         for validation in validations:
             if validation.status != NcRestoreValidationStatus.Ok.value:
-                raise NMOSTestException(
-                    test.FAIL(f"Unexpected NcRestoreValidationStatus. "
-                              f"Expected OK but got {validation.status} "
-                              f"for role path {validation.path}, "
-                              f"target role path={target_role_path} "
-                              f"{str(validation)}"))
+                test_metadata.error = True
+                test_metadata.error_msg += f"Unexpected NcRestoreValidationStatus. " \
+                    f"Expected OK but got {validation.status} " \
+                    f"for role path {validation.path}, " \
+                    f"target role path={target_role_path} " \
+                    f"{str(validation)}; "
+        test_metadata.checked = True
 
-    def _check_bulk_properties_validate(self, test: GenericTest, target_role_path: list[str], recurse: bool):
+    def _check_validate_restore_properties(self,
+                                           test: GenericTest,
+                                           target_role_path: list[str],
+                                           restoreMode: NcRestoreMode,
+                                           recurse: bool):
         target_role_path_formatted = ".".join(target_role_path)
         bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{target_role_path_formatted}/bulkProperties"
 
@@ -744,77 +782,65 @@ class IS1401Test(MS0501Test):
                 property_value_holder.value = "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
 
         # Validate Bulk Values returns an array of NcObjectPropertiesSetValidation objects
-        validations = self._validate_bulk_values_holder(test, bulk_properties_endpoint, bulk_values_holder, recurse)
+        validations = self._validate_bulk_values_holder(test,
+                                                        self.check_validate_return_type_metadata,
+                                                        bulk_properties_endpoint,
+                                                        bulk_values_holder,
+                                                        restoreMode,
+                                                        recurse)
 
-        self._check_object_properties_set_validations(test, bulk_values_holder, validations, target_role_path, recurse)
+        self._check_object_properties_set_validations(test,
+                                                      self.check_validate_return_objects_metadata,
+                                                      bulk_values_holder,
+                                                      validations,
+                                                      target_role_path,
+                                                      recurse)
 
         # Verify the labels have NOT changed
         updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
 
         self._compare_backup_datasets(test,
+                                      self.check_validate_does_not_modify_metadata,
                                       original_bulk_values_holder,
                                       bulk_values_holder,
                                       updated_bulk_values_holder,
                                       target_role_path, recurse, validate=True)
 
-    def test_13(self, test):
-        """Validate backup dataset on bulkProperties endpoint"""
-        device_model = self.is14_utils.query_device_model(test)
-
-        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties"
-        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
-        # Cache bulk_values_holder
-        original_bulk_values_holder = deepcopy(bulk_values_holder)
-
-        partial_role_paths = device_model.get_role_paths()
-
-        role_paths = [["root"] + partial_role_path for partial_role_path in partial_role_paths]
-        role_paths.append(["root"])
-
-        # Check backup and restore to each role path
-        for role_path in role_paths:
-            self._check_bulk_properties_validate(test, role_path, recurse=True)
-            self._check_bulk_properties_validate(test, role_path, recurse=False)
-
-        # Reset to original backup dataset
-        self._restore_bulk_values_holder(test, bulk_properties_endpoint, original_bulk_values_holder)
-
-        return test.PASS()
-
-    def _check_bulk_properties_restore(self, test, target_role_path, recurse):
-        target_role_path_formatted = ".".join(target_role_path)
-        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{target_role_path_formatted}/bulkProperties"
-
-        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
-
-        # Cache bulk_values_holder
-        original_bulk_values_holder = deepcopy(bulk_values_holder)
-
-        # Remove all property_value_holders apart from user label properties
-        for object_property_holder in bulk_values_holder.values:
-            object_property_holder.values = [v for v in object_property_holder.values
-                                             if v.id == NcObjectProperties.USER_LABEL.value]
-
-            # Change the user labels to random ten character strings
-            for property_value_holder in object_property_holder.values:
-                property_value_holder.value = "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
-
         # Restore Bulk Values returns an array of NcObjectPropertiesSetValidation objects
-        validations = self._restore_bulk_values_holder(test, bulk_properties_endpoint, bulk_values_holder, recurse)
+        validations = self._restore_bulk_values_holder(test,
+                                                       self.check_restore_return_type_metadata,
+                                                       bulk_properties_endpoint,
+                                                       bulk_values_holder,
+                                                       restoreMode,
+                                                       recurse)
 
-        self._check_object_properties_set_validations(test, bulk_values_holder, validations, target_role_path, recurse)
+        self._check_object_properties_set_validations(test,
+                                                      self.check_restore_return_objects_metadata,
+                                                      bulk_values_holder,
+                                                      validations,
+                                                      target_role_path,
+                                                      recurse)
 
         # Verify the labels have changed
         updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
 
         # Compare original, applied and updated bulk value holders
         self._compare_backup_datasets(test,
+                                      self.check_restore_does_modify_metadata,
                                       original_bulk_values_holder,
                                       bulk_values_holder,
                                       updated_bulk_values_holder, target_role_path, recurse)
 
-    def test_14(self, test):
-        """Restore backup dataset to bulkProperties endpoint"""
+    def _do_bulk_properties_checks(self, test):
+        if self.bulk_properties_checked is True:
+            return
+
+        # In their attempt to use the provided dataSet, devices MUST target the properties
+        # of the target role path and all nested role paths when the body of the request contains
+        # the recurse value set to true.
+        # Devices MUST return a response of type NcMethodResultObjectPropertiesSetValidation.
+        # Devices MUST NOT make any changes to the device model when validating bulk properties.
+
         device_model = self.is14_utils.query_device_model(test)
 
         bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties"
@@ -829,11 +855,94 @@ class IS1401Test(MS0501Test):
 
         # Check backup and restore to each role path
         for role_path in role_paths:
-            self._check_bulk_properties_restore(test, role_path, recurse=True)
-            self._check_bulk_properties_restore(test, role_path, recurse=False)
+            self._check_validate_restore_properties(test, role_path, restoreMode=NcRestoreMode.Modify, recurse=True)
+            self._check_validate_restore_properties(test, role_path, restoreMode=NcRestoreMode.Modify, recurse=False)
 
         # Reset to original backup dataset
-        self._restore_bulk_values_holder(test, bulk_properties_endpoint, original_bulk_values_holder)
+        self._restore_bulk_values_holder(test,
+                                         self.check_restore_return_type_metadata,
+                                         bulk_properties_endpoint,
+                                         original_bulk_values_holder)
+
+        self.bulk_properties_checked = True
+
+    def test_13(self, test):
+        """Validating backup dataset devices returns NcMethodResultObjectPropertiesSetValidation array."""
+        self._do_bulk_properties_checks(test)
+
+        if self.check_validate_return_type_metadata.error:
+            return test.FAIL(self.check_validate_return_objects_metadata.error_msg)
+
+        if not self.check_validate_return_objects_metadata.checked:
+            return test.UNCLEAR()
+
+        return test.PASS()
+
+    def test_14(self, test):
+        """Restoring backup dataset devices returns NcMethodResultObjectPropertiesSetValidation array."""
+        self._do_bulk_properties_checks(test)
+
+        if self.check_restore_return_type_metadata.error:
+            return test.FAIL(self.check_restore_return_type_metadata.error_msg)
+
+        if not self.check_restore_return_type_metadata.checked:
+            return test.UNCLEAR()
+
+        return test.PASS()
+
+    def test_15(self, test):
+        """Validating returns one NcObjectPropertiesSetValidation for each object in the restore scope."""
+        # A restore operation or validating a restore operation MUST always generate
+        # ObjectPropertiesSetValidation entries for each object which is part of the restore scope.
+        self._do_bulk_properties_checks(test)
+
+        if self.check_validate_return_objects_metadata.error:
+            return test.FAIL(self.check_validate_return_objects_metadata.error_msg)
+
+        if not self.check_validate_return_objects_metadata.checked:
+            return test.UNCLEAR()
+
+        return test.PASS()
+
+    def test_16(self, test):
+        """Restoring returns one NcObjectPropertiesSetValidation for each object in the restore scope."""
+        # A restore operation or validating a restore operation MUST always generate
+        # ObjectPropertiesSetValidation entries for each object which is part of the restore scope.
+        self._do_bulk_properties_checks(test)
+
+        if self.check_restore_return_objects_metadata.error:
+            return test.FAIL(self.check_restore_return_objects_metadata.error_msg)
+
+        if not self.check_restore_return_objects_metadata.checked:
+            return test.UNCLEAR()
+
+        return test.PASS()
+
+    def test_17(self, test):
+        """Validating results in no changes to the device model."""
+        # Devices MUST NOT make any changes to the device model when validating bulk properties.
+        self._do_bulk_properties_checks(test)
+
+        if self.check_validate_does_not_modify_metadata.error:
+            return test.FAIL(self.check_validate_does_not_modify_metadata.error_msg)
+
+        if not self.check_validate_does_not_modify_metadata.checked:
+            return test.UNCLEAR()
+
+        return test.PASS()
+
+    def test_18(self, test):
+        """Devices restores properties of target role path and all nested role paths when recurse is true"""
+        # In their attempt to use the provided dataSet, devices MUST target the properties
+        # of the target role path and all nested role paths when the body of the request
+        # contains the recurse value set to true.
+        self._do_bulk_properties_checks(test)
+
+        if self.check_restore_does_modify_metadata.error:
+            return test.FAIL(self.check_restore_does_modify_metadata.error_msg)
+
+        if not self.check_restore_does_modify_metadata.checked:
+            return test.UNCLEAR()
 
         return test.PASS()
 
@@ -878,10 +987,15 @@ class IS1401Test(MS0501Test):
         # If it got this far something has gone badly wrong
         raise NMOSTestException(test.FAIL(f"Unknown MS-05 datatype type: {datatype_descriptor.type}"))
 
-    def test_15(self, test):
-        """Perform Modify restore on Node under test"""
-        if not MS05_INVASIVE_TESTING:
-            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
+    def _perform_restore(self,
+                         test: GenericTest,
+                         test_metadata: TestMetadata,
+                         target_role_path: list[str],
+                         bulk_values_holder: NcBulkValuesHolder,
+                         original_bulk_values_holder: NcBulkValuesHolder,
+                         restoreMode: NcRestoreMode,
+                         recurse: bool):
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{'.'.join(target_role_path)}/bulkProperties"
 
         device_model = self.is14_utils.query_device_model(test)
 
@@ -895,15 +1009,6 @@ class IS1401Test(MS0501Test):
         for ms05_property in writable_properties:
             key = ".".join(ms05_property.role_path) + str(ms05_property.descriptor.id)
             writable_properties_dict[key] = ms05_property
-
-        target_role_path = ["root"]
-        recurse = True
-        # Get the backup dataset
-        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{'.'.join(target_role_path)}/bulkProperties"
-        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
-
-        # Cache original bulk values holder
-        original_bulk_values_holder = deepcopy(bulk_values_holder)
 
         # Update the writable properties of the bulk_values_holder
         for object_property_holder in bulk_values_holder.values:
@@ -919,8 +1024,13 @@ class IS1401Test(MS0501Test):
                     filtered_property_value_holders.append(property_value_holder)
             object_property_holder.values = filtered_property_value_holders
 
-        # Validate
-        validations = self._validate_bulk_values_holder(test, bulk_properties_endpoint, bulk_values_holder, recurse)
+        # Validate the modified bulk values holder
+        validations = self._validate_bulk_values_holder(test,
+                                                        test_metadata,
+                                                        bulk_properties_endpoint,
+                                                        bulk_values_holder,
+                                                        restoreMode,
+                                                        recurse)
 
         # Create a dict from validation warnings and errors
         problem_properties = {}
@@ -930,7 +1040,6 @@ class IS1401Test(MS0501Test):
                 problem_properties[key] = notice
 
         # Remove any problem properties from the dataset
-
         for object_property_holder in bulk_values_holder.values:
             filtered_property_value_holders = []
             for property_value_holder in object_property_holder.values:
@@ -940,20 +1049,110 @@ class IS1401Test(MS0501Test):
             object_property_holder.values = filtered_property_value_holders
 
         # Apply bulk values holder to Node
-        validations = self._restore_bulk_values_holder(test, bulk_properties_endpoint, bulk_values_holder, recurse)
+        validations = self._restore_bulk_values_holder(test,
+                                                       test_metadata,
+                                                       bulk_properties_endpoint,
+                                                       bulk_values_holder,
+                                                       restoreMode,
+                                                       recurse)
 
         # Check there were no errors
-        self._check_object_properties_set_validations(test, bulk_values_holder, validations, target_role_path, recurse)
+        self._check_object_properties_set_validations(test,
+                                                      test_metadata,
+                                                      bulk_values_holder,
+                                                      validations,
+                                                      target_role_path,
+                                                      recurse)
 
         # Check the properties were changed
         updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
 
         self._compare_backup_datasets(test,
+                                      test_metadata,
                                       original_bulk_values_holder,
                                       bulk_values_holder,
-                                      updated_bulk_values_holder, target_role_path, recurse)
+                                      updated_bulk_values_holder,
+                                      target_role_path,
+                                      recurse)
 
         # Restore the original bulk values holder
-        self._restore_bulk_values_holder(test, bulk_properties_endpoint, original_bulk_values_holder)
+        self._restore_bulk_values_holder(test,
+                                         test_metadata,
+                                         bulk_properties_endpoint,
+                                         original_bulk_values_holder,
+                                         restoreMode,
+                                         recurse)
+
+    def test_19(self, test):
+        """Perform invasive 'Modify' validation and restore"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
+
+        target_role_path = ["root"]
+        recurse = True
+        # Get the backup dataset
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{'.'.join(target_role_path)}/bulkProperties"
+        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+
+        # Cache original bulk values holder
+        original_bulk_values_holder = deepcopy(bulk_values_holder)
+
+        check_invasive_modify_metadata = IS1401Test.TestMetadata()
+
+        self._perform_restore(test,
+                              check_invasive_modify_metadata,
+                              target_role_path,
+                              bulk_values_holder,
+                              original_bulk_values_holder,
+                              NcRestoreMode.Modify,
+                              recurse)
+
+        if check_invasive_modify_metadata.error:
+            return test.FAIL(check_invasive_modify_metadata.error_msg)
+
+        if not check_invasive_modify_metadata.checked:
+            return test.UNCLEAR()
+
+        return test.PASS()
+
+    def test_20(self, test):
+        """Non-rebuildable Device Models accept Rebuild restores but only perform changes to writeable properties"""
+        # In the interest of interoperability even devices with no rebuildable device model objects
+        # MUST accept Rebuild restores but only perform changes to writeable properties of device model
+        # objects whilst including notices for any other changes not supported by the device.
+
+        # Find non-rebuidable part of the device model
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
+
+        target_role_path = ["root"]
+        recurse = True
+        # Get the backup dataset
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{'.'.join(target_role_path)}/bulkProperties"
+        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+
+        # Cache original bulk values holder
+        original_bulk_values_holder = deepcopy(bulk_values_holder)
+
+        # Filter out rebuildable objects in the dataset
+        non_rebuildable_object_holders = [o for o in bulk_values_holder.values if o.isRebuildable is False]
+
+        bulk_values_holder.values = non_rebuildable_object_holders
+
+        check_rebuild_modify_metadata = IS1401Test.TestMetadata()
+
+        self._perform_restore(test,
+                              check_rebuild_modify_metadata,
+                              target_role_path,
+                              bulk_values_holder,
+                              original_bulk_values_holder,
+                              NcRestoreMode.Rebuild,
+                              recurse)
+
+        if check_rebuild_modify_metadata .error:
+            return test.FAIL(check_rebuild_modify_metadata .error_msg)
+
+        if not check_rebuild_modify_metadata .checked:
+            return test.UNCLEAR()
 
         return test.PASS()
