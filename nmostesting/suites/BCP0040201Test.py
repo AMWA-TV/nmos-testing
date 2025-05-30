@@ -286,7 +286,7 @@ class BCP0040201Test(GenericTest):
                                 sender["id"]))
 
                 if warn_label:
-                    warning += ("|" + "Sender {} constraint_sets should either 'urn:x-nmos:cap:meta:label' "
+                    warning += ("|Sender {} constraint_sets should either 'urn:x-nmos:cap:meta:label' "
                                 "for all constraint sets or none".format(sender["id"]))
 
         if no_constraint_sets:
