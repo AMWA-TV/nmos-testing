@@ -272,7 +272,7 @@ class BCP0040201Test(GenericTest):
                             # Capabilities register
                             if param_constraint.startswith(
                                     "urn:x-nmos:") and param_constraint not in reg_schema_obj["properties"]:
-                                warning += ("|" + "Sender {} parameter constraint {}"
+                                warning += ("|Sender {} parameter constraint {}"
                                             " is not registered ".format(sender["id"], param_constraint))
 
                         except BaseException:
