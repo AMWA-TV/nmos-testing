@@ -210,7 +210,7 @@ class BCP0040201Test(GenericTest):
 
             # Make sure Senders do not use the Receiver's specific "media_types" attribute in their caps
             if "media_types" in sender["caps"]:
-                warning += ("|" + "Sender {} caps has an unnecessary 'media_types' attribute "
+                warning += ("|Sender {} caps has an unnecessary 'media_types' attribute "
                             "that is not used with sender capabilities".format(sender["id"]))
 
             # Make sure Senders do not use the Receiver's specific "event_types" attribute in their caps
