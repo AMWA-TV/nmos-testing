@@ -215,7 +215,7 @@ class BCP0040201Test(GenericTest):
 
             # Make sure Senders do not use the Receiver's specific "event_types" attribute in their caps
             if "event_types" in sender["caps"]:
-                warning += ("|" + "Sender {} caps has an unnecessary 'event_types' attribute "
+                warning += ("|Sender {} caps has an unnecessary 'event_types' attribute "
                             "that is not used with sender capabilities".format(sender["id"]))
 
             if "constraint_sets" in sender["caps"]:
