@@ -758,25 +758,9 @@ def init_spec_cache():
         if repo_data["repo"] is None:
             continue
         if not os.path.exists(path):
-
-            if "url" not in repo_data or repo_data["url"] is None:
-                repo_url = 'https://github.com/AMWA-TV/'
-            else:
-                repo_url = repo_data["url"]
-            if "branch" not in repo_data or repo_data["branch"] is None:
-                repo_branch = None
-            else:
-                repo_branch = repo_data["branch"]
-
-            print(" * Initialising repository '{}' from branch '{}' at url '{}'".format(
-                repo_data["repo"], repo_branch, repo_url))
-
+            repo_url = repo_data.get("url", "https://github.com/AMWA-TV/")
+            print(" * Initialising repository '{}' at url '{}'".format(repo_data["repo"], repo_url))
             repo = git.Repo.clone_from(repo_url + repo_data["repo"] + '.git', path)
-
-            if repo_branch is not None:
-                repo.git.checkout(repo_branch)
-                print(repo.git.status())
-
             update_last_pull = True
         else:
             repo = git.Repo(path)
