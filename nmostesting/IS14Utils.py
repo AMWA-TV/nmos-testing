@@ -12,12 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from nmostesting.GenericTest import NMOSTestException
+import os
+from .GenericTest import NMOSTestException
 from .MS05Utils import MS05Utils, NcBlockMethods, NcClassManagerMethods, NcObjectMethods
+from .TestResult import Test
 
 from . import TestHelper
 
 CONFIGURATION_API_KEY = "configuration"
+FEATURE_SETS_KEY = "featuresets"
+MS05_API_KEY = "controlframework"
 
 
 class IS14Utils(MS05Utils):
@@ -27,6 +31,49 @@ class IS14Utils(MS05Utils):
 
     def reset(self):
         super().reset()
+
+    def load_reference_resources(self):
+        """Override to load specification specific feature sets"""
+        super().load_reference_resources()
+
+        self.apis['featuresets']['repo_paths'] = ['device-configuration']
+        # Calculate paths to MS-05 descriptors
+        # including Feature Sets specified as additional_paths in test definition
+        spec_paths = [os.path.join(self.apis[FEATURE_SETS_KEY]["spec_path"], "device-configuration")]
+        spec_paths.append(self.apis[MS05_API_KEY]["spec_path"])
+        # Root path for primitive datatypes
+        spec_paths.append("test_data/MS05")
+
+        datatype_paths = []
+        classes_paths = []
+        for spec_path in spec_paths:
+            datatype_path = os.path.abspath(os.path.join(spec_path, "models/datatypes/"))
+            if os.path.exists(datatype_path):
+                datatype_paths.append(datatype_path)
+            classes_path = os.path.abspath(os.path.join(spec_path, "models/classes/"))
+            if os.path.exists(classes_path):
+                classes_paths.append(classes_path)
+
+        # Load class and datatype descriptors
+        self.is14_reference_class_descriptors = self._load_model_descriptors(classes_paths)
+
+        # Load MS-05 datatype descriptors
+        self.is14_reference_datatype_descriptors = self._load_model_descriptors(datatype_paths)
+
+    def auto_tests(self):
+        """Overide to only test sepecification specific feature sets"""
+
+        results = list()
+        test = Test("Initialize auto tests", "auto_init")
+
+        class_manager = self.get_class_manager(test)
+
+        results += self._validate_model_definitions(class_manager.class_descriptors,
+                                                    self.is14_reference_class_descriptors)
+
+        results += self._validate_model_definitions(class_manager.datatype_descriptors,
+                                                    self.is14_reference_datatype_descriptors)
+        return results
 
     def _format_property_id(self, property_id):
         return f"{str(property_id.level)}p{str(property_id.index)}"

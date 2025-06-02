@@ -112,8 +112,6 @@ class IS1401Test(MS0501Test):
             self.unclear = unclear
 
     def __init__(self, apis, **kwargs):
-        # override the featuresets repo_paths to only test against the device-configuration feature set
-        apis['featuresets']['repo_paths'] = ['device-configuration']
         self.is14_utils = IS14Utils(apis)
         MS0501Test.__init__(self, apis, self.is14_utils, **kwargs)
         self.node_url = apis[NODE_API_KEY]["url"]
@@ -577,9 +575,9 @@ class IS1401Test(MS0501Test):
                     property_descriptor.typeName != property_value_holder.typeName or \
                     property_descriptor.isReadOnly != property_value_holder.isReadOnly:
                 raise NMOSTestException(
-                    test.FAIL("Definition of property in NcPropertyValueHolder inconsistant with class "
-                              f"descriptor's NcPropertyDescriptor. NcPropertyDescriptor={property_descriptor}, "
-                              f"NcPropertyValueHolder={property_value_holder} "
+                    test.FAIL("Definition of property in NcPropertyValueHolder inconsistant with class descriptor's "
+                              f"NcPropertyDescriptor. Class descriptor NcPropertyDescriptor={property_descriptor}; "
+                              f"Backup dataset NcPropertyValueHolder={property_value_holder} "
                               f"for endpoint {bulk_properties_endpoint}"))
 
     def test_10(self, test):
