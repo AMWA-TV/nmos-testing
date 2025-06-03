@@ -88,6 +88,7 @@ from .suites import BCP00301Test
 from .suites import BCP0050101Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
+from .suites import BCP0040201Test
 from .suites import BCP00604Test
 
 
@@ -431,6 +432,33 @@ TEST_DEFINITIONS = {
         }],
         "class": BCP0060102Test.BCP0060102Test
     },
+    "BCP-004-02": {
+        "name": "BCP-004-02 Sender Capabilities",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "flow-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "sender-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "caps-register"
+        }, {
+            "spec_key": "bcp-004-01",
+            "api_key": "receiver-caps"
+        }, {
+            "spec_key": "bcp-004-02",
+            "api_key": "sender-caps"
+        }],
+        "class": BCP0040201Test.BCP0040201Test
+    },
     "BCP-006-04": {
         "name": "BCP-006-04 NMOS With MPEG TS",
         "specs": [{
@@ -730,8 +758,9 @@ def init_spec_cache():
         if repo_data["repo"] is None:
             continue
         if not os.path.exists(path):
-            print(" * Initialising repository '{}'".format(repo_data["repo"]))
-            repo = git.Repo.clone_from('https://github.com/AMWA-TV/' + repo_data["repo"] + '.git', path)
+            repo_url = repo_data.get("url", "https://github.com/AMWA-TV/")
+            print(" * Initialising repository '{}' at url '{}'".format(repo_data["repo"], repo_url))
+            repo = git.Repo.clone_from(repo_url + repo_data["repo"] + '.git', path)
             update_last_pull = True
         else:
             repo = git.Repo(path)
