@@ -386,7 +386,7 @@ TEST_DEFINITIONS = {
         "urlpath": True
     },
     "IS-14-01": {
-        "name": "IS-14 Configuration",
+        "name": "IS-14 Device Configuration",
         "specs": [{
             "spec_key": "is-04",
             "api_key": "node",
