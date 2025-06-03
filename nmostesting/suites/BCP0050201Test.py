@@ -260,7 +260,7 @@ class BCP0050201Test(GenericTest):
                 # REFERENCE: A Sender MAY provide a `urn:x-nmos:cap:transport:hkep` capability to indicate that
                 #            HDCP encryption and the HKEP protocol are supported.
                 #
-                # If only_allow_true and only_allow_true are None is indicates that capabilities were not provided.
+                # If only_allow_true and only_allow_true are None this indicates that capabilities were not provided.
                 if "constraint_sets" in sender["caps"]:
 
                     try:
