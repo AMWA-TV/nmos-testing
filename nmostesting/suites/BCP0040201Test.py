@@ -25,6 +25,7 @@ from ..IS04Utils import IS04Utils
 from ..IS05Utils import IS05Utils
 from ..TestHelper import load_resolved_schema
 from ..TestHelper import check_content_type
+from ..TestResult import Test
 
 from pathlib import Path
 
@@ -70,6 +71,7 @@ class BCP0040201Test(GenericTest):
             "transport_files": {}}
         self.is04_utils = IS04Utils(self.node_url)
         self.is05_utils = IS05Utils(self.connection_url)
+        self.test = Test("default")
 
     # Utility function from IS0502Test
     def get_is04_resources(self, resource_type):
@@ -88,7 +90,7 @@ class BCP0040201Test(GenericTest):
         schema = self.get_schema(NODE_API_KEY, "GET", "/" + path_url, resources.status_code)
         valid, message = self.check_response(schema, "GET", resources)
         if not valid:
-            raise NMOSTestException(message)
+            raise NMOSTestException(self.test.FAIL(message))
 
         try:
             for resource in resources.json():
@@ -116,7 +118,7 @@ class BCP0040201Test(GenericTest):
         schema = self.get_schema(CONNECTION_API_KEY, "GET", "/" + path_url, resources.status_code)
         valid, message = self.check_response(schema, "GET", resources)
         if not valid:
-            raise NMOSTestException(message)
+            raise NMOSTestException(self.test.FAIL(message))
 
         # The following call to is05_utils.get_transporttype does not validate against the IS-05 schemas,
         # which is good for allowing extended transport. The transporttype-response-schema.json schema is
@@ -170,6 +172,8 @@ class BCP0040201Test(GenericTest):
     def test_01(self, test):
         """Check that version 1.3 or greater of the Node API is available"""
 
+        self.test = test
+
         api = self.apis[NODE_API_KEY]
         if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
             valid, result = self.do_request("GET", self.node_url)
@@ -182,6 +186,8 @@ class BCP0040201Test(GenericTest):
 
     def test_02(self, test):
         """Check Sender Capabilities"""
+
+        self.test = test
 
         api = self.apis[SENDER_CAPS_KEY]
 
