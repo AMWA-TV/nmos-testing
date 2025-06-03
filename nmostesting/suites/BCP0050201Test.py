@@ -25,6 +25,7 @@ from ..IS04Utils import IS04Utils
 from ..IS05Utils import IS05Utils
 from ..TestHelper import load_resolved_schema
 from ..TestHelper import check_content_type
+from ..TestResult import Test
 
 from pathlib import Path
 
@@ -83,6 +84,7 @@ class BCP0050201Test(GenericTest):
                                "_requested": [], "transport_types": {}, "transport_files": {}}
         self.is04_utils = IS04Utils(self.node_url)
         self.is05_utils = IS05Utils(self.connection_url)
+        self.test = Test("default")
 
     # Utility function from IS0502Test
     def get_is04_resources(self, resource_type):
@@ -101,7 +103,7 @@ class BCP0050201Test(GenericTest):
         schema = self.get_schema(NODE_API_KEY, "GET", "/" + path_url, resources.status_code)
         valid, message = self.check_response(schema, "GET", resources)
         if not valid:
-            raise NMOSTestException(message)
+            raise NMOSTestException(self.test.FAIL(message))
 
         try:
             for resource in resources.json():
@@ -129,7 +131,7 @@ class BCP0050201Test(GenericTest):
         schema = self.get_schema(CONNECTION_API_KEY, "GET", "/" + path_url, resources.status_code)
         valid, message = self.check_response(schema, "GET", resources)
         if not valid:
-            raise NMOSTestException(message)
+            raise NMOSTestException(self.test.FAIL(message))
 
         # The following call to is05_utils.get_transporttype does not validate against the IS-05 schemas,
         # which is good for allowing extended transport. The transporttype-response-schema.json schema is
@@ -183,6 +185,8 @@ class BCP0050201Test(GenericTest):
     def test_01(self, test):
         """Check that version 1.3+ the Node API and version 1.1+ of the Connection API are available"""
 
+        self.test = test
+
         # REFERENCE: Nodes compliant with this specification MUST implement [IS-04][] v1.3 or higher
         #            and [IS-05][] v1.1 or higher.
         api = self.apis[NODE_API_KEY]
@@ -205,6 +209,8 @@ class BCP0050201Test(GenericTest):
 
     def test_02(self, test):
         """Check HKEP Senders"""
+
+        self.test = test
 
         api = self.apis[SENDER_CAPS_KEY]
 
@@ -401,6 +407,8 @@ class BCP0050201Test(GenericTest):
 
     def test_03(self, test):
         """Check HKEP Receivers"""
+
+        self.test = test
 
         api = self.apis[RECEIVER_CAPS_KEY]
 
