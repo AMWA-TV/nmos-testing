@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# python3 nmos-test.py suite BCP-004-02 --host 127.0.0.1 127.0.0.1 --port 5058 5058 --version v1.3 v1.1
 
 import json
 import re
