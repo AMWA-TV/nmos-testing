@@ -122,7 +122,7 @@ class NcElementId():
         return f"[level={self.level}, index={self.index}]"
 
     def __hash__(self):
-        return self.level * 251 + self.index
+        return hash(str(self))
 
 
 class NcPropertyId(NcElementId):
@@ -526,6 +526,20 @@ class NcBlock(NcObject):
             if type(child_object) is NcBlock:
                 oids += child_object.get_oids(False)
         return oids
+
+    def find_object_by_path(self, role_path) -> NcObject:
+        """Helper function to locate an NcObject by role path"""
+        # Returns None if role path can't be found
+        if role_path == self.role_path:
+            return self
+
+        ret_val = None
+        for child_object in self.child_objects:
+            if isinstance(child_object, NcBlock):
+                ret_val = child_object.find_object_by_path(role_path)
+                if ret_val:
+                    break
+        return ret_val
 
     # NcBlock Methods
     def get_member_descriptors(self, recurse=False) -> list[NcBlockMemberDescriptor]:

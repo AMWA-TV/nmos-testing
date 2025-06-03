@@ -985,6 +985,39 @@ class IS1401Test(MS0501Test):
         # If it got this far something has gone badly wrong
         raise NMOSTestException(test.FAIL(f"Unknown MS-05 datatype type: {datatype_descriptor.type}"))
 
+    def _check_device_model_structure(self,
+                                      test: GenericTest,
+                                      bulk_values_holder: NcBulkValuesHolder,
+                                      device_model: NcBlock):
+        """Check that the Device Model has same structure as reference block"""
+        for object_properties_holder in bulk_values_holder.values:
+            role_path = object_properties_holder.path
+            device_model_object = device_model.find_object_by_path(role_path)
+            if not isinstance(device_model_object, NcBlock):
+                continue
+
+            expected_member_descriptors = device_model_object.get_member_descriptors()
+            method_result = self.is14_utils.get_member_descriptors(test, recurse=False, role_path=role_path)
+            if isinstance(method_result, NcMethodResultError):
+                raise NMOSTestException(test.FAIL(f"Error getting member descriptors: {method_result.errorMessage} "
+                                                  f"for role path={role_path}"))
+            actual_member_descriptors = method_result.value
+
+            expected_roles = [m.role for m in expected_member_descriptors]
+            actual_roles = [m.role for m in actual_member_descriptors]
+
+            difference = list(set(expected_roles) - set(actual_roles))
+
+            if len(difference) > 0:
+                raise NMOSTestException(test.FAIL(f"Expected roles not returned role={str(difference)} "
+                                                  f"for role path={role_path}"))
+
+            difference = list(set(actual_roles) - set(expected_roles))
+
+            if len(difference) > 0:
+                raise NMOSTestException(test.FAIL(f"Unexpected roles returned role={str(difference)} "
+                                                  f"for role path={role_path}"))
+
     def _perform_restore(self,
                          test: GenericTest,
                          test_metadata: TestMetadata,
@@ -1073,6 +1106,10 @@ class IS1401Test(MS0501Test):
                                       target_role_path,
                                       recurse)
 
+        # If this is a modify then check the structure hasn't changed
+        if restoreMode == NcRestoreMode.Modify:
+            self._check_device_model_structure(test, bulk_values_holder, device_model)
+
         # Restore the original bulk values holder
         self._restore_bulk_values_holder(test,
                                          test_metadata,
@@ -1080,6 +1117,10 @@ class IS1401Test(MS0501Test):
                                          original_bulk_values_holder,
                                          restoreMode,
                                          recurse)
+
+        if restoreMode == NcRestoreMode.Rebuild:
+            # Invalidate cached device model as it might have changed
+            self.is14_utils.device_model = None
 
     def test_19(self, test):
         """Perform invasive 'Modify' validation and restore"""
