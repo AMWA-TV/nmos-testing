@@ -20,7 +20,7 @@ import random
 import string
 from ..Config import MS05_INVASIVE_TESTING
 from ..GenericTest import GenericTest, NMOSTestException
-from ..MS05Utils import NcBlock, NcBlockProperties, NcClassDescriptor, NcClassManager, NcDatatypeDescriptor, \
+from ..MS05Utils import NcBlock, NcBlockMemberDescriptor, NcBlockProperties, NcClassDescriptor, NcClassManager, NcDatatypeDescriptor, \
     NcDatatypeType, NcMethodResult, NcMethodResultError, NcObject, NcObjectProperties, NcPropertyDescriptor, \
     NcPropertyId, StandardClassIds
 from ..IS14Utils import IS14Utils
@@ -950,6 +950,17 @@ class IS1401Test(MS0501Test):
         """Generate a new value based on the existing value"""
         datatype_descriptor = class_manager.get_datatype(type_name)
 
+        # If this is a null property then not sure how to manipulate it
+        if value == None:
+            return value
+
+        # If this is a sequence then process each element
+        if isinstance(value, list):
+            new_val = []
+            for e in value:
+                new_val.append(self._generate_property_value(test, class_manager, type_name, e))
+            return new_val
+
         if datatype_descriptor.type == NcDatatypeType.Primitive:
             resolved_type = self.is14_utils.resolve_datatype(test, type_name)
 
@@ -1018,6 +1029,22 @@ class IS1401Test(MS0501Test):
                 raise NMOSTestException(test.FAIL(f"Unexpected roles returned role={str(difference)} "
                                                   f"for role path={role_path}"))
 
+    def _filter_property_value_holders(self, bulk_values_holder: NcBulkValuesHolder, filter_dict: dict, include=False):
+        """ filter_dict is a dict of prorerty keys in the form {role_path}{property_id}"""
+        filtered_object_property_holders = []
+        for object_property_holder in bulk_values_holder.values:
+            filtered_property_value_holders = []
+            for property_value_holder in object_property_holder.values:
+                key = ".".join(object_property_holder.path) + str(property_value_holder.id)
+                if (key in filter_dict) == include:
+                    filtered_property_value_holders.append(property_value_holder)
+            if len(filtered_property_value_holders):
+                object_property_holder.values = filtered_property_value_holders
+                filtered_object_property_holders.append(object_property_holder)
+        bulk_values_holder.values = filtered_object_property_holders
+
+        return bulk_values_holder
+
     def _perform_restore(self,
                          test: GenericTest,
                          test_metadata: TestMetadata,
@@ -1025,90 +1052,82 @@ class IS1401Test(MS0501Test):
                          bulk_values_holder: NcBulkValuesHolder,
                          original_bulk_values_holder: NcBulkValuesHolder,
                          restoreMode: NcRestoreMode,
-                         recurse: bool):
+                         recurse: bool,
+                         readonly = False):
+        # Find the properties to keep in bulk values holder
+        device_model = self.is14_utils.query_device_model(test)
+        keep_properties = self.is14_utils.get_properties(test, device_model, get_readonly=readonly)
+
+        # Create a dict of properties to remove from bulk values holder
+        keep_properties_dict = {}
+        for ms05_property in keep_properties:
+            key = ".".join(ms05_property.role_path) + str(ms05_property.descriptor.id)
+            keep_properties_dict[key] = ms05_property
+
         bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{'.'.join(target_role_path)}/bulkProperties"
 
-        device_model = self.is14_utils.query_device_model(test)
+        # Keep these properties in the bulk_values_holder (exlude everthing else)
+        bulk_values_holder = self._filter_property_value_holders(bulk_values_holder, keep_properties_dict, include=True)
+        if len(bulk_values_holder.values) > 0:
+            # Modify the values
+            class_manager = self.is14_utils.get_class_manager(test)
+            for object_property_holder in bulk_values_holder.values:
+                for property_value_holder in object_property_holder.values:
+                        property_value_holder.value = self._generate_property_value(test,
+                                                                                    class_manager,
+                                                                                    property_value_holder.typeName,
+                                                                                    property_value_holder.value)
 
-        class_manager = self.is14_utils.get_class_manager(test)
+            # Validate the modified bulk values holder
+            validations = self._validate_bulk_values_holder(test,
+                                                            test_metadata,
+                                                            bulk_properties_endpoint,
+                                                            bulk_values_holder,
+                                                            restoreMode,
+                                                            recurse)
 
-        # Find the writable properties in model with no constraints
-        writable_properties = self.is14_utils.get_properties(test, device_model)
+            # Create a dict from validation warnings and errors
+            problem_properties = {}
+            for validation in validations:
+                for notice in validation.notices:
+                    key = ".".join(validation.path) + str(notice.id)
+                    problem_properties[key] = notice
 
-        # Create a dict from properties
-        writable_properties_dict = {}
-        for ms05_property in writable_properties:
-            key = ".".join(ms05_property.role_path) + str(ms05_property.descriptor.id)
-            writable_properties_dict[key] = ms05_property
+            # Remove any problem properties from the dataset
+            bulk_values_holder = self._filter_property_value_holders(bulk_values_holder, problem_properties)
 
-        # Update the writable properties of the bulk_values_holder
-        for object_property_holder in bulk_values_holder.values:
-            filtered_property_value_holders = []
-            for property_value_holder in object_property_holder.values:
-                key = ".".join(object_property_holder.path) + str(property_value_holder.id)
-                if key in writable_properties_dict:
-                    # Modify value in the
-                    property_value_holder.value = self._generate_property_value(test,
-                                                                                class_manager,
-                                                                                property_value_holder.typeName,
-                                                                                property_value_holder.value)
-                    filtered_property_value_holders.append(property_value_holder)
-            object_property_holder.values = filtered_property_value_holders
+        if len(bulk_values_holder.values) > 0:
+            # Apply bulk values holder to Node
+            validations = self._restore_bulk_values_holder(test,
+                                                            test_metadata,
+                                                            bulk_properties_endpoint,
+                                                            bulk_values_holder,
+                                                            restoreMode,
+                                                            recurse)
 
-        # Validate the modified bulk values holder
-        validations = self._validate_bulk_values_holder(test,
-                                                        test_metadata,
-                                                        bulk_properties_endpoint,
-                                                        bulk_values_holder,
-                                                        restoreMode,
-                                                        recurse)
+            # Check there were no errors
+            self._check_object_properties_set_validations(test,
+                                                            test_metadata,
+                                                            bulk_values_holder,
+                                                            validations,
+                                                            target_role_path,
+                                                            recurse)
 
-        # Create a dict from validation warnings and errors
-        problem_properties = {}
-        for validation in validations:
-            for notice in validation.notices:
-                key = ".".join(validation.path) + str(notice.id)
-                problem_properties[key] = notice
+            # Check the properties were changed
+            updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+            self._compare_backup_datasets(test,
+                                            test_metadata,
+                                            original_bulk_values_holder,
+                                            bulk_values_holder,
+                                            updated_bulk_values_holder,
+                                            target_role_path,
+                                            recurse)
 
-        # Remove any problem properties from the dataset
-        for object_property_holder in bulk_values_holder.values:
-            filtered_property_value_holders = []
-            for property_value_holder in object_property_holder.values:
-                key = ".".join(object_property_holder.path) + str(property_value_holder.id)
-                if key not in problem_properties:
-                    filtered_property_value_holders.append(property_value_holder)
-            object_property_holder.values = filtered_property_value_holders
-
-        # Apply bulk values holder to Node
-        validations = self._restore_bulk_values_holder(test,
-                                                       test_metadata,
-                                                       bulk_properties_endpoint,
-                                                       bulk_values_holder,
-                                                       restoreMode,
-                                                       recurse)
-
-        # Check there were no errors
-        self._check_object_properties_set_validations(test,
-                                                      test_metadata,
-                                                      bulk_values_holder,
-                                                      validations,
-                                                      target_role_path,
-                                                      recurse)
-
-        # Check the properties were changed
-        updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
-
-        self._compare_backup_datasets(test,
-                                      test_metadata,
-                                      original_bulk_values_holder,
-                                      bulk_values_holder,
-                                      updated_bulk_values_holder,
-                                      target_role_path,
-                                      recurse)
-
-        # If this is a modify then check the structure hasn't changed
-        if restoreMode == NcRestoreMode.Modify:
-            self._check_device_model_structure(test, bulk_values_holder, device_model)
+            # If this is a modify then check the structure hasn't changed
+            if restoreMode == NcRestoreMode.Modify:
+                self._check_device_model_structure(test, bulk_values_holder, device_model)
+        else:
+            test_metadata.checked = False
 
         # Restore the original bulk values holder
         self._restore_bulk_values_holder(test,
@@ -1119,7 +1138,7 @@ class IS1401Test(MS0501Test):
                                          recurse)
 
         if restoreMode == NcRestoreMode.Rebuild:
-            # Invalidate cached device model as it might have changed
+            # Invalidate cached device model as it might have been structurally changed by the restore
             self.is14_utils.device_model = None
 
     def test_19(self, test):
@@ -1159,8 +1178,6 @@ class IS1401Test(MS0501Test):
         # In the interest of interoperability even devices with no rebuildable device model objects
         # MUST accept Rebuild restores but only perform changes to writeable properties of device model
         # objects whilst including notices for any other changes not supported by the device.
-
-        # Find non-rebuidable part of the device model
         if not MS05_INVASIVE_TESTING:
             return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
 
@@ -1192,6 +1209,178 @@ class IS1401Test(MS0501Test):
             return test.FAIL(check_rebuild_modify_metadata .error_msg)
 
         if not check_rebuild_modify_metadata .checked:
+            return test.UNCLEAR()
+
+        return test.PASS()
+
+    def test_21(self, test):
+        """Rebuild restore modifies read only properties in rebuildable objects"""
+
+        device_model = self.is14_utils.query_device_model(test)
+
+        target_role_path = ["root"]
+        recurse = True
+        # Get the backup dataset
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{'.'.join(target_role_path)}/bulkProperties"
+        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+
+        # Cache original bulk values holder
+        original_bulk_values_holder = deepcopy(bulk_values_holder)
+
+        # Find a rebuildable objects
+        filtered_object_property_holders = []
+        for object_property_holder in bulk_values_holder.values:
+            if object_property_holder.isRebuildable:
+                # Get corresponding NcObject from device model
+                device_model_object = device_model.find_object_by_path(object_property_holder.path)
+
+                # Is object an NcObject
+                if not isinstance(device_model_object, NcBlock):
+                    filtered_object_property_holders.append(object_property_holder)
+        bulk_values_holder.values = filtered_object_property_holders
+
+        check_rebuild_objects_metadata = IS1401Test.TestMetadata()
+
+        # Attempt to change the read only properties of rebuildable objects
+        self._perform_restore(test,
+                              check_rebuild_objects_metadata,
+                              target_role_path,
+                              bulk_values_holder,
+                              original_bulk_values_holder,
+                              NcRestoreMode.Rebuild,
+                              recurse,
+                              readonly=True)
+
+        if check_rebuild_objects_metadata.error:
+            return test.FAIL(check_rebuild_objects_metadata.error_msg)
+
+        if not check_rebuild_objects_metadata.checked:
+            return test.UNCLEAR("Unable to modify any read only properties in rebuildable objects")
+
+        return test.PASS()
+
+    def test_22(self, test):
+        """Rebuild restore modifies rebuildable block members"""
+        def _is_sub_array(sub_arr, arr):
+            if len(sub_arr) > len(arr):
+                return False
+            for s, a in zip(sub_arr, arr):
+                if s != a:
+                    return False
+            return True
+
+        device_model = self.is14_utils.query_device_model(test)
+
+        target_role_path = ["root"]
+        recurse = True
+        # Get the backup dataset
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{'.'.join(target_role_path)}/bulkProperties"
+        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+
+        # Cache original bulk values holder
+        original_bulk_values_holder = deepcopy(bulk_values_holder)
+
+        # Find a rebuildable block
+        rebuildable_blocks = []
+        for object_property_holder in bulk_values_holder.values:
+            if object_property_holder.isRebuildable:
+                # Get corresponding NcObject from device model
+                device_model_object = device_model.find_object_by_path(object_property_holder.path)
+                # Is object an NcObject
+                if isinstance(device_model_object, NcBlock):
+                    rebuildable_blocks.append(device_model_object)
+
+        check_rebuild_blocks_metadata = IS1401Test.TestMetadata()
+
+        for block in rebuildable_blocks:
+            # Find block and containing objects in bulk values holder
+            child_object_property_holders = []
+            block_object_property_holder = None
+            for object_property_holder in bulk_values_holder.values:
+                if object_property_holder.path == block.role_path:  # This is the block
+                    block_object_property_holder = object_property_holder
+                elif _is_sub_array(block.role_path, object_property_holder.path):  # This is a child of the block
+                    child_object_property_holders.append(object_property_holder)
+
+            if not len(child_object_property_holders):
+                continue
+
+            role_to_remove = child_object_property_holders[0].path
+
+            new_children = []
+            for c in child_object_property_holders:
+                if c.path != role_to_remove:
+                    new_children.append(c)
+
+            # Remove a member from the block
+            for property_value_holder in block_object_property_holder.values:
+                if property_value_holder.id == NcBlockProperties.MEMBERS.value:
+                    members = property_value_holder.value  # a list of NcBlockMemberDescriptors
+                    new_members = []
+                    for m in members:
+                        if NcBlockMemberDescriptor(m).role != role_to_remove[-1]:
+                            new_members.append(m)
+                    property_value_holder.value = new_members
+
+            new_object_property_holders = [block_object_property_holder]
+            new_object_property_holders.extend(new_children)
+
+            bulk_values_holder.values = new_object_property_holders
+
+            # Attempt to change the read only properties of rebuildable objects
+            # Validate the modified bulk values holder
+            bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{'.'.join(target_role_path)}/bulkProperties"
+            validations = self._validate_bulk_values_holder(test,
+                                                            check_rebuild_blocks_metadata,
+                                                            bulk_properties_endpoint,
+                                                            bulk_values_holder,
+                                                            NcRestoreMode.Rebuild,
+                                                            recurse)
+            for validation in validations:
+                for notice in validation.notices:
+                    if validation.path == block.role_path and notice.id == NcBlockProperties.MEMBERS.value:
+                        # Any problem with the members property means we can't test
+                        continue
+
+            validations = self._restore_bulk_values_holder(test,
+                                                           check_rebuild_blocks_metadata,
+                                                           bulk_properties_endpoint,
+                                                           bulk_values_holder,
+                                                           NcRestoreMode.Rebuild,
+                                                           recurse)
+
+            self._check_object_properties_set_validations(test,
+                                                          check_rebuild_blocks_metadata,
+                                                          bulk_values_holder,
+                                                          validations,
+                                                          target_role_path,
+                                                          recurse)
+
+            # Check the properties were changed
+            updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+            self._compare_backup_datasets(test,
+                                          check_rebuild_blocks_metadata,
+                                          original_bulk_values_holder,
+                                          bulk_values_holder,
+                                          updated_bulk_values_holder,
+                                          target_role_path,
+                                          recurse)
+
+        # Restore the original bulk values holder
+        self._restore_bulk_values_holder(test,
+                                         check_rebuild_blocks_metadata,
+                                         bulk_properties_endpoint,
+                                         original_bulk_values_holder,
+                                         NcRestoreMode.Rebuild,
+                                         recurse)
+
+        # Invalidate cached device model as it might have been structurally changed by the restore
+        self.is14_utils.device_model = None
+
+        if check_rebuild_blocks_metadata.error:
+            return test.FAIL(check_rebuild_blocks_metadata.error_msg)
+
+        if not check_rebuild_blocks_metadata.checked:
             return test.UNCLEAR()
 
         return test.PASS()
