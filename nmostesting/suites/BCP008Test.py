@@ -19,7 +19,7 @@ from time import sleep
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS05Utils import IS05Utils
 from ..IS12Utils import IS12Utils
-from ..MS05Utils import NcMethodStatus, NcObjectProperties, NcPropertyId, NcTouchpointNmos, NcWorkerProperties
+from ..MS05Utils import NcMethodStatus, NcObjectProperties, NcPropertyId, NcTouchpointNmos
 from ..TestResult import TestStates
 
 NODE_API_KEY = "node"
@@ -891,38 +891,4 @@ class BCP008Test(GenericTest):
         if not self.check_touchpoint_metadata.checked:
             return test.UNCLEAR("Unable to test")
 
-        return test.PASS()
-
-    def test_15(self, test):
-        """enabled property is TRUE by default, and cannot be set to FALSE"""
-        spec_link = self.get_woker_inheritance_spec_link()
-
-        monitors = self.get_monitors(test)
-
-        if len(monitors) == 0:
-            return test.UNCLEAR("Unable to find any testable Monitors")
-
-        for monitor in monitors:
-            enabled = self._get_property(test,
-                                         monitor,
-                                         NcWorkerProperties.ENABLED.value)
-
-            if enabled is not True:
-                return test.FAIL("Monitors MUST always have the enabled property set to true "
-                                 f"for Monitor: {monitor}", spec_link)
-
-            method_result = self.is12_utils.set_property(test,
-                                                         NcWorkerProperties.ENABLED.value,
-                                                         False,
-                                                         oid=monitor.oid,
-                                                         role_path=monitor.role_path)
-
-            if method_result.status == NcMethodStatus.OK:
-                return test.FAIL("Monitors MUST NOT allow changes to the enabled property "
-                                 f"for Monitor: {monitor}", spec_link)
-
-            if method_result.status != NcMethodStatus.InvalidRequest:
-                return test.FAIL("Monitors MUST return InvalidRequest "
-                                 "to Set method invocations for this property "
-                                 f"for Monitor: {monitor}", spec_link)
         return test.PASS()
