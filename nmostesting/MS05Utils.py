@@ -851,6 +851,9 @@ class NcElementId():
     def __str__(self):
         return f"[level={self.level}, index={self.index}]"
 
+    def __hash__(self):
+        return hash(str(self))
+
 
 class NcPropertyId(NcElementId):
     def __init__(self, id_json):
@@ -895,6 +898,10 @@ class NcClassManagerProperties(Enum):
 
 class NcDeviceManagerProperties(Enum):
     NCVERSION = NcPropertyId({"level": 3, "index": 1})
+
+
+class NcWorkerProperties(Enum):
+    ENABLED = NcPropertyId({"level": 2, "index": 1})
 
 
 class NcObjectMethods(Enum):
@@ -1212,6 +1219,9 @@ class NcObject():
         self.role_path = role_path
         self.runtime_constraints = runtime_constraints
         self.member_descriptor = member_descriptor
+
+    def __str__(self):
+        return f"[oid={self.oid}, role_path={self.role_path}]"
 
 
 class NcBlock(NcObject):
