@@ -16,6 +16,7 @@
 from copy import copy, deepcopy
 from enum import IntEnum
 from functools import cmp_to_key
+from pickle import NONE
 import random
 import string
 from ..Config import MS05_INVASIVE_TESTING
@@ -578,7 +579,27 @@ class IS1401Test(MS0501Test):
                     test.FAIL("Definition of property in NcPropertyValueHolder inconsistant with class descriptor's "
                               f"NcPropertyDescriptor. Class descriptor NcPropertyDescriptor={property_descriptor}; "
                               f"Backup dataset NcPropertyValueHolder={property_value_holder} "
-                              f"for endpoint {bulk_properties_endpoint}"))
+                              f"for role path={role_path}"))
+            # Validate that the property value holders are of the correct type
+            if property_value_holder.value is None:
+               if not property_descriptor.isNullable:
+                    raise NMOSTestException(test.FAIL(f"Value can not be null for {property_value_holder.name} "
+                                            f"at role path={role_path}"))
+            elif property_value_holder.typeName not in self.is14_utils.reference_datatype_descriptors:
+                # If we don't recognise the data type let's just move on
+                continue
+            elif property_descriptor.isSequence:
+                if not isinstance(property_value_holder.value, list):
+                    raise NMOSTestException(test.FAIL(f"Sequence of values expected for {property_value_holder.name} "
+                                            f"at role path={role_path}"))
+                for v in property_value_holder.value:
+                    self.is14_utils.reference_datatype_schema_validate(test, v,
+                                                                       property_descriptor.typeName,
+                                                                       role_path=role_path)
+            else:
+                self.is14_utils.reference_datatype_schema_validate(test, property_value_holder.value,
+                                                                    property_descriptor.typeName,
+                                                                    role_path=role_path)
 
     def test_10(self, test):
         """All properties of the target role path are returned from bulkProperties endpoint"""
@@ -1126,20 +1147,28 @@ class IS1401Test(MS0501Test):
             # If this is a modify then check the structure hasn't changed
             if restoreMode == NcRestoreMode.Modify:
                 self._check_device_model_structure(test, bulk_values_holder, device_model)
+
+            # Attempt to return to initial device state
+            self._restore_bulk_values_holder(test,
+                                             test_metadata,
+                                             bulk_properties_endpoint,
+                                             original_bulk_values_holder,
+                                             restoreMode,
+                                             recurse)
         else:
             test_metadata.checked = False
-
-        # Restore the original bulk values holder
-        self._restore_bulk_values_holder(test,
-                                         test_metadata,
-                                         bulk_properties_endpoint,
-                                         original_bulk_values_holder,
-                                         restoreMode,
-                                         recurse)
 
         if restoreMode == NcRestoreMode.Rebuild:
             # Invalidate cached device model as it might have been structurally changed by the restore
             self.is14_utils.device_model = None
+
+            # Do check on device model to make sure it hasn't broken
+            self.device_model_metadata = MS0501Test.TestMetadata()
+
+            self._check_device_model(test)
+
+            if self.device_model_metadata.error:
+                raise NMOSTestException(test.FAIL(self.device_model_metadata.error_msg))
 
     def test_19(self, test):
         """Perform invasive 'Modify' validation and restore"""
@@ -1262,7 +1291,7 @@ class IS1401Test(MS0501Test):
     def test_22(self, test):
         """Rebuild restore modifies rebuildable block members"""
         def _is_sub_array(sub_arr, arr):
-            if len(sub_arr) > len(arr):
+            if len(sub_arr) >= len(arr):
                 return False
             for s, a in zip(sub_arr, arr):
                 if s != a:
@@ -1280,54 +1309,76 @@ class IS1401Test(MS0501Test):
         # Cache original bulk values holder
         original_bulk_values_holder = deepcopy(bulk_values_holder)
 
-        # Find a rebuildable block
-        rebuildable_blocks = []
-        for object_property_holder in bulk_values_holder.values:
-            if object_property_holder.isRebuildable:
-                # Get corresponding NcObject from device model
-                device_model_object = device_model.find_object_by_path(object_property_holder.path)
-                # Is object an NcObject
-                if isinstance(device_model_object, NcBlock):
-                    rebuildable_blocks.append(device_model_object)
+        # Find rebuildable blocks
+        rebuildable_blocks = [device_model.find_object_by_path(o.path) \
+            for o in bulk_values_holder.values if o.isRebuildable \
+            and isinstance(device_model.find_object_by_path(o.path), NcBlock)]
 
         check_rebuild_blocks_metadata = IS1401Test.TestMetadata()
 
         for block in rebuildable_blocks:
-            # Find block and containing objects in bulk values holder
-            child_object_property_holders = []
-            block_object_property_holder = None
-            for object_property_holder in bulk_values_holder.values:
-                if object_property_holder.path == block.role_path:  # This is the block
-                    block_object_property_holder = object_property_holder
-                elif _is_sub_array(block.role_path, object_property_holder.path):  # This is a child of the block
-                    child_object_property_holders.append(object_property_holder)
-
-            if not len(child_object_property_holders):
+            # Find block and child objects in bulk values holder
+            block_object_property_holders = [o for o in bulk_values_holder.values \
+                if block.role_path == o.path]
+            child_object_property_holders = [o for o in bulk_values_holder.values \
+                if _is_sub_array(block.role_path, o.path)]
+            # Expecting one block and more than one child
+            if not len(child_object_property_holders) or len(block_object_property_holders) != 1:
                 continue
 
+            remove_member = False
+            # Identify the first child of the members array
             role_to_remove = child_object_property_holders[0].path
 
-            new_children = []
-            for c in child_object_property_holders:
-                if c.path != role_to_remove:
-                    new_children.append(c)
+            # Find the block member's property value holder
+            property_value_holders = [p for p in block_object_property_holders[0].values \
+                if p.id == NcBlockProperties.MEMBERS.value]
+            if len(property_value_holders) != 1:
+                continue
 
-            # Remove a member from the block
-            for property_value_holder in block_object_property_holder.values:
-                if property_value_holder.id == NcBlockProperties.MEMBERS.value:
-                    members = property_value_holder.value  # a list of NcBlockMemberDescriptors
-                    new_members = []
-                    for m in members:
-                        if NcBlockMemberDescriptor(m).role != role_to_remove[-1]:
-                            new_members.append(m)
-                    property_value_holder.value = new_members
+            # Validate that the value of this property value holder is an NcBlockMemberDescriptor list
+            if not isinstance(property_value_holders[0].value, list):
+                return test.FAIL(f"Unexpected value for NcBlock members property {NcBlockProperties.MEMBERS.value}: "
+                                 f"{property_value_holders[0].value} for role path={block.role_path}")
+            for m in property_value_holders[0].value:
+                self.is14_utils.reference_datatype_schema_validate(test, m,
+                                                                   NcBlockMemberDescriptor.__name__,
+                                                                   role_path=block.role_path)
 
-            new_object_property_holders = [block_object_property_holder]
-            new_object_property_holders.extend(new_children)
+            if remove_member:
+                # Remove that child's member from the block
+                for property_value_holder in block_object_property_holders[0].values:
+                    if property_value_holder.id == NcBlockProperties.MEMBERS.value:
+                        property_value_holder.value = [m for m in property_value_holder.value \
+                            if NcBlockMemberDescriptor(m).role != role_to_remove[-1]]
 
-            bulk_values_holder.values = new_object_property_holders
+                # Only include the block and remaining children in bulk values holder
+                block_object_property_holders.extend([c for c in child_object_property_holders \
+                    if c.path != role_to_remove])
+                bulk_values_holder.values = block_object_property_holders
+            else:
+                # Duplicate an object
+                role = "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
+                oid = 99999  # arbitrarily high to avoid clash of OIDs - although the device should take care of this
+                for property_value_holder in block_object_property_holders[0].values:
+                    if property_value_holder.id == NcBlockProperties.MEMBERS.value:
+                        new_block_member = deepcopy(property_value_holder.value[0])
+                        new_block_member["oid"] = oid
+                        new_block_member["role"] = role
+                        property_value_holder.value.append(new_block_member)
 
-            # Attempt to change the read only properties of rebuildable objects
+                new_object_property_holder = deepcopy(child_object_property_holders[0])
+                new_object_property_holder.path = new_object_property_holder.path[:-1] + [role]
+
+                for v in new_object_property_holder.values:
+                    if v.id == NcObjectProperties.OID.value:
+                        v.value = oid
+                    if v.id == NcObjectProperties.ROLE.value:
+                        v.value = role
+                block_object_property_holders.extend(child_object_property_holders)
+                block_object_property_holders.append(new_object_property_holder)
+                bulk_values_holder.values = block_object_property_holders
+
             # Validate the modified bulk values holder
             bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{'.'.join(target_role_path)}/bulkProperties"
             validations = self._validate_bulk_values_holder(test,
@@ -1336,11 +1387,18 @@ class IS1401Test(MS0501Test):
                                                             bulk_values_holder,
                                                             NcRestoreMode.Rebuild,
                                                             recurse)
-            for validation in validations:
-                for notice in validation.notices:
-                    if validation.path == block.role_path and notice.id == NcBlockProperties.MEMBERS.value:
-                        # Any problem with the members property means we can't test
-                        continue
+
+            for v in validations:
+                member_notices = [n for n in v.notices if v.path == block.role_path and \
+                    n.id == NcBlockProperties.MEMBERS.value]
+                # Any problem with the members property means we can't test
+                if len(member_notices):
+                    check_rebuild_blocks_metadata.checked = False
+                    break
+                if v.status != NcRestoreValidationStatus.Ok:
+                    check_rebuild_blocks_metadata.error = True
+                    check_rebuild_blocks_metadata.error_msg += ", ".join([n.noticeMessage for n in v.notices])
+                    break
 
             validations = self._restore_bulk_values_holder(test,
                                                            check_rebuild_blocks_metadata,
