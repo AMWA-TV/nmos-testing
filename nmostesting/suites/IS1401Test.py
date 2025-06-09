@@ -16,14 +16,13 @@
 from copy import copy, deepcopy
 from enum import IntEnum
 from functools import cmp_to_key
-from pickle import NONE
 import random
 import string
 from ..Config import MS05_INVASIVE_TESTING
 from ..GenericTest import GenericTest, NMOSTestException
-from ..MS05Utils import NcBlock, NcBlockMemberDescriptor, NcBlockProperties, NcClassDescriptor, NcClassManager, NcDatatypeDescriptor, \
-    NcDatatypeType, NcMethodResult, NcMethodResultError, NcObject, NcObjectProperties, NcPropertyDescriptor, \
-    NcPropertyId, StandardClassIds
+from ..MS05Utils import NcBlock, NcBlockMemberDescriptor, NcBlockProperties, NcClassDescriptor, NcClassManager, \
+    NcDatatypeDescriptor, NcDatatypeType, NcMethodResult, NcMethodResultError, NcObject, NcObjectProperties, \
+    NcPropertyDescriptor, NcPropertyId, StandardClassIds
 from ..IS14Utils import IS14Utils
 from .MS0501Test import MS0501Test
 
@@ -106,11 +105,11 @@ class IS1401Test(MS0501Test):
     Runs Tests covering MS-05 and IS-14
     """
     class TestMetadata():
-        def __init__(self, checked=False, error=False, error_msg="", unclear=False):
+        def __init__(self, checked=False, error=False, error_msg="", warning=False):
             self.checked = checked
             self.error = error
             self.error_msg = error_msg
-            self.unclear = unclear
+            self.warning = warning
 
     def __init__(self, apis, **kwargs):
         self.is14_utils = IS14Utils(apis)
@@ -582,7 +581,7 @@ class IS1401Test(MS0501Test):
                               f"for role path={role_path}"))
             # Validate that the property value holders are of the correct type
             if property_value_holder.value is None:
-               if not property_descriptor.isNullable:
+                if not property_descriptor.isNullable:
                     raise NMOSTestException(test.FAIL(f"Value can not be null for {property_value_holder.name} "
                                             f"at role path={role_path}"))
             elif property_value_holder.typeName not in self.is14_utils.reference_datatype_descriptors:
@@ -598,8 +597,8 @@ class IS1401Test(MS0501Test):
                                                                        role_path=role_path)
             else:
                 self.is14_utils.reference_datatype_schema_validate(test, property_value_holder.value,
-                                                                    property_descriptor.typeName,
-                                                                    role_path=role_path)
+                                                                   property_descriptor.typeName,
+                                                                   role_path=role_path)
 
     def test_10(self, test):
         """All properties of the target role path are returned from bulkProperties endpoint"""
@@ -689,10 +688,25 @@ class IS1401Test(MS0501Test):
                                  original_bulk_values_holder: NcBulkValuesHolder,
                                  applied_bulk_values_holder: NcBulkValuesHolder,
                                  updated_bulk_values_holder: NcBulkValuesHolder,
-                                 target_role_path: list[str], recurse: bool, validate=False):
+                                 target_role_path: list[str],
+                                 set_validations: list[NcObjectPropertiesSetValidation],
+                                 recurse: bool, validate=False):
         # original_bulk_values_holder is the state before dataset applied
         # applied_bulk_values_holder is the dataset applied to the Node under test
         # updated_bulk_values_holder is the state after dataset applied
+        def _compare_values(expected, actual):
+            if isinstance(expected, list):
+                if not isinstance(actual, list):
+                    return False
+                return len(expected) == len(actual)
+            return expected == actual
+
+        # Create dict from validation notices
+        property_notices = {}
+        for set_validation in set_validations:
+            for notice in set_validation.notices:
+                key = ".".join(set_validation.path) + str(notice.id)
+                property_notices[key] = notice
 
         # Compare backup datasets
         # Create dict from original bulk values holder
@@ -705,34 +719,40 @@ class IS1401Test(MS0501Test):
         for object_property_holder in updated_bulk_values_holder.values:
             for property_value_holder in object_property_holder.values:
                 key = ".".join(object_property_holder.path) + str(property_value_holder.id)
+                if key in property_notices:
+                    # This value may not have been updated, so ignore
+                    continue
                 if (object_property_holder.path == target_role_path or recurse) \
                         and not validate \
                         and key in applied_properties \
-                        and property_value_holder.value != applied_properties[key].value:
+                        and not _compare_values(applied_properties[key].value, property_value_holder.value):
                     test_metadata.error = True
                     test_metadata.error_msg += "Property not updated by restore " \
                         f"for role path {object_property_holder.path} " \
                         f"and property {str(property_value_holder.id)} " \
                         f"when restoring to {target_role_path} " \
-                        f"with recurse={recurse}; "
+                        f"with recurse={recurse}, " \
+                        f"expected={applied_properties[key].value}, actual={property_value_holder.value}; "
                 if not recurse and object_property_holder.path != target_role_path \
                         and not validate \
                         and key in applied_properties \
-                        and property_value_holder.value != original_properties[key].value:
+                        and not _compare_values(original_properties[key].value, property_value_holder.value):
                     test_metadata.error = True
                     test_metadata.error_msg += "Property unexpectedly updated by restore " \
                         f"for role path {object_property_holder.path} " \
                         f"and property {str(property_value_holder.id)} " \
                         f"when restoring to {target_role_path} " \
-                        f"with recurse={recurse}; "
+                        f"with recurse={recurse}, " \
+                        f"expected={original_properties[key].value}, actual={property_value_holder.value}; "
                 if validate and key in applied_properties \
-                        and property_value_holder.value == applied_properties[key].value:
+                        and not _compare_values(original_properties[key].value, property_value_holder.value):
                     test_metadata.error = True
                     test_metadata.error_msg += "Property unexpectedly updated by validate " \
                         f"for role path {object_property_holder.path} " \
                         f"and property {str(property_value_holder.id)} " \
                         f"when restoring to {target_role_path} " \
-                        f"with recurse={recurse}; "
+                        f"with recurse={recurse}, " \
+                        f"expected={original_properties[key].value}, actual={property_value_holder.value}; "
         test_metadata.checked = True
 
     def _check_object_properties_set_validations(self, test: GenericTest,
@@ -769,8 +789,15 @@ class IS1401Test(MS0501Test):
 
         # Check status is OK
         for validation in validations:
-            if validation.status != NcRestoreValidationStatus.Ok.value:
+            if validation.status == NcRestoreValidationStatus.DeviceError.value:
                 test_metadata.error = True
+                test_metadata.error_msg += f"Unexpected NcRestoreValidationStatus. " \
+                    f"Expected OK but got {validation.status} " \
+                    f"for role path {validation.path}, " \
+                    f"target role path={target_role_path} " \
+                    f"{str(validation)}; "
+            elif validation.status != NcRestoreValidationStatus.Ok.value:
+                test_metadata.warning = True
                 test_metadata.error_msg += f"Unexpected NcRestoreValidationStatus. " \
                     f"Expected OK but got {validation.status} " \
                     f"for role path {validation.path}, " \
@@ -823,7 +850,8 @@ class IS1401Test(MS0501Test):
                                       original_bulk_values_holder,
                                       bulk_values_holder,
                                       updated_bulk_values_holder,
-                                      target_role_path, recurse, validate=True)
+                                      target_role_path, validations,
+                                      recurse, validate=True)
 
         # Restore Bulk Values returns an array of NcObjectPropertiesSetValidation objects
         validations = self._restore_bulk_values_holder(test,
@@ -848,7 +876,8 @@ class IS1401Test(MS0501Test):
                                       self.check_restore_does_modify_metadata,
                                       original_bulk_values_holder,
                                       bulk_values_holder,
-                                      updated_bulk_values_holder, target_role_path, recurse)
+                                      updated_bulk_values_holder, target_role_path,
+                                      validations, recurse)
 
     def _do_bulk_properties_checks(self, test):
         if self.bulk_properties_checked is True:
@@ -972,7 +1001,7 @@ class IS1401Test(MS0501Test):
         datatype_descriptor = class_manager.get_datatype(type_name)
 
         # If this is a null property then not sure how to manipulate it
-        if value == None:
+        if value is None:
             return value
 
         # If this is a sequence then process each element
@@ -1074,7 +1103,7 @@ class IS1401Test(MS0501Test):
                          original_bulk_values_holder: NcBulkValuesHolder,
                          restoreMode: NcRestoreMode,
                          recurse: bool,
-                         readonly = False):
+                         readonly=False):
         # Find the properties to keep in bulk values holder
         device_model = self.is14_utils.query_device_model(test)
         keep_properties = self.is14_utils.get_properties(test, device_model, get_readonly=readonly)
@@ -1094,10 +1123,10 @@ class IS1401Test(MS0501Test):
             class_manager = self.is14_utils.get_class_manager(test)
             for object_property_holder in bulk_values_holder.values:
                 for property_value_holder in object_property_holder.values:
-                        property_value_holder.value = self._generate_property_value(test,
-                                                                                    class_manager,
-                                                                                    property_value_holder.typeName,
-                                                                                    property_value_holder.value)
+                    property_value_holder.value = self._generate_property_value(test,
+                                                                                class_manager,
+                                                                                property_value_holder.typeName,
+                                                                                property_value_holder.value)
 
             # Validate the modified bulk values holder
             validations = self._validate_bulk_values_holder(test,
@@ -1120,29 +1149,30 @@ class IS1401Test(MS0501Test):
         if len(bulk_values_holder.values) > 0:
             # Apply bulk values holder to Node
             validations = self._restore_bulk_values_holder(test,
-                                                            test_metadata,
-                                                            bulk_properties_endpoint,
-                                                            bulk_values_holder,
-                                                            restoreMode,
-                                                            recurse)
+                                                           test_metadata,
+                                                           bulk_properties_endpoint,
+                                                           bulk_values_holder,
+                                                           restoreMode,
+                                                           recurse)
 
             # Check there were no errors
             self._check_object_properties_set_validations(test,
-                                                            test_metadata,
-                                                            bulk_values_holder,
-                                                            validations,
-                                                            target_role_path,
-                                                            recurse)
+                                                          test_metadata,
+                                                          bulk_values_holder,
+                                                          validations,
+                                                          target_role_path,
+                                                          recurse)
 
             # Check the properties were changed
             updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
             self._compare_backup_datasets(test,
-                                            test_metadata,
-                                            original_bulk_values_holder,
-                                            bulk_values_holder,
-                                            updated_bulk_values_holder,
-                                            target_role_path,
-                                            recurse)
+                                          test_metadata,
+                                          original_bulk_values_holder,
+                                          bulk_values_holder,
+                                          updated_bulk_values_holder,
+                                          target_role_path,
+                                          validations,
+                                          recurse)
 
             # If this is a modify then check the structure hasn't changed
             if restoreMode == NcRestoreMode.Modify:
@@ -1197,6 +1227,9 @@ class IS1401Test(MS0501Test):
         if check_invasive_modify_metadata.error:
             return test.FAIL(check_invasive_modify_metadata.error_msg)
 
+        if check_invasive_modify_metadata.warning:
+            return test.WARNING(check_invasive_modify_metadata.error_msg)
+
         if not check_invasive_modify_metadata.checked:
             return test.UNCLEAR()
 
@@ -1234,16 +1267,21 @@ class IS1401Test(MS0501Test):
                               NcRestoreMode.Rebuild,
                               recurse)
 
-        if check_rebuild_modify_metadata .error:
-            return test.FAIL(check_rebuild_modify_metadata .error_msg)
+        if check_rebuild_modify_metadata.error:
+            return test.FAIL(check_rebuild_modify_metadata.error_msg)
 
-        if not check_rebuild_modify_metadata .checked:
+        if check_rebuild_modify_metadata.warning:
+            return test.WARNING(check_rebuild_modify_metadata.error_msg)
+
+        if not check_rebuild_modify_metadata.checked:
             return test.UNCLEAR()
 
         return test.PASS()
 
     def test_21(self, test):
         """Rebuild restore modifies read only properties in rebuildable objects"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
 
         device_model = self.is14_utils.query_device_model(test)
 
@@ -1283,13 +1321,15 @@ class IS1401Test(MS0501Test):
         if check_rebuild_objects_metadata.error:
             return test.FAIL(check_rebuild_objects_metadata.error_msg)
 
+        if check_rebuild_objects_metadata.warning:
+            return test.WARNING(check_rebuild_objects_metadata.error_msg)
+
         if not check_rebuild_objects_metadata.checked:
             return test.UNCLEAR("Unable to modify any read only properties in rebuildable objects")
 
         return test.PASS()
 
-    def test_22(self, test):
-        """Rebuild restore modifies rebuildable block members"""
+    def _modify_rebuildable_block(self, test: GenericTest, test_metadata: TestMetadata, remove_member=False):
         def _is_sub_array(sub_arr, arr):
             if len(sub_arr) >= len(arr):
                 return False
@@ -1297,7 +1337,6 @@ class IS1401Test(MS0501Test):
                 if s != a:
                     return False
             return True
-
         device_model = self.is14_utils.query_device_model(test)
 
         target_role_path = ["root"]
@@ -1310,29 +1349,27 @@ class IS1401Test(MS0501Test):
         original_bulk_values_holder = deepcopy(bulk_values_holder)
 
         # Find rebuildable blocks
-        rebuildable_blocks = [device_model.find_object_by_path(o.path) \
-            for o in bulk_values_holder.values if o.isRebuildable \
-            and isinstance(device_model.find_object_by_path(o.path), NcBlock)]
-
-        check_rebuild_blocks_metadata = IS1401Test.TestMetadata()
+        rebuildable_blocks = [device_model.find_object_by_path(o.path)
+                              for o in bulk_values_holder.values if o.isRebuildable
+                              and isinstance(device_model.find_object_by_path(o.path), NcBlock)]
 
         for block in rebuildable_blocks:
             # Find block and child objects in bulk values holder
-            block_object_property_holders = [o for o in bulk_values_holder.values \
-                if block.role_path == o.path]
-            child_object_property_holders = [o for o in bulk_values_holder.values \
-                if _is_sub_array(block.role_path, o.path)]
+            block_object_property_holders = [o for o in bulk_values_holder.values
+                                             if block.role_path == o.path]
+            child_object_property_holders = [o for o in bulk_values_holder.values
+                                             if _is_sub_array(block.role_path, o.path)]
             # Expecting one block and more than one child
             if not len(child_object_property_holders) or len(block_object_property_holders) != 1:
                 continue
 
-            remove_member = False
+            target_role_path = block.role_path
             # Identify the first child of the members array
             role_to_remove = child_object_property_holders[0].path
 
             # Find the block member's property value holder
-            property_value_holders = [p for p in block_object_property_holders[0].values \
-                if p.id == NcBlockProperties.MEMBERS.value]
+            property_value_holders = [p for p in block_object_property_holders[0].values
+                                      if p.id == NcBlockProperties.MEMBERS.value]
             if len(property_value_holders) != 1:
                 continue
 
@@ -1349,12 +1386,12 @@ class IS1401Test(MS0501Test):
                 # Remove that child's member from the block
                 for property_value_holder in block_object_property_holders[0].values:
                     if property_value_holder.id == NcBlockProperties.MEMBERS.value:
-                        property_value_holder.value = [m for m in property_value_holder.value \
-                            if NcBlockMemberDescriptor(m).role != role_to_remove[-1]]
+                        property_value_holder.value = [m for m in property_value_holder.value
+                                                       if NcBlockMemberDescriptor(m).role != role_to_remove[-1]]
 
                 # Only include the block and remaining children in bulk values holder
-                block_object_property_holders.extend([c for c in child_object_property_holders \
-                    if c.path != role_to_remove])
+                block_object_property_holders.extend([c for c in child_object_property_holders
+                                                      if c.path != role_to_remove])
                 bulk_values_holder.values = block_object_property_holders
             else:
                 # Duplicate an object
@@ -1382,33 +1419,33 @@ class IS1401Test(MS0501Test):
             # Validate the modified bulk values holder
             bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{'.'.join(target_role_path)}/bulkProperties"
             validations = self._validate_bulk_values_holder(test,
-                                                            check_rebuild_blocks_metadata,
+                                                            test_metadata,
                                                             bulk_properties_endpoint,
                                                             bulk_values_holder,
                                                             NcRestoreMode.Rebuild,
                                                             recurse)
 
             for v in validations:
-                member_notices = [n for n in v.notices if v.path == block.role_path and \
-                    n.id == NcBlockProperties.MEMBERS.value]
+                member_notices = [n for n in v.notices if v.path == block.role_path and
+                                  n.id == NcBlockProperties.MEMBERS.value]
                 # Any problem with the members property means we can't test
                 if len(member_notices):
-                    check_rebuild_blocks_metadata.checked = False
+                    test_metadata.checked = False
                     break
                 if v.status != NcRestoreValidationStatus.Ok:
-                    check_rebuild_blocks_metadata.error = True
-                    check_rebuild_blocks_metadata.error_msg += ", ".join([n.noticeMessage for n in v.notices])
+                    test_metadata.error = True
+                    test_metadata.error_msg += ", ".join([n.noticeMessage for n in v.notices])
                     break
 
             validations = self._restore_bulk_values_holder(test,
-                                                           check_rebuild_blocks_metadata,
+                                                           test_metadata,
                                                            bulk_properties_endpoint,
                                                            bulk_values_holder,
                                                            NcRestoreMode.Rebuild,
                                                            recurse)
 
             self._check_object_properties_set_validations(test,
-                                                          check_rebuild_blocks_metadata,
+                                                          test_metadata,
                                                           bulk_values_holder,
                                                           validations,
                                                           target_role_path,
@@ -1417,16 +1454,17 @@ class IS1401Test(MS0501Test):
             # Check the properties were changed
             updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
             self._compare_backup_datasets(test,
-                                          check_rebuild_blocks_metadata,
+                                          test_metadata,
                                           original_bulk_values_holder,
                                           bulk_values_holder,
                                           updated_bulk_values_holder,
                                           target_role_path,
+                                          validations,
                                           recurse)
 
         # Restore the original bulk values holder
         self._restore_bulk_values_holder(test,
-                                         check_rebuild_blocks_metadata,
+                                         test_metadata,
                                          bulk_properties_endpoint,
                                          original_bulk_values_holder,
                                          NcRestoreMode.Rebuild,
@@ -1435,10 +1473,40 @@ class IS1401Test(MS0501Test):
         # Invalidate cached device model as it might have been structurally changed by the restore
         self.is14_utils.device_model = None
 
-        if check_rebuild_blocks_metadata.error:
-            return test.FAIL(check_rebuild_blocks_metadata.error_msg)
+    def test_22(self, test):
+        """Rebuild restore modifies rebuildable block by removing member"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
 
-        if not check_rebuild_blocks_metadata.checked:
+        test_metadata = IS1401Test.TestMetadata()
+        self._modify_rebuildable_block(test, test_metadata, remove_member=True)
+
+        if test_metadata.error:
+            return test.FAIL(test_metadata.error_msg)
+
+        if test_metadata.warning:
+            return test.WARNING(test_metadata.error_msg)
+
+        if not test_metadata.checked:
+            return test.UNCLEAR()
+
+        return test.PASS()
+
+    def test_23(self, test):
+        """Rebuild restore modifies rebuildable block by adding member"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
+
+        test_metadata = IS1401Test.TestMetadata()
+        self._modify_rebuildable_block(test, test_metadata, remove_member=False)
+
+        if test_metadata.error:
+            return test.FAIL(test_metadata.error_msg)
+
+        if test_metadata.warning:
+            return test.WARNING(test_metadata.error_msg)
+
+        if not test_metadata.checked:
             return test.UNCLEAR()
 
         return test.PASS()
