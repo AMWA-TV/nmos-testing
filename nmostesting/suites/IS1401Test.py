@@ -130,6 +130,10 @@ class IS1401Test(MS0501Test):
     def tear_down_tests(self):
         super().tear_down_tests()
 
+    def reset_device_model(self):
+        self.is14_utils.device_model = None
+        self.oid_cache = []
+
     def _do_request_json(self, test, method, url, **kwargs):
         valid, response = self.do_request(method, url, **kwargs)
 
@@ -673,17 +677,15 @@ class IS1401Test(MS0501Test):
 
         return test.PASS()
 
+    def _create_notices_dict(self, set_validations):
+        """Create dict from validation notices"""
+        return {".".join(v.path) + str(n.id): n for v in set_validations for n in v.notices}
+
     def _create_object_properties_dict(self, bulk_values_holder: NcBulkValuesHolder):
         """Creates a dict keyed on formatted role path and property id"""
-        bulk_values_holder_properties = {}
-        for object_property_holder in bulk_values_holder.values:
-            for property_value_holder in object_property_holder.values:
-                key = ".".join(object_property_holder.path) + str(property_value_holder.id)
-                bulk_values_holder_properties[key] = property_value_holder
-        return bulk_values_holder_properties
+        return {".".join(o.path) + str(v.id): v for o in bulk_values_holder.values for v in o.values}
 
     def _compare_backup_datasets(self,
-                                 test: GenericTest,
                                  test_metadata: TestMetadata,
                                  original_bulk_values_holder: NcBulkValuesHolder,
                                  applied_bulk_values_holder: NcBulkValuesHolder,
@@ -702,13 +704,8 @@ class IS1401Test(MS0501Test):
             return expected == actual
 
         # Create dict from validation notices
-        property_notices = {}
-        for set_validation in set_validations:
-            for notice in set_validation.notices:
-                key = ".".join(set_validation.path) + str(notice.id)
-                property_notices[key] = notice
+        property_notices = self._create_notices_dict(set_validations)
 
-        # Compare backup datasets
         # Create dict from original bulk values holder
         original_properties = self._create_object_properties_dict(original_bulk_values_holder)
 
@@ -733,21 +730,11 @@ class IS1401Test(MS0501Test):
                         f"when restoring to {target_role_path} " \
                         f"with recurse={recurse}, " \
                         f"expected={applied_properties[key].value}, actual={property_value_holder.value}; "
-                if not recurse and object_property_holder.path != target_role_path \
-                        and not validate \
+                if (validate or (not recurse and object_property_holder.path != target_role_path and not validate)) \
                         and key in applied_properties \
                         and not _compare_values(original_properties[key].value, property_value_holder.value):
                     test_metadata.error = True
-                    test_metadata.error_msg += "Property unexpectedly updated by restore " \
-                        f"for role path {object_property_holder.path} " \
-                        f"and property {str(property_value_holder.id)} " \
-                        f"when restoring to {target_role_path} " \
-                        f"with recurse={recurse}, " \
-                        f"expected={original_properties[key].value}, actual={property_value_holder.value}; "
-                if validate and key in applied_properties \
-                        and not _compare_values(original_properties[key].value, property_value_holder.value):
-                    test_metadata.error = True
-                    test_metadata.error_msg += "Property unexpectedly updated by validate " \
+                    test_metadata.error_msg += "Property unexpectedly updated " \
                         f"for role path {object_property_holder.path} " \
                         f"and property {str(property_value_holder.id)} " \
                         f"when restoring to {target_role_path} " \
@@ -773,11 +760,7 @@ class IS1401Test(MS0501Test):
                 f"target role path={target_role_path}; "
 
         # Check the role paths are correct
-        bulk_value_holders_dict = self._create_object_properties_dict(bulk_values_holder)
-        bulk_value_holders_dict = {}
-        for object_property_holder in bulk_values_holder.values:
-            key = ".".join(object_property_holder.path)
-            bulk_value_holders_dict[key] = object_property_holder
+        bulk_value_holders_dict = {".".join(o.path): o for o in bulk_values_holder.values}
 
         for validation in validations:
             key = ".".join(validation.path)
@@ -845,8 +828,7 @@ class IS1401Test(MS0501Test):
         # Verify the labels have NOT changed
         updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
 
-        self._compare_backup_datasets(test,
-                                      self.check_validate_does_not_modify_metadata,
+        self._compare_backup_datasets(self.check_validate_does_not_modify_metadata,
                                       original_bulk_values_holder,
                                       bulk_values_holder,
                                       updated_bulk_values_holder,
@@ -872,8 +854,7 @@ class IS1401Test(MS0501Test):
         updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
 
         # Compare original, applied and updated bulk value holders
-        self._compare_backup_datasets(test,
-                                      self.check_restore_does_modify_metadata,
+        self._compare_backup_datasets(self.check_restore_does_modify_metadata,
                                       original_bulk_values_holder,
                                       bulk_values_holder,
                                       updated_bulk_values_holder, target_role_path,
@@ -1049,15 +1030,15 @@ class IS1401Test(MS0501Test):
     def _check_device_model_structure(self,
                                       test: GenericTest,
                                       bulk_values_holder: NcBulkValuesHolder,
-                                      device_model: NcBlock):
-        """Check that the Device Model has same structure as reference block"""
+                                      root_block: NcBlock):
+        """Check that the Device Model has same structure as reference device model block"""
         for object_properties_holder in bulk_values_holder.values:
             role_path = object_properties_holder.path
-            device_model_object = device_model.find_object_by_path(role_path)
-            if not isinstance(device_model_object, NcBlock):
+            reference_object = root_block.find_object_by_path(role_path)
+            if not isinstance(reference_object, NcBlock):
                 continue
 
-            expected_member_descriptors = device_model_object.get_member_descriptors()
+            expected_member_descriptors = reference_object.get_member_descriptors()
             method_result = self.is14_utils.get_member_descriptors(test, recurse=False, role_path=role_path)
             if isinstance(method_result, NcMethodResultError):
                 raise NMOSTestException(test.FAIL(f"Error getting member descriptors: {method_result.errorMessage} "
@@ -1080,7 +1061,9 @@ class IS1401Test(MS0501Test):
                                                   f"for role path={role_path}"))
 
     def _filter_property_value_holders(self, bulk_values_holder: NcBulkValuesHolder, filter_dict: dict, include=False):
-        """ filter_dict is a dict of prorerty keys in the form {role_path}{property_id}"""
+        """filter_dict is a dict of property keys in the form {role_path}{property_id}"""
+        # if include = True then properties with keys found in filter_dict are kept (all others removed)
+        # if include = False then properties with keys found in filter_dict are removed
         filtered_object_property_holders = []
         for object_property_holder in bulk_values_holder.values:
             filtered_property_value_holders = []
@@ -1109,14 +1092,11 @@ class IS1401Test(MS0501Test):
         keep_properties = self.is14_utils.get_properties(test, device_model, get_readonly=readonly)
 
         # Create a dict of properties to remove from bulk values holder
-        keep_properties_dict = {}
-        for ms05_property in keep_properties:
-            key = ".".join(ms05_property.role_path) + str(ms05_property.descriptor.id)
-            keep_properties_dict[key] = ms05_property
+        keep_properties_dict = {".".join(p.role_path) + str(p.descriptor.id): p for p in keep_properties}
 
         bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{'.'.join(target_role_path)}/bulkProperties"
 
-        # Keep these properties in the bulk_values_holder (exlude everthing else)
+        # Keep these properties in the bulk_values_holder (exclude everthing else)
         bulk_values_holder = self._filter_property_value_holders(bulk_values_holder, keep_properties_dict, include=True)
         if len(bulk_values_holder.values) > 0:
             # Modify the values
@@ -1137,11 +1117,7 @@ class IS1401Test(MS0501Test):
                                                             recurse)
 
             # Create a dict from validation warnings and errors
-            problem_properties = {}
-            for validation in validations:
-                for notice in validation.notices:
-                    key = ".".join(validation.path) + str(notice.id)
-                    problem_properties[key] = notice
+            problem_properties = self._create_notices_dict(validations)
 
             # Remove any problem properties from the dataset
             bulk_values_holder = self._filter_property_value_holders(bulk_values_holder, problem_properties)
@@ -1165,8 +1141,7 @@ class IS1401Test(MS0501Test):
 
             # Check the properties were changed
             updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
-            self._compare_backup_datasets(test,
-                                          test_metadata,
+            self._compare_backup_datasets(test_metadata,
                                           original_bulk_values_holder,
                                           bulk_values_holder,
                                           updated_bulk_values_holder,
@@ -1190,7 +1165,7 @@ class IS1401Test(MS0501Test):
 
         if restoreMode == NcRestoreMode.Rebuild:
             # Invalidate cached device model as it might have been structurally changed by the restore
-            self.is14_utils.device_model = None
+            self.reset_device_model()
 
             # Do check on device model to make sure it hasn't broken
             self.device_model_metadata = MS0501Test.TestMetadata()
@@ -1294,17 +1269,12 @@ class IS1401Test(MS0501Test):
         # Cache original bulk values holder
         original_bulk_values_holder = deepcopy(bulk_values_holder)
 
-        # Find a rebuildable objects
-        filtered_object_property_holders = []
-        for object_property_holder in bulk_values_holder.values:
-            if object_property_holder.isRebuildable:
-                # Get corresponding NcObject from device model
-                device_model_object = device_model.find_object_by_path(object_property_holder.path)
-
-                # Is object an NcObject
-                if not isinstance(device_model_object, NcBlock):
-                    filtered_object_property_holders.append(object_property_holder)
-        bulk_values_holder.values = filtered_object_property_holders
+        # Remove all objects from bulk values holder apart from rebuildable objects, excluding rebuildable blocks
+        block_paths = [o.role_path for o in
+                       device_model.find_members_by_class_id(StandardClassIds.NCBLOCK.value, get_objects=True)]
+        block_paths.append(["root"])  # root block is excluded from search results
+        bulk_values_holder.values = [o for o in bulk_values_holder.values
+                                     if o.isRebuildable and o.path not in block_paths]
 
         check_rebuild_objects_metadata = IS1401Test.TestMetadata()
 
@@ -1383,7 +1353,7 @@ class IS1401Test(MS0501Test):
                                                                    role_path=block.role_path)
 
             if remove_member:
-                # Remove that child's member from the block
+                # Remove the "role_to_remove"'s member from the block
                 for property_value_holder in block_object_property_holders[0].values:
                     if property_value_holder.id == NcBlockProperties.MEMBERS.value:
                         property_value_holder.value = [m for m in property_value_holder.value
@@ -1453,8 +1423,7 @@ class IS1401Test(MS0501Test):
 
             # Check the properties were changed
             updated_bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
-            self._compare_backup_datasets(test,
-                                          test_metadata,
+            self._compare_backup_datasets(test_metadata,
                                           original_bulk_values_holder,
                                           bulk_values_holder,
                                           updated_bulk_values_holder,
@@ -1471,7 +1440,7 @@ class IS1401Test(MS0501Test):
                                          recurse)
 
         # Invalidate cached device model as it might have been structurally changed by the restore
-        self.is14_utils.device_model = None
+        self.reset_device_model()
 
     def test_22(self, test):
         """Rebuild restore modifies rebuildable block by removing member"""
