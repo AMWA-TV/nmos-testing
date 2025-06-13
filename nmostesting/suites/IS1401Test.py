@@ -1439,7 +1439,7 @@ class IS1401Test(MS0501Test):
         self.reset_device_model()
 
     def test_22(self, test):
-        """Rebuild restore modifies rebuildable block by removing member"""
+        """Rebuild restore removes member from rebuildable blocks"""
         if not MS05_INVASIVE_TESTING:
             return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
 
@@ -1458,7 +1458,7 @@ class IS1401Test(MS0501Test):
         return test.PASS()
 
     def test_23(self, test):
-        """Rebuild restore modifies rebuildable block by adding member"""
+        """Rebuild restore adds member to rebuildable blocks"""
         if not MS05_INVASIVE_TESTING:
             return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
 
