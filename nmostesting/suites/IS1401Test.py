@@ -742,7 +742,7 @@ class IS1401Test(MS0501Test):
                         f"expected={original_properties[key].value}, actual={property_value_holder.value}; "
         test_metadata.checked = True
 
-    def _check_object_properties_set_validations(self, test: GenericTest,
+    def _check_object_properties_set_validations(self,
                                                  test_metadata: TestMetadata,
                                                  bulk_values_holder: NcBulkValuesHolder,
                                                  validations: list[NcObjectPropertiesSetValidation],
@@ -818,8 +818,7 @@ class IS1401Test(MS0501Test):
                                                         restoreMode,
                                                         recurse)
 
-        self._check_object_properties_set_validations(test,
-                                                      self.check_validate_return_objects_metadata,
+        self._check_object_properties_set_validations(self.check_validate_return_objects_metadata,
                                                       bulk_values_holder,
                                                       validations,
                                                       target_role_path,
@@ -843,8 +842,7 @@ class IS1401Test(MS0501Test):
                                                        restoreMode,
                                                        recurse)
 
-        self._check_object_properties_set_validations(test,
-                                                      self.check_restore_return_objects_metadata,
+        self._check_object_properties_set_validations(self.check_restore_return_objects_metadata,
                                                       bulk_values_holder,
                                                       validations,
                                                       target_role_path,
@@ -1132,8 +1130,7 @@ class IS1401Test(MS0501Test):
                                                            recurse)
 
             # Check there were no errors
-            self._check_object_properties_set_validations(test,
-                                                          test_metadata,
+            self._check_object_properties_set_validations(test_metadata,
                                                           bulk_values_holder,
                                                           validations,
                                                           target_role_path,
@@ -1414,8 +1411,7 @@ class IS1401Test(MS0501Test):
                                                            NcRestoreMode.Rebuild,
                                                            recurse)
 
-            self._check_object_properties_set_validations(test,
-                                                          test_metadata,
+            self._check_object_properties_set_validations(test_metadata,
                                                           bulk_values_holder,
                                                           validations,
                                                           target_role_path,
