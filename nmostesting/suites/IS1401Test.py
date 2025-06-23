@@ -138,8 +138,8 @@ class IS1401Test(MS0501Test):
         valid, response = self.do_request(method, url, **kwargs)
 
         if not valid or response.status_code != 200:
-            raise NMOSTestException(test.FAIL(f"Error from endpoint {url}: "
-                                              f"response: {response}"))
+            raise NMOSTestException(test.FAIL(f"Error from endpoint {method} {url}: "
+                                              f"response: {str(response)}"))
 
         if "application/json" not in response.headers["Content-Type"]:
             raise NMOSTestException(test.FAIL(f"JSON response expected from endpoint {url}"))
