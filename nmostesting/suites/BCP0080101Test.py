@@ -181,10 +181,6 @@ class BCP0080101Test(BCP008Test):
         return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#synchronization-source-change"
 
-    def get_worker_inheritance_spec_link(self):
-        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#ncworker-inheritance"
-
     def get_counter_method_spec_link(self):
         return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#late-and-lost-packets"

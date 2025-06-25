@@ -116,6 +116,11 @@ class BCP008Test(GenericTest):
         self.check_transitions_counted_metadata = BCP008Test.TestMetadata()
         self.check_auto_reset_counters_metadata = BCP008Test.TestMetadata()
 
+        self.check_activation_metadata.link = self.get_reporting_delay_spec_link()
+        self.check_reset_counters_metadata.link = self.get_transition_counters_spec_link()
+        self.check_deactivate_monitor_metadata.link = self.get_deactivating_monitor_spec_link()
+        self.check_touchpoint_metadata.link = self.get_touchpoint_spec_link()
+
     # Override basics to include auto tests
     def basics(self):
         results = super().basics()
@@ -152,9 +157,6 @@ class BCP008Test(GenericTest):
         pass
 
     def get_sync_source_change_spec_link(self):
-        pass
-
-    def get_woker_inheritance_spec_link(self):
         pass
 
     def get_counter_method_spec_link(self):
@@ -242,8 +244,6 @@ class BCP008Test(GenericTest):
         # one and only one entry MUST be of type NcTouchpointNmos where
         # the resourceType field MUST be set to correct resource type and
         # the id field MUST be set to the associated IS-04 resource UUID.
-        spec_link = self.get_touchpoint_spec_link()
-
         touchpoint_resources = []
 
         touchpoints = self._get_property(test, monitor, NcObjectProperties.TOUCHPOINTS.value)
@@ -253,6 +253,7 @@ class BCP008Test(GenericTest):
                 self.check_touchpoint_metadata.error = True
                 self.check_touchpoint_metadata.error_msg = "Touchpoint doesn't obey MS-05-02 schema " \
                     f"for Monitor: {monitor}; "
+                # Override spec link to link to MS-05-02 specification
                 self.check_touchpoint_metadata.link = f"{CONTROL_FRAMEWORK_SPEC_ROOT}" \
                     f"{self.apis[CONTROL_API_KEY]['spec_branch']}/Framework.html#nctouchpoint"
                 continue
@@ -264,7 +265,6 @@ class BCP008Test(GenericTest):
             self.check_touchpoint_metadata.error = True
             self.check_touchpoint_metadata.error_msg = "One and only one touchpoint MUST be of type NcTouchpointNmos " \
                 f"for Monitor: {monitor}; "
-            self.check_touchpoint_metadata.link = spec_link
             return None
 
         touchpoint_resource = NcTouchpointNmos(touchpoint_resources[0])
@@ -276,7 +276,6 @@ class BCP008Test(GenericTest):
             self.check_touchpoint_metadata.error_msg = \
                 f"Touchpoint resourceType field MUST be set to '{expected_resource_type}' " \
                 f"for Monitor: {monitor}; "
-            self.check_touchpoint_metadata.link = spec_link
             return None
 
         self.check_touchpoint_metadata.checked = True
@@ -317,8 +316,6 @@ class BCP008Test(GenericTest):
             [n for n in notifications
                 if n.eventData.propertyId == connection_status_property
                 and n.received_time >= activation_time]
-
-        self.check_activation_metadata.link = self.get_reporting_delay_spec_link()
 
         if len(connection_status_notifications) == 0:
             self.check_activation_metadata.error = True
@@ -394,8 +391,6 @@ class BCP008Test(GenericTest):
 
         deactivate_resource_notifications = [n for n in notifications if n.received_time >= activation_time]
 
-        self.check_deactivate_monitor_metadata.link = self.get_deactivating_monitor_spec_link()
-
         status_property_ids = self.get_inactiveable_status_property_ids()
 
         for property_id in status_property_ids:
@@ -420,8 +415,6 @@ class BCP008Test(GenericTest):
     def _check_auto_reset_counters(self, test, monitor, resource_id):
         # Devices MUST be able to reset ALL status transition counter properties
         # when a resource activation occurs if autoResetCounters is set to true
-        self.check_auto_reset_counters_metadata.link = self.get_transition_counters_spec_link()
-
         auto_reset_counter_property = self.get_auto_reset_counter_property_id()
 
         # Make sure autoResetCounters enabled
@@ -476,8 +469,10 @@ class BCP008Test(GenericTest):
                                    and n.eventData.value == healthy_statuses_dict[n.eventData.propertyId]]
 
         if len(activation_notification) == 0:
-            raise NMOSTestException(
-                test.FAIL(f"No transition to Healthy on activation for Monitor: {monitor}"))
+            self.check_activation_metadata.error = True
+            self.check_activation_metadata.error_msg += \
+                f"No transition to Healthy on activation for Monitor: {monitor}; "
+            return 0
 
         # The received time of the first transition to Healthy is assumed to be the activation time
         return activation_notification[0].received_time
@@ -624,8 +619,6 @@ class BCP008Test(GenericTest):
     def _check_reset_counters(self, test, monitor):
         # Devices MUST be able to reset ALL status transition counter properties
         # when a client invokes the ResetCounters method
-
-        self.check_reset_counters_metadata.link = self.get_transition_counters_spec_link()
 
         non_zero_counters = self._get_non_zero_counters(test, monitor)
 

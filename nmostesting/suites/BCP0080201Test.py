@@ -98,10 +98,6 @@ class BCP0080201Test(BCP008Test):
         return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#synchronization-source-change"
 
-    def get_worker_inheritance_spec_link(self):
-        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#ncworker-inheritance"
-
     def get_counter_method_spec_link(self):
         return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#transmission-error-counters"
