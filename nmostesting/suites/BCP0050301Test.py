@@ -904,6 +904,13 @@ class BCP0050301Test(GenericTest):
                                         if not value and null_mode is False:
                                             return test.FAIL("receiver {} : privacy capability must match"
                                                              " privacy transport parameters".format(receiver["id"]))
+                                else:
+                                    return test.FAIL("receiver {} : invalid privacy capabilities {}"
+                                                     .format(receiver["id"], capability))
+                            else:
+                                # SPEC: A Receiver MUST provide a `urn:x-nmos:cap:transport:privacy` capability to
+                                # indicate support for Senders that use privacy encryption and the PEP protocol.
+                                return test.FAIL("receiver {} : missing privacy capability".format(receiver["id"]))
 
                 i = i + 1
 
