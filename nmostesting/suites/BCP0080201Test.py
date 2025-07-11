@@ -86,6 +86,10 @@ class BCP0080201Test(BCP008Test):
         return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#sender-status-transition-counters"
 
+    def get_status_messages_spec_link(self):
+        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#sender-status-messages"
+
     def get_reporting_delay_spec_link(self):
         return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#sender-status-reporting-delay"
@@ -110,10 +114,10 @@ class BCP0080201Test(BCP008Test):
                 NcSenderMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS,
                 NcSenderMonitorProperties.ESSENCE_STATUS]
 
-    def get_connection_status_property_id(self):
+    def get_stream_status_property_id(self):
         return NcSenderMonitorProperties.TRANSMISSION_STATUS.value
 
-    def get_connection_status_transition_counter_property_id(self):
+    def get_stream_status_transition_counter_property_id(self):
         return NcSenderMonitorProperties.TRANSMISSION_STATUS_TRANSITION_COUNTER.value
 
     def get_inactiveable_status_property_ids(self):
@@ -150,10 +154,22 @@ class BCP0080201Test(BCP008Test):
                 "EssenceStatusTransitionCounter":
                 NcSenderMonitorProperties.ESSENCE_STATUS_TRANSITION_COUNTER.value}
 
+    def get_status_message_property_dict(self):
+        return {"OverallStatusMessage":
+                NcStatusMonitorProperties.OVERALL_STATUS_MESSAGE.value,
+                "LinkStatusMessage":
+                NcSenderMonitorProperties.LINK_STATUS_MESSAGE.value,
+                "TransmissionStatusMessage":
+                NcSenderMonitorProperties.TRANSMISSION_STATUS_MESSAGE.value,
+                "ExternalSynchronizationStatusMessage":
+                NcSenderMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS_MESSAGE.value,
+                "EssenceStatusMessage":
+                NcSenderMonitorProperties.ESSENCE_STATUS_MESSAGE.value}
+
     def get_counter_method_ids(self):
         return [NcSenderMonitorMethods.GET_TRANSMISSION_ERROR_COUNTERS]
 
-    def get_auto_reset_counter_method_id(self):
+    def get_reset_counter_method_id(self):
         return NcSenderMonitorMethods.RESET_COUNTERS
 
     # Resource
@@ -173,7 +189,7 @@ class BCP0080201Test(BCP008Test):
     def get_touchpoint_resource_type(self):
         return "sender"
 
-    def patch_resource(self, test, sender_id):
+    def activate_resource(self, test, sender_id):
         activate_json = {
             "receiver_id": None,
             "master_enable": True,
@@ -286,7 +302,7 @@ class BCP0080201Test(BCP008Test):
                     spec_section = "essence-status"
         if len(invalid_statuses) > 0:
             self.check_status_values_valid_metadata.error = True
-            self.check_status_values_valid_metadata.error_msg = \
+            self.check_status_values_valid_metadata.error_msg += \
                 f"Invalid status found in following properties: {', '.join(invalid_statuses)} " \
                 f"for Monitor, oid={monitor.oid}, " \
                 f"role path={monitor.role_path}; "

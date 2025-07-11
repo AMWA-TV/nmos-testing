@@ -26,6 +26,8 @@ NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
 CONTROL_API_KEY = "ncp"
 CONTROL_FRAMEWORK_API_KEY = "controlframework"
+CONTROL_FEATURE_SETS_API_KEY = "featuresets"
+MONITORING_FEATURE_SETS_KEY = "monitoring"
 
 CONTROL_FRAMEWORK_SPEC_ROOT = "https://specs.amwa.tv/ms-05-02/branches/"
 CONTROL_PROTOCOL_SPEC_ROOT = "https://specs.amwa.tv/is-12/branches/"
@@ -77,11 +79,12 @@ class BCP008Test(GenericTest):
     Template class for BCP-008-XX tests
     """
     class TestMetadata():
-        def __init__(self, checked=False, error=False, error_msg="", link=""):
+        def __init__(self, checked=False, error=False, error_msg="", link="", manual=False):
             self.checked = checked
             self.error = error
             self.error_msg = error_msg
             self.link = link
+            self.manual = manual
 
     def __init__(self, apis, **kwargs):
         # Don't auto-test /transportfile as it is permitted to generate a 404 when master_enable is false
@@ -91,8 +94,8 @@ class BCP008Test(GenericTest):
         # Prevent auto testing of IS-04 and IS-05 APIs
         apis[NODE_API_KEY].pop("raml", None)
         apis[CONN_API_KEY].pop("raml", None)
-        # override the featuresets repos to only test against the monitoring feature set
-        apis['featuresets']['repo_paths'] = ['monitoring']
+        # override the control feature sets repos to only test against the monitoring feature set
+        apis[CONTROL_FEATURE_SETS_API_KEY]['repo_paths'] = [MONITORING_FEATURE_SETS_KEY]
         GenericTest.__init__(self, apis, omit_paths, **kwargs)
         self.is05_utils = IS05Utils(self.apis[CONN_API_KEY]["url"])
         self.is12_utils = IS12Utils(self.apis)
@@ -112,12 +115,11 @@ class BCP008Test(GenericTest):
         self.check_overall_status_metadata = BCP008Test.TestMetadata()
         self.check_status_values_valid_metadata = BCP008Test.TestMetadata()
         self.check_deactivate_monitor_metadata = BCP008Test.TestMetadata()
-        self.check_reset_counters_metadata = BCP008Test.TestMetadata()
+        self.check_reset_counters_and_messages_metadata = BCP008Test.TestMetadata()
         self.check_transitions_counted_metadata = BCP008Test.TestMetadata()
         self.check_auto_reset_counters_metadata = BCP008Test.TestMetadata()
 
         self.check_activation_metadata.link = self.get_reporting_delay_spec_link()
-        self.check_reset_counters_metadata.link = self.get_transition_counters_spec_link()
         self.check_deactivate_monitor_metadata.link = self.get_deactivating_monitor_spec_link()
         self.check_touchpoint_metadata.link = self.get_touchpoint_spec_link()
 
@@ -145,78 +147,110 @@ class BCP008Test(GenericTest):
     # Overridden functions specialized in derived classes
     # Spec link getters
     def get_touchpoint_spec_link(self):
+        """Returns URL to section of specification"""
         pass
 
     def get_transition_counters_spec_link(self):
+        """Returns URL to section of specification"""
+        pass
+
+    def get_status_messages_spec_link(self):
+        """Returns URL to section of specification"""
         pass
 
     def get_reporting_delay_spec_link(self):
+        """Returns URL to section of specification"""
         pass
 
     def get_deactivating_monitor_spec_link(self):
+        """Returns URL to section of specification"""
         pass
 
     def get_sync_source_change_spec_link(self):
+        """Returns URL to section of specification"""
         pass
 
     def get_counter_method_spec_link(self):
+        """Returns URL to section of specification"""
         pass
 
     # Status property and method IDs
     def get_domain_statuses(self):
+        """Return list of all domain status properties, plus overall status, for this resource type"""
         pass
 
-    def get_connection_status_property_id(self):
+    def get_stream_status_property_id(self):
+        """Returns the property modelling stream status for this resource type"""
         pass
 
-    def get_connection_status_transition_counter_property_id(self):
+    def get_stream_status_transition_counter_property_id(self):
+        """Returns the property modelling stream status transition counter for this resource type"""
         pass
 
     def get_inactiveable_status_property_ids(self):
+        """Returns all properties capable of an Inactive status for this rsource type"""
         pass
 
     def get_auto_reset_counter_property_id(self):
+        """Returns auto reset counter property for this resource type"""
         pass
 
     def get_sync_source_id_property_id(self):
+        """Returns synchronization source counter property for this resource type"""
         pass
 
     def get_healthy_statuses_dict(self):
+        """On activation these properties MUST be healthy; dict of property id: healthy status enum"""
         pass
 
     def get_inactive_statuses_dict(self):
+        """On deactivation these properties MUST be inactive; dict of property id: healthy status enum"""
         pass
 
     def get_transition_counter_property_dict(self):
+        """Returns dict of transition counter properties for this resource; property name: property id"""
+        pass
+
+    def get_status_message_property_dict(self):
+        """Returns dict of transition counter properties for this resource; property name: property id"""
         pass
 
     def get_counter_method_ids(self):
+        """Return list of counter method ids for this resource"""
         pass
 
-    def get_auto_reset_counter_method_id(self):
+    def get_reset_counter_method_id(self):
+        """Return reset method id for this resource"""
         pass
 
     # Resource
     def get_monitors(self, test):
+        """Returns list of resource monitor device model objects"""
         pass
 
     def get_touchpoint_resource_type(self):
+        """Returns string indicating the type of resource being monitored"""
         pass
 
-    def patch_resource(self, test, resource_id):
+    def activate_resource(self, test, resource_id):
+        """Activate the resource being monitored"""
         pass
 
     def deactivate_resource(self, test, resource_id):
+        """Deactivates the resource being monitored"""
         pass
 
     # Validation
     def is_valid_resource(self, touchpoint_resource):
+        """Check the resource being monitored can be PATCHed"""
         pass
 
     def check_overall_status(self, monitor, statuses):
+        """Check the overall status is consistent with domain statuses"""
         pass
 
     def validate_status_values(self, monitor, statuses):
+        """Check that domain status values are legal"""
         pass
 
     def _get_property(self, test, monitor, property_id):
@@ -251,19 +285,19 @@ class BCP008Test(GenericTest):
         for touchpoint in touchpoints:
             if "contextNamespace" not in touchpoint:
                 self.check_touchpoint_metadata.error = True
-                self.check_touchpoint_metadata.error_msg = "Touchpoint doesn't obey MS-05-02 schema " \
+                self.check_touchpoint_metadata.error_msg += "Touchpoint doesn't obey MS-05-02 schema " \
                     f"for Monitor: {monitor}; "
                 # Override spec link to link to MS-05-02 specification
                 self.check_touchpoint_metadata.link = f"{CONTROL_FRAMEWORK_SPEC_ROOT}" \
                     f"{self.apis[CONTROL_API_KEY]['spec_branch']}/Framework.html#nctouchpoint"
                 continue
 
-            if "resource" in touchpoint:
+            if "resource" in touchpoint:  # the resource key is particular to the NcTouchpointNmos datatype
                 touchpoint_resources.append(touchpoint)
 
         if len(touchpoint_resources) != 1:
             self.check_touchpoint_metadata.error = True
-            self.check_touchpoint_metadata.error_msg = "One and only one touchpoint MUST be of type NcTouchpointNmos " \
+            self.check_touchpoint_metadata.error_msg += "One and only one touchpoint MUST be of type NcTouchpointNmos " \
                 f"for Monitor: {monitor}; "
             return None
 
@@ -273,7 +307,7 @@ class BCP008Test(GenericTest):
 
         if touchpoint_resource.resource["resourceType"] != expected_resource_type:
             self.check_touchpoint_metadata.error = True
-            self.check_touchpoint_metadata.error_msg = \
+            self.check_touchpoint_metadata.error_msg += \
                 f"Touchpoint resourceType field MUST be set to '{expected_resource_type}' " \
                 f"for Monitor: {monitor}; "
             return None
@@ -283,11 +317,9 @@ class BCP008Test(GenericTest):
         return touchpoint_resource
 
     def _check_statuses(self, monitor, initial_statuses, notifications):
-
         def _get_status_from_notifications(initial_status, notifications, property_id):
             # Aggregate initial status with any status change notifications
             status_notifications = [n for n in notifications if n.eventData.propertyId == property_id.value]
-
             return status_notifications[-1].eventData.value if len(status_notifications) else initial_status
 
         # Get statuses from notifications, using the initial_status as a default
@@ -306,11 +338,7 @@ class BCP008Test(GenericTest):
         # non Healthy states for the duration specified by statusReportingDelay, and then
         # transition to any other appropriate state.
         tolerance = 0.2  # Allow for delays in notifications after activation
-        connection_status_property = self.get_connection_status_property_id()
-
-        # These values are common across NcConnectionStatus (Receivers) and NcTransmissionStatus (Senders)
-        healthy_statuses_dict = self.get_healthy_statuses_dict()
-        inactive_statuses_dict = self.get_inactive_statuses_dict()
+        connection_status_property = self.get_stream_status_property_id()
 
         connection_status_notifications = \
             [n for n in notifications
@@ -324,6 +352,7 @@ class BCP008Test(GenericTest):
             return
 
         # Check that the monitor transitioned to healthy
+        healthy_statuses_dict = self.get_healthy_statuses_dict()
         if len(connection_status_notifications) > 0 \
                 and connection_status_notifications[0].eventData.value \
                 != healthy_statuses_dict[connection_status_notifications[0].eventData.propertyId]:
@@ -333,6 +362,7 @@ class BCP008Test(GenericTest):
 
         # Check that the monitor stayed in the healthy state (unless transitioned to Inactive)
         # during the status reporting delay period
+        inactive_statuses_dict = self.get_inactive_statuses_dict()
         end_of_reporting_delay_period = activation_time + status_reporting_delay - tolerance
         if len(connection_status_notifications) > 1 \
                 and connection_status_notifications[1].eventData.value \
@@ -351,8 +381,7 @@ class BCP008Test(GenericTest):
         self.check_activation_metadata.checked = True
 
     def _check_connection_status_transition_counter(self, notifications):
-
-        connection_status_transition_counter_property = self.get_connection_status_transition_counter_property_id()
+        connection_status_transition_counter_property = self.get_stream_status_transition_counter_property_id()
 
         connection_status_transition_counter_notifications = \
             [n for n in notifications
@@ -377,7 +406,7 @@ class BCP008Test(GenericTest):
         # Assume that resource is inactive before this check
         notifications = self.is12_utils.reset_notifications()
 
-        self.patch_resource(test, resource_id)
+        self.activate_resource(test, resource_id)
 
         # Deactivate before the status reporting delay expires
         sleep(2.0)
@@ -412,60 +441,74 @@ class BCP008Test(GenericTest):
 
             self.check_deactivate_monitor_metadata.checked = True
 
-    def _check_auto_reset_counters(self, test, monitor, resource_id):
+    def _check_auto_reset_counters_and_status_messages(self, test, monitor, resource_id):
         # Devices MUST be able to reset ALL status transition counter properties
         # when a resource activation occurs if autoResetCounters is set to true
-        auto_reset_counter_property = self.get_auto_reset_counter_property_id()
+        try:
+            auto_reset_counter_property = self.get_auto_reset_counter_property_id()
 
-        # Make sure autoResetCounters enabled
-        self._set_property(test,
-                           monitor,
-                           auto_reset_counter_property,
-                           True)
-
-        # generate status transitions
-        status_reporting_delay = \
-            self._get_property(test,
+            # Make sure autoResetCounters enabled
+            self._set_property(test,
                                monitor,
-                               NcStatusMonitorProperties.STATUS_REPORTING_DELAY.value)
-        self.patch_resource(test, resource_id)
-        sleep(status_reporting_delay + 1.0)  # This assumes the connection status becomes unhealty
-        self.deactivate_resource(test, resource_id)
-        sleep(2.0)  # Settling time
+                               auto_reset_counter_property,
+                               True)
 
-        # check for status transitions
-        non_zero_counters = self._get_non_zero_counters(test, monitor)
+            # generate status transitions
+            status_reporting_delay = \
+                self._get_property(test,
+                                   monitor,
+                                   NcStatusMonitorProperties.STATUS_REPORTING_DELAY.value)
+            self.activate_resource(test, resource_id)
+            sleep(status_reporting_delay + 1.0)  # This assumes the connection status becomes unhealty
+            self.deactivate_resource(test, resource_id)
+            sleep(2.0)  # Settling time
 
-        if len(non_zero_counters) == 0:
-            return  # No transitions, so can't test
+            # check for status transitions
+            non_zero_counters = self._get_non_zero_counters(test, monitor)
+            status_messages = self._get_all_status_messages(test, monitor)
 
-        # force auto reset
-        self.patch_resource(test, resource_id)
-        sleep(1.0)  # Settling time
+            if len(non_zero_counters) == 0 and len(status_messages) == 0:
+                return  # No transitions or messages, so can't test
 
-        non_zero_counters = self._get_non_zero_counters(test, monitor)
+            # force auto reset
+            self.activate_resource(test, resource_id)
+            sleep(1.0)  # Settling time
 
-        if len(non_zero_counters) > 0:
+            if len(non_zero_counters) > 0:
+                non_zero_counters = self._get_non_zero_counters(test, monitor)
+
+                if len(non_zero_counters) > 0:
+                    self.check_auto_reset_counters_metadata.manual = True
+                    self.check_auto_reset_counters_metadata.error_msg += \
+                        f"Manually check transition counters {', '.join(non_zero_counters)} reset for Monitor: "\
+                        f"{monitor} on activation; "
+                    self.check_auto_reset_counters_metadata.link = self.get_transition_counters_spec_link()
+                self.check_auto_reset_counters_metadata.checked = True
+
+            if len(status_messages) > 0:
+                # Check the messages are now cleared
+                status_messages = self._get_all_status_messages(test, monitor)
+
+                if len(status_messages) > 0:
+                    self.check_auto_reset_counters_metadata.manual = True
+                    self.check_auto_reset_counters_metadata.error_msg += \
+                        f"Manually check status messages {', '.join(status_messages)} reset for Monitor: "\
+                        f"{monitor} on activation; "
+                    self.check_auto_reset_counters_metadata.link = self.get_status_messages_spec_link()
+                self.check_auto_reset_counters_metadata.checked = True
+        except NMOSTestException as e:
             self.check_auto_reset_counters_metadata.error = True
-            self.check_auto_reset_counters_metadata.error_msg = \
-                f"Transition counters {', '.join(non_zero_counters)} not reset for Monitor: {monitor}; "
-
-        self.check_auto_reset_counters_metadata.checked = True
+            self.check_auto_reset_counters_metadata.error_msg += f"{e.args[0].description}; "
 
         self.deactivate_resource(test, resource_id)
         sleep(2.0)  # Settling time
 
     def _get_activation_time(self, test, monitor, notifications):
         # On activation the overall status MUST transition to healthy
-
-        # Dict of healthy statuses keyed on property id
         healthy_statuses_dict = self.get_healthy_statuses_dict()
 
-        # "inactiveable" properties will transition from Inactive to Healthy on activation
-        inactiveable_status_property_ids = self.get_inactiveable_status_property_ids()
-
         activation_notification = [n for n in notifications if
-                                   n.eventData.propertyId in inactiveable_status_property_ids
+                                   n.eventData.propertyId in healthy_statuses_dict.keys()
                                    and n.eventData.value == healthy_statuses_dict[n.eventData.propertyId]]
 
         if len(activation_notification) == 0:
@@ -476,107 +519,7 @@ class BCP008Test(GenericTest):
 
         # The received time of the first transition to Healthy is assumed to be the activation time
         return activation_notification[0].received_time
-
-    def _check_monitor_status_changes(self, test):
-        def is_monitor_valid(test, monitor):
-            touchpoint_resource = self._get_touchpoint_resource(test, monitor)
-            return self.is_valid_resource(test, touchpoint_resource)
-
-        if self.check_activation_metadata.checked:
-            return
-
-        all_monitors = self.get_monitors(test)
-
-        valid_monitors = [m for m in all_monitors if is_monitor_valid(test, m)]
-
-        if len(valid_monitors) > 0:
-            self.testable_resources_found = True
-        else:
-            return
-
-        testable_monitors = IS12Utils.sampled_list(valid_monitors)
-
-        status_properties = self.get_domain_statuses()
-
-        for monitor in testable_monitors:
-
-            response = self.is12_utils.update_subscriptions(test, [monitor.oid])
-
-            if not isinstance(response, list):
-                raise NMOSTestException(
-                    test.FAIL(f"Unexpected response from subscription command: {str(response)}",
-                              f"{CONTROL_PROTOCOL_SPEC_ROOT}{self.apis[CONTROL_API_KEY]['spec_branch']}"
-                              "/docs/Protocol_messaging.html#subscription-response-message-type"))
-
-            # Set status reporting delay to the specification default
-            status_reporting_delay = 3
-            self._set_property(test,
-                               monitor,
-                               NcStatusMonitorProperties.STATUS_REPORTING_DELAY.value,
-                               status_reporting_delay)
-
-            # Get associated resource for this monitor
-            touchpoint_resource = self._get_touchpoint_resource(test, monitor)
-
-            resource_id = touchpoint_resource.resource["id"]
-
-            overall_status = self._get_property(test,
-                                                monitor,
-                                                NcStatusMonitorProperties.OVERALL_STATUS.value)
-
-            if overall_status != NcOverallStatus.Inactive.value:
-                # This test depends on the resource being inactive in the first instance
-                self.deactivate_resource(test, resource_id)
-                sleep(2.0)  # Settling time
-
-            # Reset the notifications
-            self.is12_utils.reset_notifications()
-            # Capture initial states of domain statuses
-            initial_statuses = dict([(property_id,
-                                      self._get_property(test,
-                                                         monitor,
-                                                         property_id.value))
-                                     for property_id in status_properties])
-
-            self.patch_resource(test, resource_id)
-
-            # Wait until slightly more that status reporting delay to
-            # potentially capture transition to less healthy state
-            sleep(status_reporting_delay + 2.0)
-
-            # Capture historic, time stamped, notifications for processing
-            notifications = self.is12_utils.get_notifications()
-
-            activation_time = self._get_activation_time(test, monitor, notifications)
-
-            # Check statuses before resource patched
-            status_notifications = [n for n in notifications if n.received_time < activation_time]
-            self._check_statuses(monitor, initial_statuses, status_notifications)
-
-            # Check statuses during status reporting delay
-            status_notifications = \
-                [n for n in notifications if n.received_time < activation_time + status_reporting_delay]
-            self._check_statuses(monitor, initial_statuses, status_notifications)
-
-            # Check latest statuses, after reporting delay
-            self._check_statuses(monitor, initial_statuses, notifications)
-
-            # Check the Connection Status stayed healthy during status reporting delay
-            # and transitioned to unhealthy afterwards (assuming not deactivated during delay)
-            self._check_connection_status(monitor, activation_time, status_reporting_delay, notifications)
-
-            self._check_connection_status_transition_counter(notifications)
-
-            self.deactivate_resource(test, resource_id)
-            sleep(2.0)  # Settling time
-
-            # Ensure ResetCounter method resets counters to zero
-            self._check_reset_counters(test, monitor)
-
-            self._check_deactivate_resource(test, monitor, resource_id)
-
-            self._check_auto_reset_counters(test, monitor, resource_id)
-
+    
     def _check_counter_method(self, test, method_id, spec_link):
         monitors = self.get_monitors(test)
 
@@ -616,19 +559,32 @@ class BCP008Test(GenericTest):
 
         return [c for c, v in counter_values.items() if v > 0]
 
-    def _check_reset_counters(self, test, monitor):
+    def _get_all_status_messages(self, test, monitor):
+        """Returns status messages except where null or of zero length"""
+        status_messages = self.get_status_message_property_dict()
+
+        message_values = dict([(key,
+                                self._get_property(test,
+                                                   monitor,
+                                                   property_id))
+                               for key, property_id in status_messages.items()])
+
+        return [c for c, v in message_values.items() if v and len(v) > 0]
+
+    def _check_reset_counters_and_status_messages(self, test, monitor):
         # Devices MUST be able to reset ALL status transition counter properties
         # when a client invokes the ResetCounters method
 
         non_zero_counters = self._get_non_zero_counters(test, monitor)
+        status_messages = self._get_all_status_messages(test, monitor)
 
-        if len(non_zero_counters) == 0:
-            return  # No transitions, so can't test
+        if len(non_zero_counters) == 0 and len(status_messages) == 0:
+            return  # No transitions or messages, so can't test
 
         arguments = {}
 
         # Invoke ResetCounters
-        reset_counters_method = self.get_auto_reset_counter_method_id()
+        reset_counters_method = self.get_reset_counter_method_id()
 
         method_result = self.is12_utils.invoke_method(
             test,
@@ -638,20 +594,136 @@ class BCP008Test(GenericTest):
             role_path=monitor.role_path)
 
         if not self._status_ok(method_result):
-            self.check_reset_counters_metadata.error = True
-            self.check_reset_counters_metadata.error_msg = \
-                f"Method invokation ResetCounters failed for Monitor: {monitor}: " \
+            self.check_reset_counters_and_messages_metadata.error = True
+            self.check_reset_counters_and_messages_metadata.error_msg += \
+                f"Method invokation ResetCountersAndMessages failed for Monitor: {monitor}: " \
                 f"{method_result.errorMessage}. "
+
             return
 
-        non_zero_counters = self._get_non_zero_counters(test, monitor)
-
         if len(non_zero_counters) > 0:
-            self.check_reset_counters_metadata.error = True
-            self.check_reset_counters_metadata.error_msg = \
-                f"Transition counters {', '.join(non_zero_counters)} not reset for Monitor: {monitor}; "
+            # Check the counters are now zero
+            non_zero_counters = self._get_non_zero_counters(test, monitor)
 
-        self.check_reset_counters_metadata.checked = True
+            if len(non_zero_counters) > 0:
+                self.check_reset_counters_and_messages_metadata.manual = True
+                self.check_reset_counters_and_messages_metadata.error_msg += \
+                    f"Manually check transition counters {', '.join(non_zero_counters)} are reset for Monitor: " \
+                    f"{monitor} on ResetCountersAndMessages method call; "
+                self.check_reset_counters_and_messages_metadata.link = self.get_transition_counters_spec_link()
+            self.check_reset_counters_and_messages_metadata.checked = True
+
+        if len(status_messages) > 0:
+            # Check the messages are now cleared
+            status_messages = self._get_all_status_messages(test, monitor)
+
+            if len(status_messages) > 0:
+                self.check_reset_counters_and_messages_metadata.manual = True
+                self.check_reset_counters_and_messages_metadata.error_msg += \
+                    f"Manually check status messages {', '.join(status_messages)} reset for Monitor: "\
+                    f"{monitor} on ResetCountersAndMessages method call; "
+                self.check_reset_counters_and_messages_metadata.link = self.get_status_messages_spec_link()
+            self.check_reset_counters_and_messages_metadata.checked = True
+
+    def _check_monitor_status_changes(self, test):
+        def is_monitor_valid(test, monitor):
+            touchpoint_resource = self._get_touchpoint_resource(test, monitor)
+            return self.is_valid_resource(test, touchpoint_resource)
+
+        if self.check_activation_metadata.checked:
+            return
+
+        all_monitors = self.get_monitors(test)
+
+        valid_monitors = [m for m in all_monitors if is_monitor_valid(test, m)]
+
+        if len(valid_monitors) > 0:
+            self.testable_resources_found = True
+        else:
+            return
+
+        testable_monitors = IS12Utils.sampled_list(valid_monitors)
+
+        status_properties = self.get_domain_statuses()
+
+        for monitor in testable_monitors:
+            response = self.is12_utils.update_subscriptions(test, [monitor.oid])
+
+            if not isinstance(response, list):
+                raise NMOSTestException(
+                    test.FAIL(f"Unexpected response from subscription command: {str(response)}",
+                              f"{CONTROL_PROTOCOL_SPEC_ROOT}{self.apis[CONTROL_API_KEY]['spec_branch']}"
+                              "/docs/Protocol_messaging.html#subscription-response-message-type"))
+
+            # Set status reporting delay to the specification default
+            status_reporting_delay = 3
+            self._set_property(test,
+                               monitor,
+                               NcStatusMonitorProperties.STATUS_REPORTING_DELAY.value,
+                               status_reporting_delay)
+
+            # Get associated resource for this monitor
+            touchpoint_resource = self._get_touchpoint_resource(test, monitor)
+
+            resource_id = touchpoint_resource.resource["id"]
+
+            overall_status = self._get_property(test,
+                                                monitor,
+                                                NcStatusMonitorProperties.OVERALL_STATUS.value)
+
+            if overall_status != NcOverallStatus.Inactive.value:
+                # This test depends on the resource being inactive in the first instance
+                self.deactivate_resource(test, resource_id)
+                sleep(2.0)  # Settling time
+
+            # Reset the notifications
+            self.is12_utils.reset_notifications()
+            # Capture initial states of domain statuses
+            initial_statuses = dict([(property_id,
+                                      self._get_property(test,
+                                                         monitor,
+                                                         property_id.value))
+                                     for property_id in status_properties])
+
+            # Activate resource
+            self.activate_resource(test, resource_id)
+
+            # Wait until slightly more that status reporting delay to
+            # potentially capture transition to less healthy state
+            sleep(status_reporting_delay + 2.0)
+
+            # Capture historic, time stamped, notifications for processing
+            notifications = self.is12_utils.get_notifications()
+
+            activation_time = self._get_activation_time(test, monitor, notifications)
+
+            # Check statuses before resource patched
+            status_notifications = [n for n in notifications if n.received_time < activation_time]
+            self._check_statuses(monitor, initial_statuses, status_notifications)
+
+            # Check statuses during status reporting delay
+            status_notifications = \
+                [n for n in notifications if n.received_time < activation_time + status_reporting_delay]
+            self._check_statuses(monitor, initial_statuses, status_notifications)
+
+            # Check latest statuses, after reporting delay
+            self._check_statuses(monitor, initial_statuses, notifications)
+
+            # Check the Connection Status stayed healthy during status reporting delay
+            # and transitioned to unhealthy afterwards (assuming not deactivated during delay)
+            self._check_connection_status(monitor, activation_time, status_reporting_delay, notifications)
+
+            self._check_connection_status_transition_counter(notifications)
+
+            self.deactivate_resource(test, resource_id)
+            sleep(2.0)  # Settling time
+
+            # Ensure ResetCounter method resets counters to zero and clears status messages
+            self._check_reset_counters_and_status_messages(test, monitor)
+
+            self._check_deactivate_resource(test, monitor, resource_id)
+
+            self._check_auto_reset_counters_and_status_messages(test, monitor, resource_id)
 
     def test_01(self, test):
         """Status reporting delay can be set to values within the published constraints"""
@@ -686,7 +758,6 @@ class BCP008Test(GenericTest):
 
     def test_02(self, test):
         """Monitor transitions to Healthy state on activation"""
-
         self._check_monitor_status_changes(test)
 
         if not self.testable_resources_found:
@@ -703,7 +774,6 @@ class BCP008Test(GenericTest):
 
     def test_03(self, test):
         """Transition to non-healthy states delayed until status reporting delay period passed"""
-
         self._check_monitor_status_changes(test)
 
         if not self.testable_resources_found:
@@ -716,12 +786,10 @@ class BCP008Test(GenericTest):
 
     def test_04(self, test):
         """Monitor delays transition to more healthy states by status reporting delay"""
-
         return test.MANUAL("Check by manually forcing an error condition")
 
     def test_05(self, test):
         """Transitions to less healthy states are counted"""
-
         self._check_monitor_status_changes(test)
 
         if not self.testable_resources_found:
@@ -733,42 +801,48 @@ class BCP008Test(GenericTest):
         return test.PASS()
 
     def test_06(self, test):
-        """ResetCounters method resets status transition counters"""
-
+        """ResetCounters method resets status transition counters and status messages"""
         self._check_monitor_status_changes(test)
 
         if not self.testable_resources_found:
             return test.UNCLEAR("Unable to find any testable Monitors")
 
-        if self.check_reset_counters_metadata.error:
-            return test.FAIL(self.check_reset_counters_metadata.error_msg,
-                             self.check_reset_counters_metadata.link)
+        if self.check_reset_counters_and_messages_metadata.error:
+            return test.FAIL(self.check_reset_counters_and_messages_metadata.error_msg,
+                             self.check_reset_counters_and_messages_metadata.link)
 
-        if not self.check_reset_counters_metadata.checked:
+        if not self.check_reset_counters_and_messages_metadata.checked:
             return test.MANUAL("Check ResetCounters method manually")
+
+        # If unable to prove behaviour fall back to a manual test
+        if self.check_reset_counters_and_messages_metadata.manual:
+            return test.MANUAL(self.check_reset_counters_and_messages_metadata.error_msg,
+                               self.check_reset_counters_and_messages_metadata.link)
 
         return test.PASS()
 
     def test_07(self, test):
         """autoResetCounters property set to TRUE resets status transition counters on activation"""
-
         self._check_monitor_status_changes(test)
 
         if not self.testable_resources_found:
             return test.UNCLEAR("Unable to find any testable Monitors")
 
         if self.check_auto_reset_counters_metadata.error:
-            return test.FAIL(self.check_auto_reset_counters_metadata.error_msg,
-                             self.check_auto_reset_counters_metadata.link)
+            return test.FAIL(self.check_auto_reset_counters_metadata.error_msg)
 
         if not self.check_auto_reset_counters_metadata.checked:
             return test.MANUAL("Check autoResetCounters property manually")
+
+        # If unable to prove behaviour fall back to a manual test
+        if self.check_auto_reset_counters_metadata.manual:
+            return test.MANUAL(self.check_auto_reset_counters_metadata.error_msg,
+                               self.check_auto_reset_counters_metadata.link)
 
         return test.PASS()
 
     def test_08(self, test):
         """Overall status is correctly mapped from domain statuses"""
-
         self._check_monitor_status_changes(test)
 
         if not self.testable_resources_found:
@@ -785,7 +859,6 @@ class BCP008Test(GenericTest):
 
     def test_09(self, test):
         """Status values are valid"""
-
         self._check_monitor_status_changes(test)
 
         if not self.testable_resources_found:
@@ -820,7 +893,6 @@ class BCP008Test(GenericTest):
     def test_11(self, test):
         """Monitor transitions to PartiallyHealthy on synchronization source change"""
         # Monitors MUST temporarily transition to PartiallyHealthy when detecting a synchronization source change
-
         return test.MANUAL("Check by manually forcing a synchronization source change")
 
     def test_12(self, test):
@@ -854,7 +926,6 @@ class BCP008Test(GenericTest):
 
     def test_13(self, test):
         """Resource cleanly disconnects from the current stream on deactivation"""
-
         self._check_monitor_status_changes(test)
 
         if not self.testable_resources_found:
@@ -871,7 +942,6 @@ class BCP008Test(GenericTest):
 
     def test_14(self, test):
         """Monitor has a valid touchpoint resource"""
-
         self._check_monitor_status_changes(test)
 
         if not self.testable_resources_found:

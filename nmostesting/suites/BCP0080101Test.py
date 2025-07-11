@@ -169,6 +169,10 @@ class BCP0080101Test(BCP008Test):
         return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#receiver-status-transition-counters"
 
+    def get_status_messages_spec_link(self):
+        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#receiver-status-messages"
+
     def get_reporting_delay_spec_link(self):
         return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#receiver-status-reporting-delay"
@@ -193,10 +197,10 @@ class BCP0080101Test(BCP008Test):
                 NcReceiverMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS,
                 NcReceiverMonitorProperties.STREAM_STATUS]
 
-    def get_connection_status_property_id(self):
+    def get_stream_status_property_id(self):
         return NcReceiverMonitorProperties.CONNECTION_STATUS.value
 
-    def get_connection_status_transition_counter_property_id(self):
+    def get_stream_status_transition_counter_property_id(self):
         return NcReceiverMonitorProperties.CONNECTION_STATUS_TRANSITION_COUNTER.value
 
     def get_inactiveable_status_property_ids(self):
@@ -233,11 +237,23 @@ class BCP0080101Test(BCP008Test):
                 "StreamStatusTransitionCounter":
                 NcReceiverMonitorProperties.STREAM_STATUS_TRANSITION_COUNTER.value}
 
+    def get_status_message_property_dict(self):
+        return {"OverallStatusMessage":
+                NcStatusMonitorProperties.OVERALL_STATUS_MESSAGE.value,
+                "LinkStatusMessage":
+                NcReceiverMonitorProperties.LINK_STATUS_MESSAGE.value,
+                "ConnectionStatusMessage":
+                NcReceiverMonitorProperties.CONNECTION_STATUS_MESSAGE.value,
+                "ExternalSynchronizationStatusMessage":
+                NcReceiverMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS_MESSAGE.value,
+                "StreamStatusMessage":
+                NcReceiverMonitorProperties.STREAM_STATUS_MESSAGE.value}
+
     def get_counter_method_ids(self):
         return [NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS,
                 NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS]
 
-    def get_auto_reset_counter_method_id(self):
+    def get_reset_counter_method_id(self):
         return NcReceiverMonitorMethods.RESET_COUNTERS
 
     # Resource
@@ -257,7 +273,7 @@ class BCP0080101Test(BCP008Test):
     def get_touchpoint_resource_type(self):
         return "receiver"
 
-    def patch_resource(self, test, receiver_id):
+    def activate_resource(self, test, receiver_id):
         if not self.sdp_params:
             self.sdp_params = self._make_receiver_sdp_params(test)
 
@@ -364,7 +380,7 @@ class BCP0080101Test(BCP008Test):
                     spec_section = "stream-status"
         if len(invalid_statuses) > 0:
             self.check_status_values_valid_metadata.error = True
-            self.check_status_values_valid_metadata.error_msg = \
+            self.check_status_values_valid_metadata.error_msg += \
                 f"Invalid status found in following properties: {', '.join(invalid_statuses)} " \
                 f"for Monitor, oid={monitor.oid}, " \
                 f"role path={monitor.role_path}; "
