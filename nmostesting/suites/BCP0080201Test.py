@@ -107,7 +107,7 @@ class BCP0080201Test(BCP008Test):
             "/docs/Overview.html#transmission-error-counters"
 
     # Status property and method IDs
-    def get_domain_statuses(self):
+    def get_domain_status_property_ids(self):
         return [NcStatusMonitorProperties.OVERALL_STATUS,
                 NcSenderMonitorProperties.LINK_STATUS,
                 NcSenderMonitorProperties.TRANSMISSION_STATUS,
@@ -132,8 +132,7 @@ class BCP0080201Test(BCP008Test):
         return NcSenderMonitorProperties.SYNCHRONIZATION_SOURCE_ID.value
 
     def get_healthy_statuses_dict(self):
-        return {NcStatusMonitorProperties.OVERALL_STATUS.value: NcOverallStatus.Healthy,
-                NcSenderMonitorProperties.TRANSMISSION_STATUS.value: NcTransmissionStatus.Healthy,
+        return {NcSenderMonitorProperties.TRANSMISSION_STATUS.value: NcTransmissionStatus.Healthy,
                 NcSenderMonitorProperties.ESSENCE_STATUS.value: NcEssenceStatus.Healthy}
 
     def get_inactive_statuses_dict(self):

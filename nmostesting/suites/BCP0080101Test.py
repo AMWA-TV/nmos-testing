@@ -190,7 +190,7 @@ class BCP0080101Test(BCP008Test):
             "/docs/Overview.html#late-and-lost-packets"
 
     # Status property and method IDs
-    def get_domain_statuses(self):
+    def get_domain_status_property_ids(self):
         return [NcStatusMonitorProperties.OVERALL_STATUS,
                 NcReceiverMonitorProperties.LINK_STATUS,
                 NcReceiverMonitorProperties.CONNECTION_STATUS,
@@ -215,8 +215,7 @@ class BCP0080101Test(BCP008Test):
         return NcReceiverMonitorProperties.SYNCHRONIZATION_SOURCE_ID.value
 
     def get_healthy_statuses_dict(self):
-        return {NcStatusMonitorProperties.OVERALL_STATUS.value: NcOverallStatus.Healthy,
-                NcReceiverMonitorProperties.CONNECTION_STATUS.value: NcConnectionStatus.Healthy,
+        return {NcReceiverMonitorProperties.CONNECTION_STATUS.value: NcConnectionStatus.Healthy,
                 NcReceiverMonitorProperties.STREAM_STATUS.value: NcStreamStatus.Healthy}
 
     def get_inactive_statuses_dict(self):
