@@ -38,14 +38,11 @@ class NcRestoreMode(IntEnum):
 class NcPropertyHolder():
     def __init__(self, property_holder_json):
         self.id = NcPropertyId(property_holder_json["id"])
-        self.name = property_holder_json["name"]
-        self.typeName = property_holder_json["typeName"]
-        self.isReadOnly = property_holder_json["isReadOnly"]
+        self.descriptor = NcPropertyDescriptor(property_holder_json["descriptor"])
         self.value = property_holder_json["value"]
 
     def __str__(self):
-        return f"[id={self.id}, name={self.name}, typeName={self.typeName}, " \
-            f"isReadOnly={self.isReadOnly}, value={self.value}"
+        return f"[id={self.id}, descriptor={str(self.descriptor)}, value={self.value}"
 
 
 class NcObjectPropertiesHolder():
@@ -575,9 +572,9 @@ class IS1401Test(MS0501Test):
                                   key=cmp_to_key(self._compare_property_holders))
 
         for property_descriptor, property_holder in zip(property_descriptors, property_holders):
-            if property_descriptor.name != property_holder.name or \
-                    property_descriptor.typeName != property_holder.typeName or \
-                    property_descriptor.isReadOnly != property_holder.isReadOnly:
+            if property_descriptor.name != property_holder.descriptor.name or \
+                    property_descriptor.typeName != property_holder.descriptor.typeName or \
+                    property_descriptor.isReadOnly != property_holder.descriptor.isReadOnly:
                 raise NMOSTestException(
                     test.FAIL("Definition of property in NcPropertyHolder inconsistant with class descriptor's "
                               f"NcPropertyDescriptor. Class descriptor NcPropertyDescriptor={property_descriptor}; "
@@ -586,14 +583,14 @@ class IS1401Test(MS0501Test):
             # Validate that the property holders are of the correct type
             if property_holder.value is None:
                 if not property_descriptor.isNullable:
-                    raise NMOSTestException(test.FAIL(f"Value can not be null for {property_holder.name} "
+                    raise NMOSTestException(test.FAIL(f"Value can not be null for {property_holder.descriptor.name}"
                                             f"at role path={role_path}"))
-            elif property_holder.typeName not in self.is14_utils.reference_datatype_descriptors:
+            elif property_holder.descriptor.typeName not in self.is14_utils.reference_datatype_descriptors:
                 # If we don't recognise the data type let's just move on
                 continue
             elif property_descriptor.isSequence:
                 if not isinstance(property_holder.value, list):
-                    raise NMOSTestException(test.FAIL(f"Sequence of values expected for {property_holder.name} "
+                    raise NMOSTestException(test.FAIL(f"Sequence of values expected for {property_holder.descriptor.name} "
                                             f"at role path={role_path}"))
                 for v in property_holder.value:
                     self.is14_utils.reference_datatype_schema_validate(test, v,
@@ -1108,7 +1105,7 @@ class IS1401Test(MS0501Test):
                 for property_holder in object_property_holder.values:
                     property_holder.value = self._generate_property_value(test,
                                                                           class_manager,
-                                                                          property_holder.typeName,
+                                                                          property_holder.descriptor.typeName,
                                                                           property_holder.value)
 
             # Validate the modified bulk properties holder
