@@ -534,14 +534,15 @@ class IS1401Test(MS0501Test):
 
         return test.PASS()
 
-    def _check_bulk_properties(self, test: GenericTest, nc_object: NcObject):
+    def _check_bulk_properties(self, test: GenericTest, nc_object: NcObject, include_descriptors=True):
         if isinstance(nc_object, NcBlock):
             for child in nc_object.child_objects:
                 self._check_bulk_properties(test, child)
 
         role_path = ".".join(nc_object.role_path)
 
-        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{role_path}/bulkProperties?recurse=false"
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{role_path}/bulkProperties" \
+                                   f"?recurse=false&includeDescriptors={'true' if include_descriptors else 'false'}"
 
         bulk_properties_holder = self._get_bulk_properties_holder(test, bulk_properties_endpoint)
 
@@ -572,9 +573,21 @@ class IS1401Test(MS0501Test):
                                   key=cmp_to_key(self._compare_property_holders))
 
         for property_descriptor, property_holder in zip(property_descriptors, property_holders):
-            if property_descriptor.name != property_holder.descriptor.name or \
-                    property_descriptor.typeName != property_holder.descriptor.typeName or \
-                    property_descriptor.isReadOnly != property_holder.descriptor.isReadOnly:
+            if (property_holder.descriptor is not None) and not include_descriptors:
+                raise NMOSTestException(
+                    test.FAIL("NcPropertyHolder expected to have a null descriptor property "
+                              "when includeDescriptors=false; "
+                              f"Backup dataset NcPropertyHolder={property_holder} "
+                              f"for role path={role_path}"))
+            if (property_holder.descriptor is None) and include_descriptors:
+                raise NMOSTestException(
+                    test.FAIL("NcPropertyHolder expected to have a valid descriptor property "
+                              "when includeDescriptors=true; "
+                              f"Backup dataset NcPropertyHolder={property_holder} "
+                              f"for role path={role_path}"))
+            if include_descriptors and (property_descriptor.name != property_holder.descriptor.name or
+                                        property_descriptor.typeName != property_holder.descriptor.typeName or
+                                        property_descriptor.isReadOnly != property_holder.descriptor.isReadOnly):
                 raise NMOSTestException(
                     test.FAIL("Definition of property in NcPropertyHolder inconsistant with class descriptor's "
                               f"NcPropertyDescriptor. Class descriptor NcPropertyDescriptor={property_descriptor}; "
@@ -590,8 +603,9 @@ class IS1401Test(MS0501Test):
                 continue
             elif property_descriptor.isSequence:
                 if not isinstance(property_holder.value, list):
-                    raise NMOSTestException(test.FAIL(f"Sequence of values expected for {property_holder.descriptor.name} "
-                                            f"at role path={role_path}"))
+                    raise NMOSTestException(test.FAIL("Sequence of values expected for "
+                                                      f"{property_holder.descriptor.name} "
+                                                      f"at role path={role_path}"))
                 for v in property_holder.value:
                     self.is14_utils.reference_datatype_schema_validate(test, v,
                                                                        property_descriptor.typeName,
@@ -611,6 +625,35 @@ class IS1401Test(MS0501Test):
         return test.PASS()
 
     def test_11(self, test):
+        """Property descriptors are excluded from backup dataset when includeDescriptors=false"""
+
+        device_model = self.is14_utils.query_device_model(test)
+
+        self._check_bulk_properties(test, device_model, include_descriptors=False)
+
+        return test.PASS()
+
+    def _check_for_class_manager(self, test: GenericTest, include_descriptors: bool):
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties" \
+                                   f"?recurse=true&includeDescriptors={'true' if include_descriptors else 'false'}"
+
+        bulk_properties_holder = self._get_bulk_properties_holder(test, bulk_properties_endpoint)
+
+        class_manager_values = [v for v in bulk_properties_holder.values if v.path == ["root", "ClassManager"]]
+
+        if len(class_manager_values) != include_descriptors:
+            error_message = f"Class Manager {'expected' if include_descriptors else 'unexpected'} " \
+                            f"when includeDescriptors={include_descriptors}"
+            raise NMOSTestException(
+                test.FAIL(f"{error_message} "
+                          f"for endpoint={bulk_properties_endpoint} "))
+
+    def test_12(self, test):
+        """Class Manager is included/excluded when includeDescriptors=true/false"""
+        self._check_for_class_manager(test, include_descriptors=True)
+        self._check_for_class_manager(test, include_descriptors=False)
+
+    def test_13(self, test):
         """BulkProperties endpoint returns NcMethodResultError or a derived datatype on PATCH error."""
 
         bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties/"
@@ -642,7 +685,7 @@ class IS1401Test(MS0501Test):
 
         return test.PASS()
 
-    def test_12(self, test):
+    def test_14(self, test):
         """BulkProperties endpoint returns NcMethodResultError or a derived datatype on PUT error."""
 
         bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties/"
@@ -890,7 +933,7 @@ class IS1401Test(MS0501Test):
 
         self.bulk_properties_checked = True
 
-    def test_13(self, test):
+    def test_15(self, test):
         """Validating backup dataset devices returns NcMethodResultObjectPropertiesSetValidation array."""
         self._do_bulk_properties_checks(test)
 
@@ -902,7 +945,7 @@ class IS1401Test(MS0501Test):
 
         return test.PASS()
 
-    def test_14(self, test):
+    def test_16(self, test):
         """Restoring backup dataset devices returns NcMethodResultObjectPropertiesSetValidation array."""
         self._do_bulk_properties_checks(test)
 
@@ -914,7 +957,7 @@ class IS1401Test(MS0501Test):
 
         return test.PASS()
 
-    def test_15(self, test):
+    def test_17(self, test):
         """Validating returns one NcObjectPropertiesSetValidation for each object in the restore scope."""
         # A restore operation or validating a restore operation MUST always generate
         # ObjectPropertiesSetValidation entries for each object which is part of the restore scope.
@@ -928,7 +971,7 @@ class IS1401Test(MS0501Test):
 
         return test.PASS()
 
-    def test_16(self, test):
+    def test_18(self, test):
         """Restoring returns one NcObjectPropertiesSetValidation for each object in the restore scope."""
         # A restore operation or validating a restore operation MUST always generate
         # ObjectPropertiesSetValidation entries for each object which is part of the restore scope.
@@ -942,7 +985,7 @@ class IS1401Test(MS0501Test):
 
         return test.PASS()
 
-    def test_17(self, test):
+    def test_19(self, test):
         """Validating results in no changes to the device model."""
         # Devices MUST NOT make any changes to the device model when validating bulk properties.
         self._do_bulk_properties_checks(test)
@@ -955,7 +998,7 @@ class IS1401Test(MS0501Test):
 
         return test.PASS()
 
-    def test_18(self, test):
+    def test_20(self, test):
         """Devices restores properties of target role path and all nested role paths when recurse is true"""
         # In their attempt to use the provided dataSet, devices MUST target the properties
         # of the target role path and all nested role paths when the body of the request
@@ -1174,7 +1217,7 @@ class IS1401Test(MS0501Test):
             if self.device_model_metadata.error:
                 raise NMOSTestException(test.FAIL(self.device_model_metadata.error_msg))
 
-    def test_19(self, test):
+    def test_21(self, test):
         """Perform invasive 'Modify' validation and restore"""
         if not MS05_INVASIVE_TESTING:
             return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
@@ -1209,7 +1252,7 @@ class IS1401Test(MS0501Test):
 
         return test.PASS()
 
-    def test_20(self, test):
+    def test_22(self, test):
         """Non-rebuildable Device Models accept Rebuild restores but only perform changes to writeable properties"""
         # In the interest of interoperability even devices with no rebuildable device model objects
         # MUST accept Rebuild restores but only perform changes to writeable properties of device model
@@ -1252,7 +1295,7 @@ class IS1401Test(MS0501Test):
 
         return test.PASS()
 
-    def test_21(self, test):
+    def test_23(self, test):
         """Rebuild restore modifies read only properties in rebuildable objects"""
         if not MS05_INVASIVE_TESTING:
             return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
@@ -1440,7 +1483,7 @@ class IS1401Test(MS0501Test):
         # Invalidate cached device model as it might have been structurally changed by the restore
         self.reset_device_model()
 
-    def test_22(self, test):
+    def test_24(self, test):
         """Rebuild restore removes member from rebuildable blocks"""
         if not MS05_INVASIVE_TESTING:
             return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
@@ -1459,7 +1502,7 @@ class IS1401Test(MS0501Test):
 
         return test.PASS()
 
-    def test_23(self, test):
+    def test_25(self, test):
         """Rebuild restore adds member to rebuildable blocks"""
         if not MS05_INVASIVE_TESTING:
             return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
