@@ -221,6 +221,14 @@ class NcPropertyDescriptor(NcDescriptor):
             f"isSequence={self.isSequence}, isDeprecated={self.isDeprecated}, " \
             f"constraints={self.constraints}]"
 
+    def __eq__(self, other):
+        if not isinstance(other, NcPropertyDescriptor):
+            return NotImplemented
+        return self.id == other.id and self.name == other.name and self.typeName == other.typeName \
+            and self.isReadOnly == other.isReadOnly and self.isNullable == other.isNullable \
+            and self.isSequence == other.isSequence and self.isDeprecated == other.isDeprecated \
+            and self.constraints == other.constraints
+
 
 class NcBlockMemberDescriptor(NcDescriptor):
     def __init__(self, descriptor_json):
@@ -410,6 +418,12 @@ class NcParameterConstraintsNumber(NcParameterConstraints):
         return f"[{super(NcParameterConstraintsNumber, self).__str__()}, " \
             f"maximum={self.maximum}, minimum={self.minimum}, step={self.step}]"
 
+    def __eq__(self, other):
+        if not isinstance(other, NcParameterConstraintsNumber):
+            return NotImplemented
+        return self.maximum == other.maximum and self.minimum == other.minimum \
+            and self.step == other.step
+
 
 class NcParameterConstraintsString(NcParameterConstraints):
     def __init__(self, constraints_json, level):
@@ -420,6 +434,11 @@ class NcParameterConstraintsString(NcParameterConstraints):
     def __str__(self):
         return f"[{super(NcParameterConstraintsString, self).__str__()}, " \
             f"maxCharacters={self.maxCharacters}, pattern={self.pattern}]"
+
+    def __eq__(self, other):
+        if not isinstance(other, NcParameterConstraintsString):
+            return NotImplemented
+        return self.maxCharacters == other.maxCharacters and self.pattern == other.pattern
 
 
 class NcPropertyConstraints:

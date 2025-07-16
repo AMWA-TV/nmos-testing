@@ -586,10 +586,7 @@ class IS1401Test(MS0501Test):
                               "when includeDescriptors=true; "
                               f"Backup dataset NcPropertyHolder={property_holder} "
                               f"for role path={role_path}"))
-            if property_holder.descriptor and \
-                    (property_descriptor.name != property_holder.descriptor.name or
-                     property_descriptor.typeName != property_holder.descriptor.typeName or
-                     property_descriptor.isReadOnly != property_holder.descriptor.isReadOnly):
+            if property_holder.descriptor and property_holder.descriptor != property_descriptor:
                 raise NMOSTestException(
                     test.FAIL("Definition of property in NcPropertyHolder inconsistant with class descriptor's "
                               f"NcPropertyDescriptor. Class descriptor NcPropertyDescriptor={property_descriptor}; "
