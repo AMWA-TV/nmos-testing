@@ -38,7 +38,8 @@ class NcRestoreMode(IntEnum):
 class NcPropertyHolder():
     def __init__(self, property_holder_json):
         self.id = NcPropertyId(property_holder_json["id"])
-        self.descriptor = NcPropertyDescriptor(property_holder_json["descriptor"])
+        self.descriptor = NcPropertyDescriptor(property_holder_json["descriptor"]) \
+            if property_holder_json["descriptor"] else None
         self.value = property_holder_json["value"]
 
     def __str__(self):
@@ -585,9 +586,10 @@ class IS1401Test(MS0501Test):
                               "when includeDescriptors=true; "
                               f"Backup dataset NcPropertyHolder={property_holder} "
                               f"for role path={role_path}"))
-            if include_descriptors and (property_descriptor.name != property_holder.descriptor.name or
-                                        property_descriptor.typeName != property_holder.descriptor.typeName or
-                                        property_descriptor.isReadOnly != property_holder.descriptor.isReadOnly):
+            if property_holder.descriptor and \
+                    (property_descriptor.name != property_holder.descriptor.name or
+                     property_descriptor.typeName != property_holder.descriptor.typeName or
+                     property_descriptor.isReadOnly != property_holder.descriptor.isReadOnly):
                 raise NMOSTestException(
                     test.FAIL("Definition of property in NcPropertyHolder inconsistant with class descriptor's "
                               f"NcPropertyDescriptor. Class descriptor NcPropertyDescriptor={property_descriptor}; "
@@ -596,15 +598,15 @@ class IS1401Test(MS0501Test):
             # Validate that the property holders are of the correct type
             if property_holder.value is None:
                 if not property_descriptor.isNullable:
-                    raise NMOSTestException(test.FAIL(f"Value can not be null for {property_holder.descriptor.name}"
+                    raise NMOSTestException(test.FAIL(f"Value can not be null for {property_descriptor.name}"
                                             f"at role path={role_path}"))
-            elif property_holder.descriptor.typeName not in self.is14_utils.reference_datatype_descriptors:
+            elif property_descriptor.typeName not in self.is14_utils.reference_datatype_descriptors:
                 # If we don't recognise the data type let's just move on
                 continue
             elif property_descriptor.isSequence:
                 if not isinstance(property_holder.value, list):
                     raise NMOSTestException(test.FAIL("Sequence of values expected for "
-                                                      f"{property_holder.descriptor.name} "
+                                                      f"{property_descriptor.name} "
                                                       f"at role path={role_path}"))
                 for v in property_holder.value:
                     self.is14_utils.reference_datatype_schema_validate(test, v,
@@ -652,6 +654,8 @@ class IS1401Test(MS0501Test):
         """Class Manager is included/excluded when includeDescriptors=true/false"""
         self._check_for_class_manager(test, include_descriptors=True)
         self._check_for_class_manager(test, include_descriptors=False)
+
+        return test.PASS()
 
     def test_13(self, test):
         """BulkProperties endpoint returns NcMethodResultError or a derived datatype on PATCH error."""
