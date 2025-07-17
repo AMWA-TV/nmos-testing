@@ -95,7 +95,7 @@ class NcObjectPropertiesSetValidation():
 
     def __str__(self):
         return f"[path={self.path}, status={self.status}, statusMessage={self.statusMessage}, " \
-            f"notices=[{', '.join(self.notices)}]]"
+            f"notices=[{', '.join([str(n) for n in self.notices])}]]"
 
 
 class IS1401Test(MS0501Test):
