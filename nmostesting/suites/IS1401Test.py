@@ -1425,6 +1425,8 @@ class IS1401Test(MS0501Test):
                         v.value = oid
                     if v.id == NcObjectProperties.ROLE.value:
                         v.value = role
+                    if v.id == NcObjectProperties.CONSTANT_OID.value:
+                        v.value = False  # ensure the device can create a new OID if there is a clash
                 block_object_property_holders.extend(child_object_property_holders)
                 block_object_property_holders.append(new_object_property_holder)
                 bulk_properties_holder.values = block_object_property_holders
