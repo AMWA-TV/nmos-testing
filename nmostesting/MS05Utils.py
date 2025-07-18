@@ -1469,7 +1469,7 @@ class MS05Utils(NMOSUtils):
                        block: NcBlock,
                        get_constraints=False,
                        get_sequences=False,
-                       get_readonly=False) -> MS05PropertyMetadata:
+                       get_readonly=False) -> list[MS05PropertyMetadata]:
 
         def is_read_only(class_id, property_descriptor):
             """Account for Worker enabled property cludge in the BCP-008 specs"""

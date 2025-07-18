@@ -132,7 +132,8 @@ class IS1401Test(MS0501Test):
         self.is14_utils.device_model = None
         self.oid_cache = []
 
-    def _do_request_json(self, test, method, url, **kwargs):
+    def _do_request_json(self, test: GenericTest, method: str, url: str, **kwargs):
+        """Perform an HTTP request and return JSON response"""
         valid, response = self.do_request(method, url, **kwargs)
 
         if not valid or response.status_code != 200:
@@ -145,6 +146,7 @@ class IS1401Test(MS0501Test):
         return response.json()
 
     def _compare_property_ids(self, a: NcPropertyId, b: NcPropertyId):
+        """Compare level and index of an NcPropertyId"""
         if a.level > b.level:
             return 1
         elif a.level < b.level:
@@ -156,13 +158,14 @@ class IS1401Test(MS0501Test):
         else:
             return 0
 
-    def _compare_property_descriptors(self, a: NcPropertyDescriptor, b: NcPropertyDescriptor):
-        return self._compare_property_ids(a.id, b.id)
-
-    def _compare_property_holders(self, a: NcPropertyHolder, b: NcPropertyHolder):
+    def _compare_property_objects(self,
+                                  a: NcPropertyDescriptor | NcPropertyHolder,
+                                  b: NcPropertyDescriptor | NcPropertyHolder):
+        """Compare NcPropertyIds of NcPropertyDescriptors or NcPropertyHolders"""
         return self._compare_property_ids(a.id, b.id)
 
     def _to_dict(self, obj):
+        """Convert object to a dictionary"""
         if isinstance(obj, dict):
             data = {}
             for (k, v) in obj.items():
@@ -178,7 +181,8 @@ class IS1401Test(MS0501Test):
         else:
             return obj
 
-    def _get_bulk_properties_holder(self, test, endpoint):
+    def _get_bulk_properties_holder(self, test: GenericTest, endpoint: str):
+        """Get backup dataset from endpoint"""
         method_result_json = self._do_request_json(test, "GET", endpoint)
 
         # Check this is of type NcMethodResult
@@ -204,6 +208,7 @@ class IS1401Test(MS0501Test):
                                       bulk_properties_holder: NcBulkPropertiesHolder,
                                       restoreMode: NcRestoreMode,
                                       recurse: bool):
+        """Apply a backup dataset to the endpoint"""
         backup_dataset = {
             "arguments": {
                 "dataSet": self._to_dict(bulk_properties_holder),
@@ -239,10 +244,11 @@ class IS1401Test(MS0501Test):
     def _restore_bulk_properties_holder(self,
                                         test: GenericTest,
                                         test_metadata: TestMetadata,
-                                        endpoint: string,
+                                        endpoint: str,
                                         bulk_properties_holder: NcBulkPropertiesHolder,
                                         restoreMode=NcRestoreMode.Modify,
                                         recurse=True):
+        """Perform an HTTP PUT of the backup dataset to the endpoint"""
         return self._apply_bulk_properties_holder(test,
                                                   test_metadata,
                                                   "PUT", endpoint, bulk_properties_holder, restoreMode, recurse)
@@ -250,10 +256,11 @@ class IS1401Test(MS0501Test):
     def _validate_bulk_properties_holder(self,
                                          test: GenericTest,
                                          test_metadata: TestMetadata,
-                                         endpoint: string,
+                                         endpoint: str,
                                          bulk_properties_holder: NcBulkPropertiesHolder,
                                          restoreMode=NcRestoreMode.Modify,
                                          recurse=True):
+        """Perform an HTTP PATCH of the backup dataset to the endpoint"""
         return self._apply_bulk_properties_holder(test,
                                                   test_metadata,
                                                   "PATCH", endpoint, bulk_properties_holder, restoreMode, recurse)
@@ -273,7 +280,6 @@ class IS1401Test(MS0501Test):
 
     def test_02(self, test):
         """Role Path Syntax: Use the '.' character to delimit roles in role paths"""
-
         role_paths_endpoint = f"{self.configuration_url}rolePaths/"
 
         response = self._do_request_json(test, "GET", role_paths_endpoint)
@@ -285,7 +291,7 @@ class IS1401Test(MS0501Test):
                           + "/docs/API_requests.html#url-and-usage")
         return test.PASS()
 
-    def check_block_member_role_syntax(self, test, role_path):
+    def _check_block_member_role_syntax(self, test: GenericTest, role_path: list[str]):
         """Check syntax of roles in this block"""
         method_result = self.is14_utils.get_property(test, NcBlockProperties.MEMBERS.value, role_path=role_path)
 
@@ -305,19 +311,18 @@ class IS1401Test(MS0501Test):
             if self.is14_utils.is_block(member["classId"]):
                 child_role_path = copy(role_path)
                 child_role_path.append(member["role"])
-                self.check_block_member_role_syntax(test, child_role_path)
+                self._check_block_member_role_syntax(test, child_role_path)
 
     def test_03(self, test):
         """Role Syntax: Check the `.` character is not be used in roles"""
         # https://specs.amwa.tv/is-14/branches/v1.0-dev/docs/API_requests.html#url-and-usage
 
-        self.check_block_member_role_syntax(test, ["root"])
+        self._check_block_member_role_syntax(test, ["root"])
 
         return test.PASS()
 
     def test_04(self, test):
         """RolePaths endpoint returns all the device model's role paths"""
-
         # Get expected role paths from device model
         device_model = self.is14_utils.query_device_model(test)
 
@@ -340,7 +345,6 @@ class IS1401Test(MS0501Test):
 
     def test_05(self, test):
         """Class descriptor endpoint returns NcMethodResultClassDescriptor including all inherited elements."""
-
         class_manager = self.is14_utils.get_class_manager(test)
 
         # Get role paths from IS-14 endpoint
@@ -382,7 +386,6 @@ class IS1401Test(MS0501Test):
 
     def test_06(self, test):
         """Role path endpoint returns a response of type NcMethodResultError or a derived datatype on error"""
-
         # Force an error with a bogus role path
         role_paths_endpoint = f"{self.configuration_url}rolePaths/root.this.path.does.not.exist"
 
@@ -413,7 +416,6 @@ class IS1401Test(MS0501Test):
 
     def test_07(self, test):
         """Datatype descriptor endpoint returns NcMethodResultDatatypeDescriptor including all inherited elements."""
-
         class_manager = self.is14_utils.get_class_manager(test)
 
         # Get role paths from IS-14 endpoint
@@ -464,7 +466,6 @@ class IS1401Test(MS0501Test):
 
     def test_08(self, test):
         """Properties endpoint returns a response of type NcMethodResultError or a derived datatype on error"""
-
         # Force an error with a bogus property endpoint
         property_endpoint = f"{self.configuration_url}rolePaths/root/properties/999p999/"
 
@@ -493,8 +494,8 @@ class IS1401Test(MS0501Test):
 
         return test.PASS()
 
-    def _check_bulk_properties_recurse_param(self, test, nc_block):
-
+    def _check_bulk_properties_recurse_param(self, test: GenericTest, nc_block: NcBlock):
+        """Check the recurse parameter is working as expected"""
         role_paths = nc_block.get_role_paths()
         root_role_path = '.'.join(nc_block.role_path)
         formatted_role_paths = ([f"{root_role_path}.{'.'.join(p)}/" for p in role_paths])
@@ -519,7 +520,6 @@ class IS1401Test(MS0501Test):
 
     def test_09(self, test):
         """Recurse query parameter defaults to true on bulkProperties endpoint"""
-
         device_model = self.is14_utils.query_device_model(test)
 
         # Check root block
@@ -536,6 +536,7 @@ class IS1401Test(MS0501Test):
         return test.PASS()
 
     def _check_bulk_properties(self, test: GenericTest, nc_object: NcObject, include_descriptors=True):
+        """Check that all expected properties are returned by the HTTP GET of the backup dataset"""
         if isinstance(nc_object, NcBlock):
             for child in nc_object.child_objects:
                 self._check_bulk_properties(test, child)
@@ -569,9 +570,9 @@ class IS1401Test(MS0501Test):
 
         # Compare NcPropertyDescriptors from class descriptor to the NcPropertyHolders from bulk properties holder
         property_descriptors = sorted(class_descriptor.properties,
-                                      key=cmp_to_key(self._compare_property_descriptors))
+                                      key=cmp_to_key(self._compare_property_objects))
         property_holders = sorted(bulk_properties_holder.values[0].values,
-                                  key=cmp_to_key(self._compare_property_holders))
+                                  key=cmp_to_key(self._compare_property_objects))
 
         for property_descriptor, property_holder in zip(property_descriptors, property_holders):
             if (property_holder.descriptor is not None) and not include_descriptors:
@@ -633,6 +634,7 @@ class IS1401Test(MS0501Test):
         return test.PASS()
 
     def _check_for_class_manager(self, test: GenericTest, include_descriptors: bool):
+        """Check that whether the class manager is part of the backup dataset"""
         bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties" \
                                    f"?recurse=true&includeDescriptors={'true' if include_descriptors else 'false'}"
 
@@ -640,6 +642,7 @@ class IS1401Test(MS0501Test):
 
         class_manager_values = [v for v in bulk_properties_holder.values if v.path == ["root", "ClassManager"]]
 
+        # Only expect a class manager in the backup dataset if include_descriptors = true
         if len(class_manager_values) != include_descriptors:
             error_message = f"Class Manager {'expected' if include_descriptors else 'unexpected'} " \
                             f"when includeDescriptors={include_descriptors}"
@@ -656,7 +659,6 @@ class IS1401Test(MS0501Test):
 
     def test_13(self, test):
         """BulkProperties endpoint returns NcMethodResultError or a derived datatype on PATCH error."""
-
         bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties/"
 
         bogus_backup_dataset = {"this": "is", "not": "a", "backup": "dataset"}
@@ -688,7 +690,6 @@ class IS1401Test(MS0501Test):
 
     def test_14(self, test):
         """BulkProperties endpoint returns NcMethodResultError or a derived datatype on PUT error."""
-
         bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties/"
 
         bogus_backup_dataset = {"this": "is", "not": "a", "backup": "dataset"}
@@ -718,9 +719,9 @@ class IS1401Test(MS0501Test):
 
         return test.PASS()
 
-    def _create_notices_dict(self, set_validations):
-        """Create dict from validation notices"""
-        return {".".join(v.path) + str(n.id): n for v in set_validations for n in v.notices}
+    def _create_notices_list(self, set_validations: list[NcObjectPropertiesSetValidation]):
+        """Create list of validation notices"""
+        return [".".join(v.path) + str(n.id) for v in set_validations for n in v.notices]
 
     def _create_object_properties_dict(self, bulk_properties_holder: NcBulkPropertiesHolder):
         """Creates a dict keyed on formatted role path and property id"""
@@ -734,6 +735,7 @@ class IS1401Test(MS0501Test):
                                  target_role_path: list[str],
                                  set_validations: list[NcObjectPropertiesSetValidation],
                                  recurse: bool, validate=False):
+        """Compare the original backup dataset to the updated, given the applied dataset"""
         # original_bulk_properties_holder is the state before dataset applied
         # applied_bulk_properties_holder is the dataset applied to the Node under test
         # updated_bulk_properties_holder is the state after dataset applied
@@ -745,7 +747,7 @@ class IS1401Test(MS0501Test):
             return expected == actual
 
         # Create dict from validation notices
-        property_notices = self._create_notices_dict(set_validations)
+        property_notices = self._create_notices_list(set_validations)
 
         # Create dict from original bulk properties holder
         original_properties = self._create_object_properties_dict(original_bulk_properties_holder)
@@ -800,6 +802,7 @@ class IS1401Test(MS0501Test):
                                                  validations: list[NcObjectPropertiesSetValidation],
                                                  target_role_path: list[str],
                                                  recurse: bool):
+        """Check that the NcObjectPropertiesSetValidations have no errors"""
         # Check there is one validation per object changed
         expected_role_paths = [o.path for o in bulk_properties_holder.values if recurse or o.path == target_role_path]
         actual_role_paths = [v.path for v in validations]
@@ -845,6 +848,7 @@ class IS1401Test(MS0501Test):
                                            target_role_path: list[str],
                                            restoreMode: NcRestoreMode,
                                            recurse: bool):
+        """Perform a validate and restore on the target role path"""
         target_role_path_formatted = ".".join(target_role_path)
         bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{target_role_path_formatted}/bulkProperties"
 
@@ -910,7 +914,8 @@ class IS1401Test(MS0501Test):
                                       updated_bulk_properties_holder, target_role_path,
                                       validations, recurse)
 
-    def _do_bulk_properties_checks(self, test):
+    def _do_bulk_properties_checks(self, test: GenericTest):
+        """Check backup and restore for all role paths in Device Model"""
         if self.bulk_properties_checked is True:
             return
 
@@ -1080,11 +1085,11 @@ class IS1401Test(MS0501Test):
     def _check_device_model_structure(self,
                                       test: GenericTest,
                                       bulk_properties_holder: NcBulkPropertiesHolder,
-                                      root_block: NcBlock):
-        """Check that the Device Model has same structure as reference device model block"""
+                                      reference_device_model: NcBlock):
+        """Check that the Device Model has same structure as reference Device Model block"""
         for object_properties_holder in bulk_properties_holder.values:
             role_path = object_properties_holder.path
-            reference_object = root_block.find_object_by_path(role_path)
+            reference_object = reference_device_model.find_object_by_path(role_path)
             if not isinstance(reference_object, NcBlock):
                 continue
 
@@ -1112,17 +1117,17 @@ class IS1401Test(MS0501Test):
 
     def _filter_property_holders(self,
                                  bulk_properties_holder: NcBulkPropertiesHolder,
-                                 filter_dict: dict,
+                                 filter_list: list[str],
                                  include=False):
-        """filter_dict is a dict of property keys in the form {role_path}{property_id}"""
-        # if include = True then properties with keys found in filter_dict are kept (all others removed)
-        # if include = False then properties with keys found in filter_dict are removed
+        """filter_list is a list of property keys in the form {role_path}{property_id}"""
+        # if include = True then properties with keys found in filter_list are kept (all others removed)
+        # if include = False then properties with keys found in filter_list are removed
         filtered_object_property_holders = []
         for object_property_holder in bulk_properties_holder.values:
             filtered_property_holders = []
             for property_holder in object_property_holder.values:
                 key = ".".join(object_property_holder.path) + str(property_holder.id)
-                if (key in filter_dict) == include:
+                if (key in filter_list) == include:
                     filtered_property_holders.append(property_holder)
             if len(filtered_property_holders):
                 object_property_holder.values = filtered_property_holders
@@ -1140,18 +1145,19 @@ class IS1401Test(MS0501Test):
                          restoreMode: NcRestoreMode,
                          recurse: bool,
                          readonly=False):
+        """Check invasive backup and restore of backup dataset"""
         # Find the properties to keep in bulk properties holder
         device_model = self.is14_utils.query_device_model(test)
         keep_properties = self.is14_utils.get_properties(test, device_model, get_readonly=readonly)
 
         # Create a dict of properties to remove from bulk properties holder
-        keep_properties_dict = {".".join(p.role_path) + str(p.descriptor.id): p for p in keep_properties}
+        keep_properties_list = [".".join(p.role_path) + str(p.descriptor.id) for p in keep_properties]
 
         bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{'.'.join(target_role_path)}/bulkProperties"
 
         # Keep these properties in the bulk_properties_holder (exclude everthing else)
         bulk_properties_holder = self._filter_property_holders(bulk_properties_holder,
-                                                               keep_properties_dict,
+                                                               keep_properties_list,
                                                                include=True)
         if len(bulk_properties_holder.values) > 0:
             # Modify the values
@@ -1172,7 +1178,7 @@ class IS1401Test(MS0501Test):
                                                                 recurse)
 
             # Create a dict from validation warnings and errors
-            problem_properties = self._create_notices_dict(validations)
+            problem_properties = self._create_notices_list(validations)
 
             # Remove any problem properties from the dataset
             bulk_properties_holder = self._filter_property_holders(bulk_properties_holder, problem_properties)
@@ -1354,6 +1360,7 @@ class IS1401Test(MS0501Test):
         return test.PASS()
 
     def _modify_rebuildable_block(self, test: GenericTest, test_metadata: TestMetadata, remove_member=False):
+        """Perform a Rebuild restore which modifies the structure of the Device Model"""
         def _is_sub_array(sub_arr, arr):
             if len(sub_arr) >= len(arr):
                 return False
