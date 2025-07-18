@@ -771,10 +771,21 @@ class IS1401Test(MS0501Test):
                         f"when restoring to {target_role_path} " \
                         f"with recurse={recurse}, " \
                         f"expected={applied_properties[key].value}, actual={property_holder.value}; "
+                # Has something been added to the device model unexpectedly
+                if validate and key in applied_properties and key not in original_properties:
+                    test_metadata.error = True
+                    test_metadata.error_msg += "Validate operation: Device model unexpectedly changed " \
+                        f"for role path {object_property_holder.path} " \
+                        f"and property {str(property_holder.id)} " \
+                        f"when restoring to {target_role_path} " \
+                        f"with recurse={recurse}, " \
+                        "validate=true; "
+                    continue
                 if (validate or (not recurse and object_property_holder.path != target_role_path and not validate)) \
                         and key in applied_properties \
                         and not _compare_values(original_properties[key].value, property_holder.value):
                     test_metadata.error = True
+                    test_metadata.error_msg += "Validate operation: " if validate else "Restore operation: "
                     test_metadata.error_msg += "Property unexpectedly updated " \
                         f"for role path {object_property_holder.path} " \
                         f"and property {str(property_holder.id)} " \
@@ -1439,6 +1450,17 @@ class IS1401Test(MS0501Test):
                                                                 bulk_properties_holder,
                                                                 NcRestoreMode.Rebuild,
                                                                 recurse)
+
+            # Check the properties have not changed
+            validated_bulk_properties_holder = self._get_bulk_properties_holder(test, bulk_properties_endpoint)
+            self._compare_backup_datasets(test_metadata,
+                                          original_bulk_properties_holder,
+                                          bulk_properties_holder,
+                                          validated_bulk_properties_holder,
+                                          target_role_path,
+                                          validations,
+                                          recurse,
+                                          validate=True)
 
             for v in validations:
                 member_notices = [n for n in v.notices if v.path == block.role_path and
