@@ -249,11 +249,11 @@ class BCP0080101Test(BCP008Test):
                 NcReceiverMonitorProperties.STREAM_STATUS_MESSAGE.value}
 
     def get_counter_method_ids(self):
-        return [NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS,
-                NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS]
+        return [NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS.value,
+                NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS.value]
 
     def get_reset_counter_method_id(self):
-        return NcReceiverMonitorMethods.RESET_COUNTERS
+        return NcReceiverMonitorMethods.RESET_COUNTERS.value
 
     # Resource
     def get_monitors(self, test):

@@ -166,10 +166,10 @@ class BCP0080201Test(BCP008Test):
                 NcSenderMonitorProperties.ESSENCE_STATUS_MESSAGE.value}
 
     def get_counter_method_ids(self):
-        return [NcSenderMonitorMethods.GET_TRANSMISSION_ERROR_COUNTERS]
+        return [NcSenderMonitorMethods.GET_TRANSMISSION_ERROR_COUNTERS.value]
 
     def get_reset_counter_method_id(self):
-        return NcSenderMonitorMethods.RESET_COUNTERS
+        return NcSenderMonitorMethods.RESET_COUNTERS.value
 
     # Resource
     def get_monitors(self, test):

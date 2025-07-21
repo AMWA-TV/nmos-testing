@@ -18,8 +18,9 @@ from time import sleep
 
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS05Utils import IS05Utils
-from ..IS12Utils import IS12Utils
-from ..MS05Utils import NcMethodStatus, NcObjectProperties, NcPropertyId, NcTouchpointNmos
+from ..IS12Utils import IS12Utils, IS12Notification
+from ..MS05Utils import NcMethodId, NcMethodResult, NcMethodStatus, NcObject, NcObjectProperties, \
+    NcPropertyId, NcTouchpointNmos
 from ..TestResult import TestStates
 
 NODE_API_KEY = "node"
@@ -138,7 +139,7 @@ class BCP008Test(GenericTest):
         # Clean up Websocket resources
         self.is12_utils.close_ncp_websocket()
 
-    def _status_ok(self, method_result):
+    def _status_ok(self, method_result: NcMethodResult) -> bool:
         """Does method_result have an OK or PropertyDeprecated status"""
         if not hasattr(method_result, 'status'):
             return False
@@ -147,114 +148,114 @@ class BCP008Test(GenericTest):
 
     # Overridden functions specialized in derived classes
     # Spec link getters
-    def get_touchpoint_spec_link(self):
+    def get_touchpoint_spec_link(self) -> str:
         """Returns URL to section of specification"""
         pass
 
-    def get_transition_counters_spec_link(self):
+    def get_transition_counters_spec_link(self) -> str:
         """Returns URL to section of specification"""
         pass
 
-    def get_status_messages_spec_link(self):
+    def get_status_messages_spec_link(self) -> str:
         """Returns URL to section of specification"""
         pass
 
-    def get_reporting_delay_spec_link(self):
+    def get_reporting_delay_spec_link(self) -> str:
         """Returns URL to section of specification"""
         pass
 
-    def get_deactivating_monitor_spec_link(self):
+    def get_deactivating_monitor_spec_link(self) -> str:
         """Returns URL to section of specification"""
         pass
 
-    def get_sync_source_change_spec_link(self):
+    def get_sync_source_change_spec_link(self) -> str:
         """Returns URL to section of specification"""
         pass
 
-    def get_counter_method_spec_link(self):
+    def get_counter_method_spec_link(self) -> str:
         """Returns URL to section of specification"""
         pass
 
     # Status property and method IDs
-    def get_domain_status_property_ids(self):
+    def get_domain_status_property_ids(self) -> list[NcPropertyId]:
         """Return list of all domain status properties, plus overall status, for this resource type"""
         pass
 
-    def get_stream_status_property_id(self):
+    def get_stream_status_property_id(self) -> NcPropertyId:
         """Returns the property modelling stream status for this resource type"""
         pass
 
-    def get_stream_status_transition_counter_property_id(self):
+    def get_stream_status_transition_counter_property_id(self) -> NcPropertyId:
         """Returns the property modelling stream status transition counter for this resource type"""
         pass
 
-    def get_inactiveable_status_property_ids(self):
+    def get_inactiveable_status_property_ids(self) -> list[NcPropertyId]:
         """Returns list of all properties capable of an Inactive status for this rsource type"""
         pass
 
-    def get_auto_reset_counter_property_id(self):
+    def get_auto_reset_counter_property_id(self) -> NcPropertyId:
         """Returns auto reset counter property for this resource type"""
         pass
 
-    def get_sync_source_id_property_id(self):
+    def get_sync_source_id_property_id(self) -> NcPropertyId:
         """Returns synchronization source counter property for this resource type"""
         pass
 
-    def get_healthy_statuses_dict(self):
+    def get_healthy_statuses_dict(self) -> dict[NcPropertyId, int]:
         """On activation these properties MUST be healthy; dict of property id: healthy status enum"""
         pass
 
-    def get_inactive_statuses_dict(self):
+    def get_inactive_statuses_dict(self) -> dict[NcPropertyId, int]:
         """On deactivation these properties MUST be inactive; dict of property id: healthy status enum"""
         pass
 
-    def get_transition_counter_property_dict(self):
+    def get_transition_counter_property_dict(self) -> dict[str, NcPropertyId]:
         """Returns dict of transition counter properties for this resource; property name: property id"""
         pass
 
-    def get_status_message_property_dict(self):
+    def get_status_message_property_dict(self) -> dict[str, NcPropertyId]:
         """Returns dict of transition counter properties for this resource; property name: property id"""
         pass
 
-    def get_counter_method_ids(self):
+    def get_counter_method_ids(self) -> list[NcMethodId]:
         """Return list of counter method ids for this resource"""
         pass
 
-    def get_reset_counter_method_id(self):
+    def get_reset_counter_method_id(self) -> NcMethodId:
         """Return reset method id for this resource"""
         pass
 
     # Resource
-    def get_monitors(self, test):
+    def get_monitors(self, test: GenericTest) -> list[NcObject]:
         """Returns list of status monitor device model objects"""
         pass
 
-    def get_touchpoint_resource_type(self):
+    def get_touchpoint_resource_type(self) -> str:
         """Returns string indicating the type of resource being monitored"""
         pass
 
-    def activate_resource(self, test, resource_id):
+    def activate_resource(self, test: GenericTest, resource_id: str):
         """Activate the resource being monitored"""
         pass
 
-    def deactivate_resource(self, test, resource_id):
+    def deactivate_resource(self, test: GenericTest, resource_id: str):
         """Deactivates the resource being monitored"""
         pass
 
     # Validation
-    def is_valid_resource(self, touchpoint_resource):
+    def is_valid_resource(self, touchpoint_resource: NcTouchpointNmos | None) -> bool:
         """Check the resource being monitored can be PATCHed"""
         pass
 
-    def check_overall_status(self, monitor, statuses):
+    def check_overall_status(self, monitor: NcObject, statuses: list[NcPropertyId]):
         """Check the overall status is consistent with domain statuses"""
         pass
 
-    def validate_status_values(self, monitor, statuses):
+    def validate_status_values(self, monitor: NcObject, statuses: list[NcPropertyId]):
         """Check that domain status values are legal"""
         pass
 
-    def _get_property(self, test, monitor, property_id):
+    def _get_property(self, test: GenericTest, monitor: NcObject, property_id: NcPropertyId) -> any:
         """Get a property and handle any error"""
         method_result = self.is12_utils.get_property(test, property_id,
                                                      oid=monitor.oid, role_path=monitor.role_path)
@@ -264,7 +265,11 @@ class BCP008Test(GenericTest):
 
         return method_result.value
 
-    def _set_property(self, test, monitor, property_id, value):
+    def _set_property(self,
+                      test: GenericTest,
+                      monitor: NcObject,
+                      property_id: NcPropertyId,
+                      value: any) -> NcMethodResult:
         """Set a property and handle any error"""
         method_result = self.is12_utils.set_property(test, property_id, value,
                                                      oid=monitor.oid, role_path=monitor.role_path)
@@ -274,7 +279,7 @@ class BCP008Test(GenericTest):
 
         return method_result
 
-    def _get_touchpoint_resource(self, test, monitor):
+    def _get_touchpoint_resource(self, test: GenericTest, monitor: NcObject):
         """Checks touchpoint for monitor and returns associated NMOS resource id"""
         # The touchpoints property of any Monitor MUST have one or more touchpoints of which
         # one and only one entry MUST be of type NcTouchpointNmos where
@@ -318,7 +323,10 @@ class BCP008Test(GenericTest):
 
         return touchpoint_resource
 
-    def _check_statuses(self, monitor, initial_statuses, notifications):
+    def _check_statuses(self,
+                        monitor: NcObject,
+                        initial_statuses: dict[NcPropertyId, int],
+                        notifications: list[IS12Notification]):
         """Check statuses are consistent and have legal values"""
         def _get_status_from_notifications(initial_status, notifications, property_id):
             # Aggregate initial status with any status change notifications
@@ -333,7 +341,11 @@ class BCP008Test(GenericTest):
         self.check_overall_status(monitor, statuses)
         self.validate_status_values(monitor, statuses)
 
-    def _check_stream_status(self, monitor, activation_time, status_reporting_delay, notifications):
+    def _check_stream_status(self,
+                             monitor: NcObject,
+                             activation_time: int,
+                             status_reporting_delay: int,
+                             notifications: list[IS12Notification]):
         """Check stream status after activation and during the status reporting delay period"""
         # A resource is expected to go through a period of instability upon activation.
         # Therefore, on resource activation domain specific statuses offering an Inactive option
@@ -384,7 +396,7 @@ class BCP008Test(GenericTest):
 
         self.check_activation_metadata.checked = True
 
-    def _check_stream_status_transition_counter(self, notifications):
+    def _check_stream_status_transition_counter(self, notifications: list[IS12Notification]):
         """Check whether stream status transition counter incremented"""
         connection_status_transition_counter_property = self.get_stream_status_transition_counter_property_id()
 
@@ -398,7 +410,7 @@ class BCP008Test(GenericTest):
         if len(connection_status_transition_counter_notifications) > 0:
             self.check_transitions_counted_metadata.checked = True
 
-    def _check_deactivate_resource(self, test, monitor, resource_id):
+    def _check_deactivate_resource(self, test: GenericTest, monitor: NcObject, resource_id: str):
         """Check resource being monitored deactivates correctly"""
         # When a resource is being deactivated it MUST cleanly disconnect from the current stream by not
         # generating intermediate unhealthy states (PartiallyHealthy or Unhealthy) and instead transition
@@ -447,7 +459,7 @@ class BCP008Test(GenericTest):
 
             self.check_deactivate_monitor_metadata.checked = True
 
-    def _check_auto_reset_counters_and_status_messages(self, test, monitor, resource_id):
+    def _check_auto_reset_counters_and_status_messages(self, test: GenericTest, monitor: NcObject, resource_id: str):
         """Check auto reset counters property functions correctly"""
         # Devices MUST be able to reset ALL status transition counter properties
         # when a resource activation occurs if autoResetCounters is set to true
@@ -510,7 +522,7 @@ class BCP008Test(GenericTest):
         self.deactivate_resource(test, resource_id)
         sleep(2.0)  # Settling time
 
-    def _get_activation_time(self, test, monitor, notifications):
+    def _get_activation_time(self, test: GenericTest, monitor: NcObject, notifications: list[IS12Notification]) -> int:
         """Get activation time of receiver based off notifications received"""
         # On activation the overall status MUST transition from inactive
         inactivable_statuses_dict = self.get_inactive_statuses_dict()
@@ -528,7 +540,7 @@ class BCP008Test(GenericTest):
         # The received time of the first transition to Healthy is assumed to be the activation time
         return activation_notification[0].received_time
 
-    def _get_non_zero_counters(self, test, monitor):
+    def _get_non_zero_counters(self, test: GenericTest, monitor: NcObject) -> list[str]:
         """Returns list of all non zero transition counters"""
         transition_counters = self.get_transition_counter_property_dict()
 
@@ -540,7 +552,7 @@ class BCP008Test(GenericTest):
 
         return [c for c, v in counter_values.items() if v > 0]
 
-    def _get_all_status_messages(self, test, monitor):
+    def _get_all_status_messages(self, test: GenericTest, monitor: NcObject) -> list[str]:
         """Returns list of all status messages which are not null or of zero length"""
         status_messages = self.get_status_message_property_dict()
 
@@ -552,7 +564,7 @@ class BCP008Test(GenericTest):
 
         return [c for c, v in message_values.items() if v and len(v) > 0]
 
-    def _check_reset_counters_and_status_messages(self, test, monitor):
+    def _check_reset_counters_and_status_messages(self, test: GenericTest, monitor: NcObject):
         """Check reset counters and messages method functions correctly"""
         # Devices MUST be able to reset ALL status transition counter properties
         # when a client invokes the ResetCounters method
@@ -568,7 +580,7 @@ class BCP008Test(GenericTest):
 
         method_result = self.is12_utils.invoke_method(
             test,
-            reset_counters_method.value,
+            reset_counters_method,
             {},
             oid=monitor.oid,
             role_path=monitor.role_path)
@@ -604,7 +616,7 @@ class BCP008Test(GenericTest):
                 self.check_reset_counters_and_messages_metadata.link = self.get_status_messages_spec_link()
             self.check_reset_counters_and_messages_metadata.checked = True
 
-    def _get_testable_monitors(self, test):
+    def _get_testable_monitors(self, test: GenericTest) -> list[NcObject]:
         """Returns list of status monitor device model objects that can be tested"""
         def is_monitor_valid(test, monitor):
             touchpoint_resource = self._get_touchpoint_resource(test, monitor)
@@ -612,7 +624,7 @@ class BCP008Test(GenericTest):
 
         return IS12Utils.sampled_list([m for m in self.get_monitors(test) if is_monitor_valid(test, m)])
 
-    def _check_monitor_status_changes(self, test):
+    def _check_monitor_status_changes(self, test: GenericTest):
         """Perform set of checks on status monitor"""
         if self.check_activation_metadata.checked:
             return
@@ -853,7 +865,7 @@ class BCP008Test(GenericTest):
 
         return test.PASS()
 
-    def _check_counter_method(self, test, method_id, spec_link):
+    def _check_counter_method(self, test: GenericTest, method_id: NcMethodId, spec_link: str):
         """Check counter methods for this status monitor"""
         monitors = self._get_testable_monitors(test)
 
@@ -889,7 +901,7 @@ class BCP008Test(GenericTest):
         for method_id in method_ids:
             result = self._check_counter_method(
                 test,
-                method_id.value,
+                method_id,
                 spec_link)
 
             if result.state != TestStates.PASS:

@@ -436,10 +436,6 @@ TEST_DEFINITIONS = {
     "BCP-008-01": {
         "name": "BCP-008-01 Receiver Status Monitoring",
         "specs": [{
-            "spec_key": "bcp-008-01",
-            "api_key": "receivermonitor",
-            "disable_fields": ["host", "port", "urlpath"]
-        }, {
             "spec_key": "is-04",
             "api_key": "node",
             "disable_fields": ["urlpath"]
@@ -459,6 +455,10 @@ TEST_DEFINITIONS = {
         "extra_specs": [{
             "spec_key": "nmos-control-feature-sets",
             "api_key": "featuresets"
+        }, {
+            "spec_key": "bcp-008-01",
+            "api_key": "receivermonitor",
+            "disable_fields": ["host", "port", "urlpath"]
         }],
         "class": BCP0080101Test.BCP0080101Test,
         "urlpath": True
@@ -466,10 +466,6 @@ TEST_DEFINITIONS = {
     "BCP-008-02": {
         "name": "BCP-008-02 Sender Status Monitoring",
         "specs": [{
-            "spec_key": "bcp-008-02",
-            "api_key": "sendermonitor",
-            "disable_fields": ["host", "port", "urlpath"]
-        }, {
             "spec_key": "is-04",
             "api_key": "node",
             "disable_fields": ["urlpath"]
@@ -489,6 +485,10 @@ TEST_DEFINITIONS = {
         "extra_specs": [{
             "spec_key": "nmos-control-feature-sets",
             "api_key": "featuresets"
+        }, {
+            "spec_key": "bcp-008-02",
+            "api_key": "sendermonitor",
+            "disable_fields": ["host", "port", "urlpath"]
         }],
         "class": BCP0080201Test.BCP0080201Test,
         "urlpath": True
