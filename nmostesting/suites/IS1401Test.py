@@ -20,7 +20,7 @@ import random
 import string
 from ..Config import MS05_INVASIVE_TESTING
 from ..GenericTest import GenericTest, NMOSTestException
-from ..MS05Utils import NcBlock, NcBlockMemberDescriptor, NcBlockProperties, NcClassDescriptor, NcClassManager, \
+from ..MS05Utils import NcBlock, NcBlockMemberDescriptor, NcBlockProperties, NcClassDescriptor, \
     NcDatatypeDescriptor, NcDatatypeType, NcMethodResult, NcMethodResultError, NcObject, NcObjectProperties, \
     NcPropertyDescriptor, NcPropertyId, StandardClassIds
 from ..IS14Utils import IS14Utils
@@ -136,9 +136,14 @@ class IS1401Test(MS0501Test):
         """Perform an HTTP request and return JSON response"""
         valid, response = self.do_request(method, url, **kwargs)
 
-        if not valid or response.status_code != 200:
-            raise NMOSTestException(test.FAIL(f"Error from endpoint {method} {url}: "
+        if not valid:
+            raise NMOSTestException(test.FAIL(f"Invalid response from endpoint {method} {url}: "
                                               f"response: {str(response)}"))
+
+        if response.status_code != 200:
+            raise NMOSTestException(test.FAIL(f"Unexpected status code from endpoint {method} {url}: "
+                                              f"status code={response.status_code}, "
+                                              f"response: {response.text}"))
 
         if "application/json" not in response.headers["Content-Type"]:
             raise NMOSTestException(test.FAIL(f"JSON response expected from endpoint {url}"))
@@ -438,7 +443,7 @@ class IS1401Test(MS0501Test):
                     test,
                     method_result_json,
                     NcMethodResult.__name__,
-                    role_path=f"{role_path}properties/{property_id}descriptor/")
+                    role_path=f"{role_path}properties/{property_id}/descriptor/")
 
                 method_result = NcMethodResult.factory(method_result_json)
 
@@ -447,7 +452,7 @@ class IS1401Test(MS0501Test):
                     test,
                     method_result.value,
                     NcDatatypeDescriptor.__name__,
-                    role_path=f"{role_path}properties/{property_id}descriptor/")
+                    role_path=f"{role_path}properties/{property_id}/descriptor/")
 
                 actual_descriptor = NcDatatypeDescriptor.factory(method_result.value)
 
@@ -459,7 +464,7 @@ class IS1401Test(MS0501Test):
                     test,
                     expected_descriptor,
                     actual_descriptor,
-                    f"role path={role_path}properties/{property_id}descriptor/, "
+                    f"role path={role_path}properties/{property_id}/descriptor/, "
                     f"datatype={str(actual_descriptor.name)}: ")
 
         return test.PASS()
@@ -890,6 +895,9 @@ class IS1401Test(MS0501Test):
                                       target_role_path, validations,
                                       recurse, validate=True)
 
+        if self.check_validate_does_not_modify_metadata.error:
+            return
+
         # Restore Bulk Values returns an array of NcObjectPropertiesSetValidation objects
         validations = self._restore_bulk_properties_holder(test,
                                                            self.check_restore_return_type_metadata,
@@ -1032,9 +1040,8 @@ class IS1401Test(MS0501Test):
 
     # Invasive testing
 
-    def _generate_property_value(self, test: GenericTest, class_manager: NcClassManager, type_name: str, value: any):
+    def _generate_property_value(self, test: GenericTest, type_name: str, value: any):
         """Generate a new value based on the existing value"""
-        datatype_descriptor = class_manager.get_datatype(type_name)
 
         # If this is a null property then not sure how to manipulate it
         if value is None:
@@ -1044,8 +1051,11 @@ class IS1401Test(MS0501Test):
         if isinstance(value, list):
             new_val = []
             for e in value:
-                new_val.append(self._generate_property_value(test, class_manager, type_name, e))
+                new_val.append(self._generate_property_value(test, type_name, e))
             return new_val
+
+        class_manager = self.is14_utils.get_class_manager(test)
+        datatype_descriptor = class_manager.get_datatype(type_name)
 
         if datatype_descriptor.type == NcDatatypeType.Primitive:
             resolved_type = self.is14_utils.resolve_datatype(test, type_name)
@@ -1070,14 +1080,11 @@ class IS1401Test(MS0501Test):
         if datatype_descriptor.type == NcDatatypeType.Struct:
             ret_value = {}
             for field in datatype_descriptor.fields:
-                ret_value[field.name] = self._generate_property_value(test,
-                                                                      class_manager,
-                                                                      field.typeName,
-                                                                      value[field.name])
+                ret_value[field.name] = self._generate_property_value(test, field.typeName, value[field.name])
             return ret_value
 
         if datatype_descriptor.type == NcDatatypeType.Typedef:
-            return self._generate_property_value(test, class_manager, datatype_descriptor.parentType, value)
+            return self._generate_property_value(test, datatype_descriptor.parentType, value)
 
         # If it got this far something has gone badly wrong
         raise NMOSTestException(test.FAIL(f"Unknown MS-05 datatype type: {datatype_descriptor.type}"))
@@ -1119,7 +1126,7 @@ class IS1401Test(MS0501Test):
                                  bulk_properties_holder: NcBulkPropertiesHolder,
                                  filter_list: list[str],
                                  include=False):
-        """filter_list is a list of property keys in the form {role_path}{property_id}"""
+        """Either include or exclude the filter_list property keys from the bulk properties holder"""
         # if include = True then properties with keys found in filter_list are kept (all others removed)
         # if include = False then properties with keys found in filter_list are removed
         filtered_object_property_holders = []
@@ -1146,26 +1153,24 @@ class IS1401Test(MS0501Test):
                          recurse: bool,
                          readonly=False):
         """Check invasive backup and restore of backup dataset"""
-        # Find the properties to keep in bulk properties holder
+        # Find the properties to test in bulk properties holder
         device_model = self.is14_utils.query_device_model(test)
-        keep_properties = self.is14_utils.get_properties(test, device_model, get_readonly=readonly)
+        properties_under_test = self.is14_utils.get_properties(test, device_model, get_readonly=readonly)
 
         # Create a dict of properties to remove from bulk properties holder
-        keep_properties_list = [".".join(p.role_path) + str(p.descriptor.id) for p in keep_properties]
+        properties_under_test_list = [".".join(p.role_path) + str(p.descriptor.id) for p in properties_under_test]
 
         bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{'.'.join(target_role_path)}/bulkProperties"
 
         # Keep these properties in the bulk_properties_holder (exclude everthing else)
         bulk_properties_holder = self._filter_property_holders(bulk_properties_holder,
-                                                               keep_properties_list,
+                                                               properties_under_test_list,
                                                                include=True)
         if len(bulk_properties_holder.values) > 0:
             # Modify the values
-            class_manager = self.is14_utils.get_class_manager(test)
             for object_property_holder in bulk_properties_holder.values:
                 for property_holder in object_property_holder.values:
                     property_holder.value = self._generate_property_value(test,
-                                                                          class_manager,
                                                                           property_holder.descriptor.typeName,
                                                                           property_holder.value)
 
@@ -1458,7 +1463,7 @@ class IS1401Test(MS0501Test):
                                                                 NcRestoreMode.Rebuild,
                                                                 recurse)
 
-            # Check the properties have not changed
+            # Check the properties have not changed after validation
             validated_bulk_properties_holder = self._get_bulk_properties_holder(test, bulk_properties_endpoint)
             self._compare_backup_datasets(test_metadata,
                                           original_bulk_properties_holder,
@@ -1468,7 +1473,8 @@ class IS1401Test(MS0501Test):
                                           validations,
                                           recurse,
                                           validate=True)
-
+            if test_metadata.error:
+                break
             for v in validations:
                 member_notices = [n for n in v.notices if v.path == block.role_path and
                                   n.id == NcBlockProperties.MEMBERS.value]
@@ -1503,6 +1509,8 @@ class IS1401Test(MS0501Test):
                                           target_role_path,
                                           validations,
                                           recurse)
+            if test_metadata.error:
+                break
 
         # Restore the original bulk properties holder
         self._restore_bulk_properties_holder(test,
