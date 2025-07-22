@@ -401,7 +401,7 @@ TEST_DEFINITIONS = {
             "api_key": "controlframework",
             "disable_fields": ["host", "port", "selector"]
         }, {
-            "spec_key": "controller-tests",
+            "spec_key": "testing-facade",
             "api_key": "testquestion",
             "disable_fields": ["selector"] if CONFIG.MS05_INTERACTIVE_TESTING else ["host", "port", "selector"]
         }],

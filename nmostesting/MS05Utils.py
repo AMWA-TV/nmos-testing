@@ -422,6 +422,12 @@ class NcParameterConstraintsNumber(NcParameterConstraints):
         return f"[{super(NcParameterConstraintsNumber, self).__str__()}, " \
             f"maximum={self.maximum}, minimum={self.minimum}, step={self.step}]"
 
+    def __eq__(self, other):
+        if not isinstance(other, NcParameterConstraintsNumber):
+            return NotImplemented
+        return self.maximum == other.maximum and self.minimum == other.minimum \
+            and self.step == other.step
+
 
 class NcParameterConstraintsString(NcParameterConstraints):
     def __init__(self, constraints_json, level):
@@ -432,6 +438,11 @@ class NcParameterConstraintsString(NcParameterConstraints):
     def __str__(self):
         return f"[{super(NcParameterConstraintsString, self).__str__()}, " \
             f"maxCharacters={self.maxCharacters}, pattern={self.pattern}]"
+
+    def __eq__(self, other):
+        if not isinstance(other, NcParameterConstraintsString):
+            return NotImplemented
+        return self.maxCharacters == other.maxCharacters and self.pattern == other.pattern
 
 
 class NcPropertyConstraints:
@@ -501,6 +512,7 @@ class NcObject():
                  member_descriptor: NcBlockMemberDescriptor):
         self.class_id = class_id
         self.oid = oid
+        self.owner = owner
         self.role = role
         self.role_path = role_path
         self.runtime_constraints = runtime_constraints
@@ -533,7 +545,7 @@ class NcBlock(NcObject):
                     role_paths.append(role_path)
         return role_paths
 
-    def get_oids(self, root=True):
+    def get_oids(self, root=True) -> list[int]:
         oids = [self.oid] if root else []
         for child_object in self.child_objects:
             oids.append(child_object.oid)
