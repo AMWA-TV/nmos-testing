@@ -21,7 +21,8 @@ import inspect
 import random
 import textwrap
 
-from ..ControllerTest import ControllerTest, TestingFacadeException, exitTestEvent
+from ..ControllerTest import ControllerTest, TestingFacadeException
+from ..TestingFacadeUtils import exitTestEvent
 
 
 class IS0503Test(ControllerTest):
@@ -40,7 +41,7 @@ class IS0503Test(ControllerTest):
                         {'label': 's5/andrews', 'description': 'Mock sender 5', 'registered': False}]
 
         # Randomly select some senders to register
-        register_senders = self._generate_random_indices(len(self.senders))
+        register_senders = self.generate_random_indices(len(self.senders))
 
         for i in register_senders:
             self.senders[i]['registered'] = True
@@ -58,7 +59,7 @@ class IS0503Test(ControllerTest):
                            'connectable': False, 'registered': True}]
 
         # Randomly select some receivers to be connectable
-        connectable_receivers = self._generate_random_indices(len(self.receivers), min_index_count=2, max_index_count=4)
+        connectable_receivers = self.generate_random_indices(len(self.receivers), min_index_count=2, max_index_count=4)
 
         for i in connectable_receivers:
             self.receivers[i]['connectable'] = True
@@ -107,7 +108,7 @@ class IS0503Test(ControllerTest):
             expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers)
                                 if r['registered'] and r['connectable']]
 
-            actual_answers = self._invoke_testing_facade(
+            actual_answers = self.testing_facade_utils.invoke_testing_facade(
                 question, possible_answers, test_type="multi_choice")['answer_response']
 
             if len(actual_answers) != len(expected_answers):
@@ -163,7 +164,8 @@ class IS0503Test(ControllerTest):
                          'label': receiver['label'],
                          'description': receiver['description']}}
 
-            self._invoke_testing_facade(question, possible_answers, test_type="action", metadata=metadata)
+            self.testing_facade_utils.invoke_testing_facade(question, possible_answers,
+                                                            test_type="action", metadata=metadata)
 
             # Check the staged API endpoint received the correct PATCH request
             patch_requests = [r for r in self.node.staged_requests
@@ -266,7 +268,8 @@ class IS0503Test(ControllerTest):
                          'label': receiver['label'],
                          'description': receiver['description']}}
 
-            self._invoke_testing_facade(question, possible_answers, test_type="action", metadata=metadata)
+            self.testing_facade_utils.invoke_testing_facade(question, possible_answers,
+                                                            test_type="action", metadata=metadata)
 
             # Check the staged API endpoint received a PATCH request
             patch_requests = [r for r in self.node.staged_requests
@@ -349,7 +352,7 @@ class IS0503Test(ControllerTest):
             expected_answer = ['answer_' + str(i) for i, r in enumerate(registered_receivers)
                                if r['display_answer'] == receiver['display_answer']][0]
 
-            actual_answer = self._invoke_testing_facade(
+            actual_answer = self.testing_facade_utils.invoke_testing_facade(
                 question, possible_answers, test_type="single_choice")['answer_response']
 
             if actual_answer != expected_answer:
@@ -373,9 +376,9 @@ class IS0503Test(ControllerTest):
                          'label': receiver['label'],
                          'description': receiver['description']}}
 
-            actual_answer = self._invoke_testing_facade(
-                question, possible_answers, test_type="single_choice",
-                multipart_test=1, metadata=metadata)['answer_response']
+            actual_answer = self.testing_facade_utils.invoke_testing_facade(
+                question, possible_answers, test_type="single_choice", multipart_test=1,
+                metadata=metadata)['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Incorrect sender identified')
@@ -398,12 +401,15 @@ class IS0503Test(ControllerTest):
                        """)
             possible_answers = []
 
-            # Get the name of the calling test method to use as an identifier
+            # Get the name and the description of this test method to use as an identifier
             test_method_name = inspect.currentframe().f_code.co_name
+            method = getattr(self, test_method_name)
+            test_method_description = inspect.getdoc(method)
 
             # Send the question to the Testing Façade
-            sent_json = self._send_testing_facade_questions(
-                test_method_name, question, possible_answers, test_type="action", multipart_test=2, metadata=metadata)
+            sent_json = self.testing_facade_utils.send_testing_facade_questions(
+                test_method_name, test_method_description, question, possible_answers,
+                test_type="action", multipart_test=2, metadata=metadata)
 
             # Wait a random amount of time before disconnecting
             exitTestEvent.clear()
@@ -416,7 +422,7 @@ class IS0503Test(ControllerTest):
                                "activation": {"mode": "activate_immediate"}}
             self.node.patch_staged('receivers', receiver['id'], deactivate_json)
 
-            response = self._wait_for_testing_facade(sent_json['question_id'], 'action')
+            response = self.testing_facade_utils.wait_for_testing_facade(sent_json['question_id'], 'action')
 
             if response['time_received'] < expected_time_online:  # Answered before connection was removed
                 return test.FAIL('Connection not handled: Connection still active')

@@ -23,8 +23,8 @@ from math import floor
 from xeger import Xeger
 
 from ..Config import MS05_INVASIVE_TESTING, MS05_INTERACTIVE_TESTING
-from ..GenericTest import NMOSTestException
-from ..ControllerTest import ControllerTest, TestingFacadeException
+from ..GenericTest import GenericTest, NMOSTestException
+from ..TestingFacadeUtils import TestingFacadeUtils, TestingFacadeException
 from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, NcDatatypeDescriptor, \
     NcDatatypeDescriptorEnum, NcDatatypeDescriptorPrimitive, NcDatatypeType, NcDatatypeDescriptorStruct, \
     NcDatatypeDescriptorTypeDef, NcDeviceManagerProperties, NcMethodResultError, NcMethodResultXXX, \
@@ -36,6 +36,7 @@ NODE_API_KEY = "node"
 CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
 FEATURE_SETS_KEY = "featuresets"
+TESTING_FACADE_API_KEY = "testquestion"
 
 
 # Note: this test suite is a base class for the IS1202Test and IS1402Test test suites
@@ -43,7 +44,7 @@ FEATURE_SETS_KEY = "featuresets"
 # instantiated in the same way as the other test suites.
 
 
-class MS0501Test(ControllerTest):
+class MS0501Test(GenericTest):
     """
     Runs Tests covering MS-05
     """
@@ -71,15 +72,14 @@ class MS0501Test(ControllerTest):
             self.descriptor = descriptor
 
     def __init__(self, apis, utils, **kwargs):
-        # Remove the RAML key to prevent this test suite from auto-testing IS-04 API
+        # Remove the Node API RAML key to prevent this test suite from auto-testing IS-04 API
         apis[NODE_API_KEY].pop("raml", None)
-        # Removing the DNS server stops this test suite depending on the QUERY_API
-        kwargs['dns_server'] = None
-        # Removing the registries stops this test suite from populating the mock registry
-        # with mock resources (not needed by this test)
-        kwargs['registries'] = None
-        ControllerTest.__init__(self, apis, disable_auto=False, **kwargs)
+        # Remove the Testing Facade spec_path as there are no corresponding GitHub repos for the Testing Facade API
+        apis[TESTING_FACADE_API_KEY].pop("spec_path", None)
+
+        GenericTest.__init__(self, apis, disable_auto=False, **kwargs)
         self.ms05_utils = utils
+        self.testing_facade_utils = TestingFacadeUtils(apis)
 
     def set_up_tests(self):
         super().set_up_tests()
@@ -157,7 +157,7 @@ class MS0501Test(ControllerTest):
                    """
 
         try:
-            self._invoke_testing_facade(question, [], test_type="action")
+            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action")
 
         except TestingFacadeException:
             # pre_test_introducton timed out
@@ -178,11 +178,20 @@ class MS0501Test(ControllerTest):
                    """
 
         try:
-            self._invoke_testing_facade(question, [], test_type="action")
+            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action")
 
         except TestingFacadeException:
             # post_test_introducton timed out
             pass
+
+    def execute_tests(self, test_names):
+        """Perform tests defined within this class"""
+
+        self.pre_tests_message()
+
+        super().execute_tests(test_names)
+
+        self.post_tests_message()
 
     def test_ms05_01(self, test):
         """Device Model: Root Block exists with correct oid and role"""
@@ -430,6 +439,33 @@ class MS0501Test(ControllerTest):
         else:
             self.unique_oids_metadata.checked = True
             self.oid_cache.append(oid)
+
+    def _check_owner(self, test, block_oid, member_desc_owner, oid, role_path):
+        """Check owner is correct"""
+        # Check the oid of the containing NcBlock (block_oid) is consistant with both the
+        # NcBlockMemberDescriptor owner (member_desc_owner) and the owner property queried from the
+        # NcObject (method_result.value)
+
+        method_result = self.ms05_utils.get_property(test, NcObjectProperties.OWNER.value, oid=oid, role_path=role_path)
+
+        if isinstance(method_result, NcMethodResultError):
+            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
+            self.device_model_metadata.error = True
+            self.device_model_metadata.error_msg = f"{error_msg_base}Unable to get owner property; " \
+                f"{method_result.errorMessage}; "
+            return
+
+        if block_oid != method_result.value:
+            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
+            self.device_model_metadata.error = True
+            self.device_model_metadata.error_msg = f"{error_msg_base} inconsistent owner property; " \
+                f"containing NcBlock oid: {block_oid}, NcObject owner property: {method_result.value}; "
+
+        if block_oid != member_desc_owner:
+            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
+            self.device_model_metadata.error = True
+            self.device_model_metadata.error_msg = f"{error_msg_base} inconsistent owner property; " \
+                f"containing NcBlock oid: {block_oid}, NcBlockMemberDescriptor owner property: {member_desc_owner}; "
 
     def _check_manager(self, class_id, owner, class_descriptors, manager_cache, role_path):
         """Check manager is singleton and that it inherits from NcManager"""
@@ -748,6 +784,8 @@ class MS0501Test(ControllerTest):
 
             self._check_unique_roles(descriptor.role, role_cache, block.role_path)
             self._check_unique_oid(descriptor.oid, block.role_path)
+            self._check_owner(test, block.oid, child_object.owner, child_object.oid, child_object.role_path)
+
             # check for non-standard classes
             if self.ms05_utils.is_non_standard_class(descriptor.classId):
                 self.organization_metadata.checked = True
@@ -1693,99 +1731,9 @@ class MS0501Test(ControllerTest):
         filtered = deepcopy(possible_answers)
         for p in filtered:
             p.pop("resource", None)
-        return self._invoke_testing_facade(question, filtered,
-                                           test_type="multi_choice",
-                                           test_method_name=test_method_name)["answer_response"]
-
-    def _get_constraints(self, test, class_property, datatype_descriptors, object_runtime_constraints):
-        datatype_constraints = None
-        runtime_constraints = None
-        # Level 0: Datatype constraints
-        if class_property.typeName:
-            datatype_constraints = datatype_descriptors.get(class_property.typeName).constraints
-        # Level 1: Property constraints
-        property_constraints = class_property.constraints
-        # Level 3: Runtime constraints
-        if object_runtime_constraints:
-            for object_runtime_constraint in object_runtime_constraints:
-                if object_runtime_constraint.propertyId == class_property.id:
-                    runtime_constraints = object_runtime_constraint
-
-        return runtime_constraints or property_constraints or datatype_constraints
-
-    def _get_properties(self, test, block, get_constraints=True, get_sequences=False, get_readonly=False):
-        results = []
-
-        class_manager = self.ms05_utils.get_class_manager(test)
-
-        # Note that the userLabel of the block may also be changed, and therefore might be
-        # subject to runtime constraints constraints
-        for child in block.child_objects:
-            class_descriptor = class_manager.get_control_class(child.class_id, include_inherited=True)
-
-            if not class_descriptor:
-                continue
-            role_path = self.ms05_utils.create_role_path(block.role_path, child.role)
-
-            for property_descriptor in class_descriptor.properties:
-                constraints = self._get_constraints(test,
-                                                    property_descriptor,
-                                                    class_manager.datatype_descriptors,
-                                                    child.runtime_constraints)
-                if get_readonly == property_descriptor.isReadOnly \
-                        and property_descriptor.isSequence == get_sequences \
-                        and bool(constraints) == get_constraints:
-                    datatype = class_manager.get_datatype(property_descriptor.typeName, include_inherited=False)
-
-                    results.append(MS0501Test.PropertyMetadata(
-                        child.oid, role_path,
-                        f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
-                        f"class name={class_descriptor.name}: "
-                        f"property name={property_descriptor.name}",
-                        constraints,
-                        datatype.type,
-                        property_descriptor))
-            if type(child) is NcBlock:
-                results += (self._get_properties(test, child, get_constraints, get_sequences, get_readonly))
-
-        return results
-
-    def _get_methods(self, test, block, get_constraints=False):
-        results = []
-
-        class_manager = self.ms05_utils.get_class_manager(test)
-
-        for child in block.child_objects:
-            class_descriptor = class_manager.get_control_class(child.class_id, include_inherited=True)
-
-            if not class_descriptor:
-                continue
-
-            if type(child) is NcBlock:
-                results += (self._get_methods(test, child, get_constraints))
-
-            # Only test methods on non-standard classes, as the standard classes are already tested elsewhere
-            if not self.ms05_utils.is_non_standard_class(class_descriptor.classId):
-                continue
-
-            role_path = self.ms05_utils.create_role_path(block.role_path, child.role)
-
-            for method_descriptor in class_descriptor.methods:
-                # Check for parameter constraints
-                parameter_constraints = False
-                for parameter in method_descriptor.parameters:
-                    if parameter.constraints:
-                        parameter_constraints = True
-
-                if parameter_constraints == get_constraints:
-                    results.append(MS0501Test.MethodMetadata(
-                        child.oid, role_path,
-                        f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
-                        f"class name={class_descriptor.name}: "
-                        f"method name={method_descriptor.name}",
-                        method_descriptor))
-
-        return results
+        return self.testing_facade_utils.invoke_testing_facade(question, filtered,
+                                                               test_type="multi_choice",
+                                                               test_method_name=test_method_name)["answer_response"]
 
     def _invasive_check_constrained_parameter(self, test, constrained_property, value, expect_error=True):
         error_msg_base = f"role path={self.ms05_utils.create_role_path_string(constrained_property.role_path)}, " \
@@ -1973,7 +1921,7 @@ class MS0501Test(ControllerTest):
         try:
             device_model = self.ms05_utils.query_device_model(test)
 
-            constrained_properties = self._get_properties(test, device_model, get_constraints, get_sequences)
+            constrained_properties = self.ms05_utils.get_properties(test, device_model, get_constraints, get_sequences)
 
             # Filter constrained properties according to datatype_type
             constrained_properties = [p for p in constrained_properties
@@ -2131,8 +2079,8 @@ class MS0501Test(ControllerTest):
         try:
             device_model = self.ms05_utils.query_device_model(test)
 
-            readonly_properties = self._get_properties(test, device_model, get_constraints=False,
-                                                       get_sequences=get_sequences, get_readonly=True)
+            readonly_properties = self.ms05_utils.get_properties(test, device_model, get_constraints=False,
+                                                                 get_sequences=get_sequences, get_readonly=True)
 
             possible_properties = [{"answer_id": f"answer_{str(i)}",
                                     "display_answer": p.name,
@@ -2342,7 +2290,7 @@ class MS0501Test(ControllerTest):
         """Test methods of non-standard objects within the Device Model"""
         device_model = self.ms05_utils.query_device_model(test)
 
-        methods = self._get_methods(test, device_model, get_constraints)
+        methods = self.ms05_utils.get_methods(test, device_model, get_constraints)
 
         possible_methods = [{"answer_id": f"answer_{str(i)}",
                              "display_answer": p.name,
@@ -2629,7 +2577,8 @@ class MS0501Test(ControllerTest):
         """Test all writable sequences"""
         device_model = self.ms05_utils.query_device_model(test)
 
-        constrained_properties = self._get_properties(test, device_model, get_constraints=False, get_sequences=True)
+        constrained_properties = self.ms05_utils.get_properties(test, device_model,
+                                                                get_constraints=False, get_sequences=True)
 
         possible_properties = [{"answer_id": f"answer_{str(i)}",
                                 "display_answer": p.name,

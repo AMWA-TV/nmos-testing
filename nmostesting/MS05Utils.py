@@ -22,7 +22,7 @@ from enum import IntEnum, Enum
 from itertools import takewhile, dropwhile
 from jsonschema import FormatChecker, SchemaError, validate, ValidationError
 
-from .GenericTest import NMOSTestException
+from .GenericTest import NMOSTestException, GenericTest
 from .TestResult import Test
 from .TestHelper import load_resolved_schema
 
@@ -218,6 +218,20 @@ class NcPropertyDescriptor(NcDescriptor):
         self.isSequence = descriptor_json["isSequence"]  # TRUE iff property is a sequence
         self.isDeprecated = descriptor_json["isDeprecated"]  # TRUE iff property is marked as deprecated
         self.constraints = NcParameterConstraints.factory(descriptor_json["constraints"], "property")  # Optional
+
+    def __str__(self):
+        return f"[id={self.id}, name={self.name}, typeName={self.typeName}, " \
+            f"isReadOnly={self.isReadOnly}, owner={self.isNullable}, " \
+            f"isSequence={self.isSequence}, isDeprecated={self.isDeprecated}, " \
+            f"constraints={self.constraints}]"
+
+    def __eq__(self, other):
+        if not isinstance(other, NcPropertyDescriptor):
+            return NotImplemented
+        return self.id == other.id and self.name == other.name and self.typeName == other.typeName \
+            and self.isReadOnly == other.isReadOnly and self.isNullable == other.isNullable \
+            and self.isSequence == other.isSequence and self.isDeprecated == other.isDeprecated \
+            and self.constraints == other.constraints
 
 
 class NcBlockMemberDescriptor(NcDescriptor):
@@ -482,7 +496,9 @@ class NcPropertyChangedEventData():
 
 
 class NcObject():
-    def __init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor):
+    def __init__(self, class_id: list, oid: int, owner: int | None, role: str, role_path: list,
+                 runtime_constraints: NcPropertyConstraints | None,
+                 member_descriptor: NcBlockMemberDescriptor):
         self.class_id = class_id
         self.oid = oid
         self.role = role
@@ -495,15 +511,17 @@ class NcObject():
 
 
 class NcBlock(NcObject):
-    def __init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor):
-        NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor)
+    def __init__(self, class_id: list, oid: int, owner: int | None, role: str, role_path: list,
+                 runtime_constraints: NcPropertyConstraints | None,
+                 member_descriptor: NcBlockMemberDescriptor):
+        NcObject.__init__(self, class_id, oid, owner, role, role_path, runtime_constraints, member_descriptor)
         self.child_objects = []
 
     # Utility Methods
     def add_child_object(self, nc_object):
         self.child_objects.append(nc_object)
 
-    def get_role_paths(self):
+    def get_role_paths(self) -> list[list[str]]:
         role_paths = []
         for child_object in self.child_objects:
             role_paths.append([child_object.role])
@@ -523,8 +541,22 @@ class NcBlock(NcObject):
                 oids += child_object.get_oids(False)
         return oids
 
+    def find_object_by_path(self, role_path) -> NcObject:
+        """Helper function to locate an NcObject by role path"""
+        # Returns None if role path can't be found
+        if role_path == self.role_path:
+            return self
+
+        ret_val = None
+        for child_object in self.child_objects:
+            if isinstance(child_object, NcBlock):
+                ret_val = child_object.find_object_by_path(role_path)
+                if ret_val:
+                    break
+        return ret_val
+
     # NcBlock Methods
-    def get_member_descriptors(self, recurse=False):
+    def get_member_descriptors(self, recurse=False) -> list[NcBlockMemberDescriptor]:
         query_results = []
         for child_object in self.child_objects:
             query_results.append(child_object.member_descriptor)
@@ -532,7 +564,7 @@ class NcBlock(NcObject):
                 query_results += child_object.get_member_descriptors(recurse)
         return query_results
 
-    def find_members_by_path(self, role_path):
+    def find_members_by_path(self, role_path) -> list[NcBlockMemberDescriptor]:
         query_results = []
         query_role = role_path[0]
         for child_object in self.child_objects:
@@ -543,7 +575,11 @@ class NcBlock(NcObject):
                     query_results.append(child_object.member_descriptor)
         return query_results
 
-    def find_members_by_role(self, role, case_sensitive=False, match_whole_string=False, recurse=False):
+    def find_members_by_role(self,
+                             role,
+                             case_sensitive=False,
+                             match_whole_string=False,
+                             recurse=False) -> list[NcBlockMemberDescriptor]:
         def match(query_role, role, case_sensitive, match_whole_string):
             if case_sensitive:
                 return query_role == role if match_whole_string else query_role in role
@@ -560,7 +596,11 @@ class NcBlock(NcObject):
                                                                    recurse)
         return query_results
 
-    def find_members_by_class_id(self, class_id, include_derived=False, recurse=False, get_objects=False):
+    def find_members_by_class_id(self,
+                                 class_id,
+                                 include_derived=False,
+                                 recurse=False,
+                                 get_objects=False) -> list[NcBlockMemberDescriptor] | list[NcObject]:
         def match(query_class_id, class_id, include_derived):
             if query_class_id == (class_id[:len(query_class_id)] if include_derived else class_id):
                 return True
@@ -580,18 +620,23 @@ class NcBlock(NcObject):
 
 
 class NcManager(NcObject):
-    def __init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor):
-        NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor)
+    def __init__(self, class_id: list, oid: int, owner: int | None, role: list, role_path: str,
+                 runtime_constraints: NcPropertyConstraints | None,
+                 member_descriptor: NcBlockMemberDescriptor):
+        NcObject.__init__(self, class_id, oid, owner, role, role_path, runtime_constraints, member_descriptor)
 
 
 class NcClassManager(NcManager):
-    def __init__(self, class_id, oid, role, role_path, class_descriptors, datatype_descriptors, runtime_constraints,
-                 member_descriptor):
-        NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor)
+    def __init__(self, class_id: list, oid: int, owner: int | None, role: list, role_path: str,
+                 class_descriptors: list[NcClassDescriptor],
+                 datatype_descriptors: list[NcDatatypeDescriptor],
+                 runtime_constraints: NcPropertyConstraints | None,
+                 member_descriptor: NcBlockMemberDescriptor):
+        NcObject.__init__(self, class_id, oid, owner, role, role_path, runtime_constraints, member_descriptor)
         self.class_descriptors = class_descriptors
         self.datatype_descriptors = datatype_descriptors
 
-    def get_control_class(self, class_id, include_inherited=True):
+    def get_control_class(self, class_id, include_inherited=True) -> NcClassDescriptor:
         class_id_str = ".".join(map(str, class_id))
         descriptor = self.class_descriptors.get(class_id_str)
 
@@ -613,7 +658,7 @@ class NcClassManager(NcManager):
 
         return inherited_descriptor
 
-    def get_datatype(self, name, include_inherited=True):
+    def get_datatype(self, name, include_inherited=True) -> NcDatatypeDescriptor:
         descriptor = self.datatype_descriptors.get(name)
 
         if not include_inherited or not descriptor or descriptor.type != NcDatatypeType.Struct:
@@ -627,6 +672,24 @@ class NcClassManager(NcManager):
             inherited_descriptor.fields += descriptor.fields
 
         return inherited_descriptor
+
+
+class MS05PropertyMetadata():
+    def __init__(self, oid, role_path, name, constraints, datatype_type, descriptor):
+        self.oid = oid
+        self.role_path = role_path
+        self.name = name
+        self.constraints = constraints
+        self.datatype_type = datatype_type
+        self.descriptor = descriptor
+
+
+class MS05MethodMetadata():
+    def __init__(self, oid, role_path, name, descriptor):
+        self.oid = oid
+        self.role_path = role_path
+        self.name = name
+        self.descriptor = descriptor
 
 
 class MS05Utils(NMOSUtils):
@@ -1055,19 +1118,33 @@ class MS05Utils(NMOSUtils):
         non_normative_keys = ["description"]
 
         # If the reference is an object then convert to a dict before comparison
-        if isinstance(reference, (NcDescriptor, NcElementId, NcPropertyConstraints, NcParameterConstraints)):
+        if isinstance(reference, (NcDescriptor, NcElementId)):
             self.validate_descriptor(test, reference.__dict__, descriptor, context)
+        elif isinstance(reference, (NcPropertyConstraints, NcParameterConstraints)):
+            # level is a decoratation to improve reporting
+            # and threrefore not needed for comparison
+            reference_dict = deepcopy(reference.__dict__)
+            reference_dict.pop("level", None)
+            self.validate_descriptor(test, reference_dict, descriptor, context)
         # If the descriptor being checked is an object then convert to a dict before comparison
-        elif isinstance(descriptor, (NcDescriptor, NcElementId, NcPropertyConstraints, NcParameterConstraints)):
+        elif isinstance(descriptor, (NcDescriptor, NcElementId)):
             self.validate_descriptor(test, reference, descriptor.__dict__, context)
+        elif isinstance(descriptor, (NcPropertyConstraints, NcParameterConstraints)):
+            # level is a decoratation to improve reporting
+            # and threrefore not needed for comparison
+            descriptor_dict = deepcopy(descriptor.__dict__)
+            descriptor_dict.pop("level", None)
+            self.validate_descriptor(test, reference, descriptor_dict, context)
         # Compare dictionaries
         elif isinstance(reference, dict):
             # NcDescriptor objects have a json field that caches the json used to construct it
-            reference.pop("json", None)
-            descriptor.pop("json", None)
+            reference_copy = deepcopy(reference)
+            descriptor_copy = deepcopy(descriptor)
+            reference_copy.pop("json", None)
+            descriptor_copy.pop("json", None)
 
-            reference_keys = set(reference.keys())
-            descriptor_keys = set(descriptor.keys())
+            reference_keys = set(reference_copy.keys())
+            descriptor_keys = set(descriptor_copy.keys())
 
             # compare the keys to see if any extra/missing
             key_diff = (set(reference_keys) | set(descriptor_keys)) - (set(reference_keys) & set(descriptor_keys))
@@ -1077,7 +1154,7 @@ class MS05Utils(NMOSUtils):
                 # Ignore keys that contain non-normative information
                 if key in non_normative_keys:
                     continue
-                self.validate_descriptor(test, reference[key], descriptor[key], context=f"{context}{key}->")
+                self.validate_descriptor(test, reference_copy[key], descriptor_copy[key], context=f"{context}{key}->")
         # Compare lists
         elif isinstance(reference, list):
             if len(reference) != len(descriptor):
@@ -1186,7 +1263,7 @@ class MS05Utils(NMOSUtils):
         descriptors = {self.create_class_id_string(r.get("classId")): NcClassDescriptor(r) for r in response}
         return descriptors
 
-    def create_block(self, test, class_id, oid, role, base_role_path=None, member_descriptor=None):
+    def create_block(self, test, class_id, oid, role, base_role_path=None, member_descriptor=None, owner=None):
         """Recursively create Device Model hierarchy"""
         # will set self.device_model_error to True if problems encountered
         role_path = self.create_role_path(base_role_path, role)
@@ -1221,12 +1298,12 @@ class MS05Utils(NMOSUtils):
                                                   "Block members not a list: "
                                                   f"{str(method_result.value)}"))
 
-            nc_block = NcBlock(class_id, oid, role, role_path, runtime_constraints, member_descriptor)
+            nc_block = NcBlock(class_id, oid, owner, role, role_path, runtime_constraints, member_descriptor)
 
             for m in method_result.value:
                 self.reference_datatype_schema_validate(test, m, NcBlockMemberDescriptor.__name__, role_path)
                 child_object = self.create_block(test, m["classId"], m["oid"], m["role"], role_path,
-                                                 NcBlockMemberDescriptor(m))
+                                                 NcBlockMemberDescriptor(m), m["owner"])
                 nc_block.add_child_object(child_object)
 
             return nc_block
@@ -1242,11 +1319,11 @@ class MS05Utils(NMOSUtils):
                     raise NMOSTestException(test.FAIL("No class descriptors or datatype descriptors "
                                                       "found in ClassManager"))
 
-                return NcClassManager(class_id, oid, role, role_path,
+                return NcClassManager(class_id, oid, owner, role, role_path,
                                       class_descriptors, datatype_descriptors,
                                       runtime_constraints, member_descriptor)
 
-            return NcObject(class_id, oid, role, role_path, runtime_constraints, member_descriptor)
+            return NcObject(class_id, oid, owner, role, role_path, runtime_constraints, member_descriptor)
 
     def _get_singleton_object_by_class_id(self, test, class_id):
         device_model = self.query_device_model(test)
@@ -1264,6 +1341,9 @@ class MS05Utils(NMOSUtils):
         """Get the Class Manager queried from the Node under test's Device Model"""
         if not self.class_manager:
             self.class_manager = self._get_singleton_object_by_class_id(test, StandardClassIds.NCCLASSMANAGER.value)
+
+        if not self.class_manager:
+            return test.FAIL("Unable to query Class Manager")
         return self.class_manager
 
     def get_device_manager(self, test):
@@ -1338,8 +1418,10 @@ class MS05Utils(NMOSUtils):
         return role_path
 
     def create_role_path_string(self, role_path):
-        if role_path is None or not isinstance(role_path, list):
+        if role_path is None:
             return ""
+        if not isinstance(role_path, list):
+            return role_path
         return f"/{'/'.join([str(r) for r in role_path])}"
 
     def create_class_id_string(self, class_id):
@@ -1357,3 +1439,110 @@ class MS05Utils(NMOSUtils):
                 NcPropertyDescriptor.__name__, NcPropertyConstraints.__name__, NcPropertyConstraintsNumber.__name__,
                 NcPropertyConstraintsString.__name__, NcParameterConstraints.__name__,
                 NcParameterConstraintsNumber.__name__, NcParameterConstraintsString.__name__]
+
+    def _get_constraints(self,
+                         class_property: NcPropertyDescriptor,
+                         datatype_descriptors: NcDatatypeDescriptor,
+                         object_runtime_constraints: NcPropertyConstraints) -> NcPropertyConstraints:
+        datatype_constraints = None
+        runtime_constraints = None
+        # Level 0: Datatype constraints
+        if class_property.typeName:
+            datatype_constraints = datatype_descriptors.get(class_property.typeName).constraints
+        # Level 1: Property constraints
+        property_constraints = class_property.constraints
+        # Level 3: Runtime constraints
+        if object_runtime_constraints:
+            for object_runtime_constraint in object_runtime_constraints:
+                if object_runtime_constraint.propertyId == class_property.id:
+                    runtime_constraints = object_runtime_constraint
+
+        return runtime_constraints or property_constraints or datatype_constraints
+
+    def get_properties(self,
+                       test: GenericTest,
+                       block: NcBlock,
+                       get_constraints=False,
+                       get_sequences=False,
+                       get_readonly=False) -> list[MS05PropertyMetadata]:
+
+        def is_read_only(class_id, property_descriptor):
+            """Account for Worker enabled property cludge in the BCP-008 specs"""
+            # If the class id starts with [1,2,2] it's a NcStatusMonitor
+            # And its "writable" enabled flag is not, in fact, writable
+            # if class_id[0] == 1 and class_id[1] == 2 and class_id[2] == 2 and \
+            #         property_descriptor.id == NcPropertyId({"level": 2, "index": 1}):
+            #     return True
+            return property_descriptor.isReadOnly
+
+        results = []
+
+        class_manager = self.get_class_manager(test)
+
+        # Note that the userLabel of the block may also be changed, and therefore might be
+        # subject to runtime constraints constraints
+        for child in block.child_objects:
+            class_descriptor = class_manager.get_control_class(child.class_id, include_inherited=True)
+
+            if not class_descriptor:
+                continue
+            role_path = self.create_role_path(block.role_path, child.role)
+
+            for property_descriptor in class_descriptor.properties:
+                constraints = self._get_constraints(property_descriptor,
+                                                    class_manager.datatype_descriptors,
+                                                    child.runtime_constraints)
+                if get_readonly == is_read_only(class_descriptor.classId, property_descriptor) \
+                        and property_descriptor.isSequence == get_sequences \
+                        and bool(constraints) == get_constraints:
+                    datatype = class_manager.get_datatype(property_descriptor.typeName, include_inherited=False)
+
+                    results.append(MS05PropertyMetadata(
+                        child.oid, role_path,
+                        f"role path={self.create_role_path_string(role_path)}: "
+                        f"class name={class_descriptor.name}: "
+                        f"property name={property_descriptor.name}",
+                        constraints,
+                        datatype.type,
+                        property_descriptor))
+            if type(child) is NcBlock:
+                results += (self.get_properties(test, child, get_constraints, get_sequences, get_readonly))
+
+        return results
+
+    def get_methods(self, test: GenericTest, block: NcBlock, get_constraints=False) -> MS05MethodMetadata:
+        results = []
+
+        class_manager = self.get_class_manager(test)
+
+        for child in block.child_objects:
+            class_descriptor = class_manager.get_control_class(child.class_id, include_inherited=True)
+
+            if not class_descriptor:
+                continue
+
+            if type(child) is NcBlock:
+                results += (self.get_methods(test, child, get_constraints))
+
+            # Only test methods on non-standard classes, as the standard classes are already tested elsewhere
+            if not self.is_non_standard_class(class_descriptor.classId):
+                continue
+
+            role_path = self.create_role_path(block.role_path, child.role)
+
+            for method_descriptor in class_descriptor.methods:
+                # Check for parameter constraints
+                parameter_constraints = False
+                for parameter in method_descriptor.parameters:
+                    if parameter.constraints:
+                        parameter_constraints = True
+
+                if parameter_constraints == get_constraints:
+                    results.append(MS05MethodMetadata(
+                        child.oid, role_path,
+                        f"role path={self.create_role_path_string(role_path)}: "
+                        f"class name={class_descriptor.name}: "
+                        f"method name={method_descriptor.name}",
+                        method_descriptor))
+
+        return results
