@@ -21,6 +21,7 @@ from copy import deepcopy
 from enum import IntEnum, Enum
 from itertools import takewhile, dropwhile
 from jsonschema import FormatChecker, SchemaError, validate, ValidationError
+from typing import Optional, Union
 
 from .GenericTest import NMOSTestException, GenericTest
 from .TestResult import Test
@@ -503,8 +504,8 @@ class NcPropertyChangedEventData():
 
 
 class NcObject():
-    def __init__(self, class_id: list, oid: int, owner: int | None, role: str, role_path: list,
-                 runtime_constraints: NcPropertyConstraints | None,
+    def __init__(self, class_id: list, oid: int, owner: Optional[int], role: str, role_path: list,
+                 runtime_constraints: Optional[NcPropertyConstraints],
                  member_descriptor: NcBlockMemberDescriptor):
         self.class_id = class_id
         self.oid = oid
@@ -516,8 +517,8 @@ class NcObject():
 
 
 class NcBlock(NcObject):
-    def __init__(self, class_id: list, oid: int, owner: int | None, role: str, role_path: list,
-                 runtime_constraints: NcPropertyConstraints | None,
+    def __init__(self, class_id: list, oid: int, owner: Optional[int], role: str, role_path: list,
+                 runtime_constraints: Optional[NcPropertyConstraints],
                  member_descriptor: NcBlockMemberDescriptor):
         NcObject.__init__(self, class_id, oid, owner, role, role_path, runtime_constraints, member_descriptor)
         self.child_objects = []
@@ -605,7 +606,7 @@ class NcBlock(NcObject):
                                  class_id,
                                  include_derived=False,
                                  recurse=False,
-                                 get_objects=False) -> list[NcBlockMemberDescriptor] | list[NcObject]:
+                                 get_objects=False) -> Union[list[NcBlockMemberDescriptor], list[NcObject]]:
         def match(query_class_id, class_id, include_derived):
             if query_class_id == (class_id[:len(query_class_id)] if include_derived else class_id):
                 return True
@@ -625,17 +626,17 @@ class NcBlock(NcObject):
 
 
 class NcManager(NcObject):
-    def __init__(self, class_id: list, oid: int, owner: int | None, role: list, role_path: str,
-                 runtime_constraints: NcPropertyConstraints | None,
+    def __init__(self, class_id: list, oid: int, owner: Optional[int], role: list, role_path: str,
+                 runtime_constraints: Optional[NcPropertyConstraints],
                  member_descriptor: NcBlockMemberDescriptor):
         NcObject.__init__(self, class_id, oid, owner, role, role_path, runtime_constraints, member_descriptor)
 
 
 class NcClassManager(NcManager):
-    def __init__(self, class_id: list, oid: int, owner: int | None, role: list, role_path: str,
+    def __init__(self, class_id: list, oid: int, owner: Optional[int], role: list, role_path: str,
                  class_descriptors: list[NcClassDescriptor],
                  datatype_descriptors: list[NcDatatypeDescriptor],
-                 runtime_constraints: NcPropertyConstraints | None,
+                 runtime_constraints: Optional[NcPropertyConstraints],
                  member_descriptor: NcBlockMemberDescriptor):
         NcObject.__init__(self, class_id, oid, owner, role, role_path, runtime_constraints, member_descriptor)
         self.class_descriptors = class_descriptors
