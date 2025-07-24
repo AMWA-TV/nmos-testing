@@ -16,11 +16,13 @@ from enum import Enum, IntEnum
 from jinja2 import Template
 from random import randint
 from requests.compat import json
+from typing import Optional
 from uuid import uuid4
-from .BCP008Test import BCP008Test, NcLinkStatus, NcOverallStatus, NcStatusMonitorProperties, NcSynchronizationStatus
-from ..GenericTest import NMOSTestException
+from .BCP008Test import BCP008Test, NcLinkStatus, NcOverallStatus, NcStatusMonitorProperties, NcSynchronizationStatus, \
+    NcTouchpointNmos
+from ..GenericTest import GenericTest, NMOSTestException
 from ..TestHelper import get_default_ip
-from ..MS05Utils import NcMethodId, NcPropertyId
+from ..MS05Utils import NcMethodId, NcObject, NcPropertyId
 from .. import Config as CONFIG
 
 RECEIVER_MONITOR_API_KEY = "receivermonitor"
@@ -84,7 +86,7 @@ class BCP0080101Test(BCP008Test):
         BCP008Test.__init__(self, apis, **kwargs)
         self.sdp_params = None
 
-    def _make_receiver_sdp_params(self, test):
+    def _make_receiver_sdp_params(self, test: GenericTest) -> dict[str, object]:
         rtp_receivers = []
         # For each receiver in the NuT make appropriate SDP params
         valid, resources = self.do_request("GET", self.node_url + "receivers")
@@ -161,69 +163,69 @@ class BCP0080101Test(BCP008Test):
 
     # Overloaded function to get Receiver Monitors
     # Spec link getters
-    def get_touchpoint_spec_link(self):
+    def get_touchpoint_spec_link(self) -> str:
         return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#touchpoints-and-is-04-receivers"
 
-    def get_transition_counters_spec_link(self):
+    def get_transition_counters_spec_link(self) -> str:
         return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#receiver-status-transition-counters"
 
-    def get_status_messages_spec_link(self):
+    def get_status_messages_spec_link(self) -> str:
         return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#receiver-status-messages"
 
-    def get_reporting_delay_spec_link(self):
+    def get_reporting_delay_spec_link(self) -> str:
         return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#receiver-status-reporting-delay"
 
-    def get_deactivating_monitor_spec_link(self):
+    def get_deactivating_monitor_spec_link(self) -> str:
         return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#deactivating-a-receiver"
 
-    def get_sync_source_change_spec_link(self):
+    def get_sync_source_change_spec_link(self) -> str:
         return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#synchronization-source-change"
 
-    def get_counter_method_spec_link(self):
+    def get_counter_method_spec_link(self) -> str:
         return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#late-and-lost-packets"
 
     # Status property and method IDs
-    def get_domain_status_property_ids(self):
+    def get_domain_status_property_ids(self) -> list[NcPropertyId]:
         return [NcStatusMonitorProperties.OVERALL_STATUS,
                 NcReceiverMonitorProperties.LINK_STATUS,
                 NcReceiverMonitorProperties.CONNECTION_STATUS,
                 NcReceiverMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS,
                 NcReceiverMonitorProperties.STREAM_STATUS]
 
-    def get_stream_status_property_id(self):
+    def get_stream_status_property_id(self) -> NcPropertyId:
         return NcReceiverMonitorProperties.CONNECTION_STATUS.value
 
-    def get_stream_status_transition_counter_property_id(self):
+    def get_stream_status_transition_counter_property_id(self) -> NcPropertyId:
         return NcReceiverMonitorProperties.CONNECTION_STATUS_TRANSITION_COUNTER.value
 
-    def get_inactiveable_status_property_ids(self):
+    def get_inactiveable_status_property_ids(self) -> list[NcPropertyId]:
         return [NcStatusMonitorProperties.OVERALL_STATUS.value,
                 NcReceiverMonitorProperties.CONNECTION_STATUS.value,
                 NcReceiverMonitorProperties.STREAM_STATUS.value]
 
-    def get_auto_reset_counter_property_id(self):
+    def get_auto_reset_counter_property_id(self) -> NcPropertyId:
         return NcReceiverMonitorProperties.AUTO_RESET_COUNTERS.value
 
-    def get_sync_source_id_property_id(self):
+    def get_sync_source_id_property_id(self) -> NcPropertyId:
         return NcReceiverMonitorProperties.SYNCHRONIZATION_SOURCE_ID.value
 
-    def get_healthy_statuses_dict(self):
+    def get_healthy_statuses_dict(self) -> dict[NcPropertyId, int]:
         return {NcReceiverMonitorProperties.CONNECTION_STATUS.value: NcConnectionStatus.Healthy,
                 NcReceiverMonitorProperties.STREAM_STATUS.value: NcStreamStatus.Healthy}
 
-    def get_inactive_statuses_dict(self):
+    def get_inactive_statuses_dict(self) -> dict[NcPropertyId, int]:
         return {NcStatusMonitorProperties.OVERALL_STATUS.value: NcOverallStatus.Inactive,
                 NcReceiverMonitorProperties.CONNECTION_STATUS.value: NcConnectionStatus.Inactive,
                 NcReceiverMonitorProperties.STREAM_STATUS.value: NcStreamStatus.Inactive}
 
-    def get_transition_counter_property_dict(self):
+    def get_transition_counter_property_dict(self) -> dict[str, NcPropertyId]:
         # Ignore late and lost packets in this check:
         # late and lost packet counters increment independantly of these tests and therefore
         # cannot be predicted or their value guaranteed at any given time
@@ -236,7 +238,7 @@ class BCP0080101Test(BCP008Test):
                 "StreamStatusTransitionCounter":
                 NcReceiverMonitorProperties.STREAM_STATUS_TRANSITION_COUNTER.value}
 
-    def get_status_message_property_dict(self):
+    def get_status_message_property_dict(self) -> dict[str, NcPropertyId]:
         return {"OverallStatusMessage":
                 NcStatusMonitorProperties.OVERALL_STATUS_MESSAGE.value,
                 "LinkStatusMessage":
@@ -248,15 +250,15 @@ class BCP0080101Test(BCP008Test):
                 "StreamStatusMessage":
                 NcReceiverMonitorProperties.STREAM_STATUS_MESSAGE.value}
 
-    def get_counter_method_ids(self):
+    def get_counter_method_ids(self) -> list[NcMethodId]:
         return [NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS.value,
                 NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS.value]
 
-    def get_reset_counter_method_id(self):
+    def get_reset_counter_method_id(self) -> NcMethodId:
         return NcReceiverMonitorMethods.RESET_COUNTERS.value
 
     # Resource
-    def get_monitors(self, test):
+    def get_monitors(self, test) -> list[NcObject]:
         if len(self.resource_monitors):
             return self.resource_monitors
 
@@ -269,7 +271,7 @@ class BCP0080101Test(BCP008Test):
 
         return self.resource_monitors
 
-    def get_touchpoint_resource_type(self):
+    def get_touchpoint_resource_type(self) -> str:
         return "receiver"
 
     def activate_resource(self, test, receiver_id):
@@ -296,7 +298,7 @@ class BCP0080101Test(BCP008Test):
             raise NMOSTestException(test.FAIL(f"Error patching Receiver {str(response)}"))
 
     # Validation
-    def is_valid_resource(self, test, touchpoint_resource):
+    def is_valid_resource(self, test: GenericTest, touchpoint_resource: Optional[NcTouchpointNmos]) -> bool:
         if not self.sdp_params:
             self.sdp_params = self._make_receiver_sdp_params(test)
 
@@ -305,7 +307,7 @@ class BCP0080101Test(BCP008Test):
 
         return True
 
-    def check_overall_status(self, monitor, statuses):
+    def check_overall_status(self, monitor: NcObject, statuses: dict[NcPropertyId, int]):
         # Devices MUST follow the rules listed below when mapping specific domain statuses
         # in the combined overallStatus:
         # * When the Receiver is Inactive the overallStatus uses the Inactive option
@@ -352,7 +354,7 @@ class BCP0080101Test(BCP008Test):
 
         self.check_overall_status_metadata.checked = True
 
-    def validate_status_values(self, monitor, statuses):
+    def validate_status_values(self, monitor: NcObject, statuses: dict[NcPropertyId, int]):
         spec_link_root = f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#"
         invalid_statuses = []

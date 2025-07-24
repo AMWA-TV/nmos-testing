@@ -15,6 +15,7 @@
 
 from enum import Enum, IntEnum
 from time import sleep
+from typing import Optional
 
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS05Utils import IS05Utils
@@ -243,15 +244,15 @@ class BCP008Test(GenericTest):
         pass
 
     # Validation
-    def is_valid_resource(self, touchpoint_resource: NcTouchpointNmos | None) -> bool:
+    def is_valid_resource(self, touchpoint_resource: Optional[NcTouchpointNmos]) -> bool:
         """Check the resource being monitored can be PATCHed"""
         pass
 
-    def check_overall_status(self, monitor: NcObject, statuses: list[NcPropertyId]):
+    def check_overall_status(self, monitor: NcObject, statuses: dict[NcPropertyId, int]):
         """Check the overall status is consistent with domain statuses"""
         pass
 
-    def validate_status_values(self, monitor: NcObject, statuses: list[NcPropertyId]):
+    def validate_status_values(self, monitor: NcObject, statuses: dict[NcPropertyId, int]):
         """Check that domain status values are legal"""
         pass
 
@@ -279,7 +280,7 @@ class BCP008Test(GenericTest):
 
         return method_result
 
-    def _get_touchpoint_resource(self, test: GenericTest, monitor: NcObject):
+    def _get_touchpoint_resource(self, test: GenericTest, monitor: NcObject) -> Optional[NcTouchpointNmos]:
         """Checks touchpoint for monitor and returns associated NMOS resource id"""
         # The touchpoints property of any Monitor MUST have one or more touchpoints of which
         # one and only one entry MUST be of type NcTouchpointNmos where
@@ -328,7 +329,7 @@ class BCP008Test(GenericTest):
                         initial_statuses: dict[NcPropertyId, int],
                         notifications: list[IS12Notification]):
         """Check statuses are consistent and have legal values"""
-        def _get_status_from_notifications(initial_status, notifications, property_id):
+        def _get_status_from_notifications(initial_status, notifications, property_id) -> int:
             # Aggregate initial status with any status change notifications
             status_notifications = [n for n in notifications if n.eventData.propertyId == property_id.value]
             return status_notifications[-1].eventData.value if len(status_notifications) else initial_status
