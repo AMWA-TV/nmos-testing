@@ -16,6 +16,7 @@
 from copy import copy, deepcopy
 from enum import IntEnum
 from functools import cmp_to_key
+from typing import Union
 import random
 import string
 from ..Config import MS05_INVASIVE_TESTING
@@ -164,8 +165,8 @@ class IS1401Test(MS0501Test):
             return 0
 
     def _compare_property_objects(self,
-                                  a: NcPropertyDescriptor | NcPropertyHolder,
-                                  b: NcPropertyDescriptor | NcPropertyHolder):
+                                  a: Union[NcPropertyDescriptor, NcPropertyHolder],
+                                  b: Union[NcPropertyDescriptor, NcPropertyHolder]):
         """Compare NcPropertyIds of NcPropertyDescriptors or NcPropertyHolders"""
         return self._compare_property_ids(a.id, b.id)
 
