@@ -21,7 +21,7 @@ from copy import deepcopy
 from enum import IntEnum, Enum
 from itertools import takewhile, dropwhile
 from jsonschema import FormatChecker, SchemaError, validate, ValidationError
-from typing import Union
+from typing import Optional, Union
 
 from .GenericTest import NMOSTestException, GenericTest
 from .TestResult import Test
@@ -504,8 +504,8 @@ class NcPropertyChangedEventData():
 
 
 class NcObject():
-    def __init__(self, class_id: list, oid: int, owner: Union[int, None], role: str, role_path: list,
-                 runtime_constraints: Union[NcPropertyConstraints, None],
+    def __init__(self, class_id: list, oid: int, owner: Optional[int], role: str, role_path: list,
+                 runtime_constraints: Optional[NcPropertyConstraints],
                  member_descriptor: NcBlockMemberDescriptor):
         self.class_id = class_id
         self.oid = oid
@@ -517,8 +517,8 @@ class NcObject():
 
 
 class NcBlock(NcObject):
-    def __init__(self, class_id: list, oid: int, owner: Union[int, None], role: str, role_path: list,
-                 runtime_constraints: Union[NcPropertyConstraints, None],
+    def __init__(self, class_id: list, oid: int, owner: Optional[int], role: str, role_path: list,
+                 runtime_constraints: Optional[NcPropertyConstraints],
                  member_descriptor: NcBlockMemberDescriptor):
         NcObject.__init__(self, class_id, oid, owner, role, role_path, runtime_constraints, member_descriptor)
         self.child_objects = []
@@ -626,17 +626,17 @@ class NcBlock(NcObject):
 
 
 class NcManager(NcObject):
-    def __init__(self, class_id: list, oid: int, owner: Union[int, None], role: list, role_path: str,
-                 runtime_constraints: Union[NcPropertyConstraints, None],
+    def __init__(self, class_id: list, oid: int, owner: Optional[int], role: list, role_path: str,
+                 runtime_constraints: Optional[NcPropertyConstraints],
                  member_descriptor: NcBlockMemberDescriptor):
         NcObject.__init__(self, class_id, oid, owner, role, role_path, runtime_constraints, member_descriptor)
 
 
 class NcClassManager(NcManager):
-    def __init__(self, class_id: list, oid: int, owner: Union[int, None], role: list, role_path: str,
+    def __init__(self, class_id: list, oid: int, owner: Optional[int], role: list, role_path: str,
                  class_descriptors: list[NcClassDescriptor],
                  datatype_descriptors: list[NcDatatypeDescriptor],
-                 runtime_constraints: Union[NcPropertyConstraints, None],
+                 runtime_constraints: Optional[NcPropertyConstraints],
                  member_descriptor: NcBlockMemberDescriptor):
         NcObject.__init__(self, class_id, oid, owner, role, role_path, runtime_constraints, member_descriptor)
         self.class_descriptors = class_descriptors
