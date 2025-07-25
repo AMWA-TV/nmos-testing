@@ -16,7 +16,7 @@
 from copy import copy, deepcopy
 from enum import IntEnum
 from functools import cmp_to_key
-from typing import Union
+from typing import Dict, List, Union
 import random
 import string
 from ..Config import MS05_INVASIVE_TESTING
@@ -133,7 +133,7 @@ class IS1401Test(MS0501Test):
         self.is14_utils.device_model = None
         self.oid_cache = []
 
-    def _do_request_json(self, test: GenericTest, method: str, url: str, **kwargs):
+    def _do_request_json(self, test: GenericTest, method: str, url: str, **kwargs) -> any:
         """Perform an HTTP request and return JSON response"""
         valid, response = self.do_request(method, url, **kwargs)
 
@@ -151,7 +151,7 @@ class IS1401Test(MS0501Test):
 
         return response.json()
 
-    def _compare_property_ids(self, a: NcPropertyId, b: NcPropertyId):
+    def _compare_property_ids(self, a: NcPropertyId, b: NcPropertyId) -> int:
         """Compare level and index of an NcPropertyId"""
         if a.level > b.level:
             return 1
@@ -166,7 +166,7 @@ class IS1401Test(MS0501Test):
 
     def _compare_property_objects(self,
                                   a: Union[NcPropertyDescriptor, NcPropertyHolder],
-                                  b: Union[NcPropertyDescriptor, NcPropertyHolder]):
+                                  b: Union[NcPropertyDescriptor, NcPropertyHolder]) -> int:
         """Compare NcPropertyIds of NcPropertyDescriptors or NcPropertyHolders"""
         return self._compare_property_ids(a.id, b.id)
 
@@ -187,7 +187,7 @@ class IS1401Test(MS0501Test):
         else:
             return obj
 
-    def _get_bulk_properties_holder(self, test: GenericTest, endpoint: str):
+    def _get_bulk_properties_holder(self, test: GenericTest, endpoint: str) -> NcBulkPropertiesHolder:
         """Get backup dataset from endpoint"""
         method_result_json = self._do_request_json(test, "GET", endpoint)
 
@@ -213,7 +213,7 @@ class IS1401Test(MS0501Test):
                                       endpoint: str,
                                       bulk_properties_holder: NcBulkPropertiesHolder,
                                       restoreMode: NcRestoreMode,
-                                      recurse: bool):
+                                      recurse: bool) -> List[NcObjectPropertiesSetValidation]:
         """Apply a backup dataset to the endpoint"""
         backup_dataset = {
             "arguments": {
@@ -253,7 +253,7 @@ class IS1401Test(MS0501Test):
                                         endpoint: str,
                                         bulk_properties_holder: NcBulkPropertiesHolder,
                                         restoreMode=NcRestoreMode.Modify,
-                                        recurse=True):
+                                        recurse=True) -> List[NcObjectPropertiesSetValidation]:
         """Perform an HTTP PUT of the backup dataset to the endpoint"""
         return self._apply_bulk_properties_holder(test,
                                                   test_metadata,
@@ -265,7 +265,7 @@ class IS1401Test(MS0501Test):
                                          endpoint: str,
                                          bulk_properties_holder: NcBulkPropertiesHolder,
                                          restoreMode=NcRestoreMode.Modify,
-                                         recurse=True):
+                                         recurse=True) -> List[NcObjectPropertiesSetValidation]:
         """Perform an HTTP PATCH of the backup dataset to the endpoint"""
         return self._apply_bulk_properties_holder(test,
                                                   test_metadata,
@@ -297,7 +297,7 @@ class IS1401Test(MS0501Test):
                           + "/docs/API_requests.html#url-and-usage")
         return test.PASS()
 
-    def _check_block_member_role_syntax(self, test: GenericTest, role_path: list[str]):
+    def _check_block_member_role_syntax(self, test: GenericTest, role_path: List[str]):
         """Check syntax of roles in this block"""
         method_result = self.is14_utils.get_property(test, NcBlockProperties.MEMBERS.value, role_path=role_path)
 
@@ -725,11 +725,12 @@ class IS1401Test(MS0501Test):
 
         return test.PASS()
 
-    def _create_notices_list(self, set_validations: list[NcObjectPropertiesSetValidation]):
+    def _create_notices_list(self, set_validations: List[NcObjectPropertiesSetValidation]) -> List[str]:
         """Create list of validation notices"""
         return [".".join(v.path) + str(n.id) for v in set_validations for n in v.notices]
 
-    def _create_object_properties_dict(self, bulk_properties_holder: NcBulkPropertiesHolder):
+    def _create_object_properties_dict(self, bulk_properties_holder: NcBulkPropertiesHolder) \
+            -> Dict[str, NcObjectPropertiesHolder]:
         """Creates a dict keyed on formatted role path and property id"""
         return {".".join(o.path) + str(v.id): v for o in bulk_properties_holder.values for v in o.values}
 
@@ -738,8 +739,8 @@ class IS1401Test(MS0501Test):
                                  original_bulk_properties_holder: NcBulkPropertiesHolder,
                                  applied_bulk_properties_holder: NcBulkPropertiesHolder,
                                  updated_bulk_properties_holder: NcBulkPropertiesHolder,
-                                 target_role_path: list[str],
-                                 set_validations: list[NcObjectPropertiesSetValidation],
+                                 target_role_path: List[str],
+                                 set_validations: List[NcObjectPropertiesSetValidation],
                                  recurse: bool, validate=False):
         """Compare the original backup dataset to the updated, given the applied dataset"""
         # original_bulk_properties_holder is the state before dataset applied
@@ -805,8 +806,8 @@ class IS1401Test(MS0501Test):
     def _check_object_properties_set_validations(self,
                                                  test_metadata: TestMetadata,
                                                  bulk_properties_holder: NcBulkPropertiesHolder,
-                                                 validations: list[NcObjectPropertiesSetValidation],
-                                                 target_role_path: list[str],
+                                                 validations: List[NcObjectPropertiesSetValidation],
+                                                 target_role_path: List[str],
                                                  recurse: bool):
         """Check that the NcObjectPropertiesSetValidations have no errors"""
         # Check there is one validation per object changed
@@ -851,7 +852,7 @@ class IS1401Test(MS0501Test):
 
     def _check_validate_restore_properties(self,
                                            test: GenericTest,
-                                           target_role_path: list[str],
+                                           target_role_path: List[str],
                                            restoreMode: NcRestoreMode,
                                            recurse: bool):
         """Perform a validate and restore on the target role path"""
@@ -1041,7 +1042,7 @@ class IS1401Test(MS0501Test):
 
     # Invasive testing
 
-    def _generate_property_value(self, test: GenericTest, type_name: str, value: any):
+    def _generate_property_value(self, test: GenericTest, type_name: str, value: any) -> any:
         """Generate a new value based on the existing value"""
 
         # If this is a null property then not sure how to manipulate it
@@ -1125,8 +1126,8 @@ class IS1401Test(MS0501Test):
 
     def _filter_property_holders(self,
                                  bulk_properties_holder: NcBulkPropertiesHolder,
-                                 filter_list: list[str],
-                                 include=False):
+                                 filter_list: List[str],
+                                 include=False) -> NcBulkPropertiesHolder:
         """Either include or exclude the filter_list property keys from the bulk properties holder"""
         # if include = True then properties with keys found in filter_list are kept (all others removed)
         # if include = False then properties with keys found in filter_list are removed
@@ -1147,7 +1148,7 @@ class IS1401Test(MS0501Test):
     def _perform_restore(self,
                          test: GenericTest,
                          test_metadata: TestMetadata,
-                         target_role_path: list[str],
+                         target_role_path: List[str],
                          bulk_properties_holder: NcBulkPropertiesHolder,
                          original_bulk_properties_holder: NcBulkPropertiesHolder,
                          restoreMode: NcRestoreMode,
