@@ -386,6 +386,26 @@ SPECIFICATIONS = {
             }
         }
     },
+    "bcp-008-01": {
+        "repo": "bcp-008-01",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "receivermonitor": {
+                "name": "Receiver Monitor"
+            }
+        }
+    },
+    "bcp-008-02": {
+        "repo": "bcp-008-02",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "sendermonitor": {
+                "name": "Sender Monitor"
+            }
+        }
+    },
     "bcp-005-01": {
         "repo": "bcp-005-01",
         "versions": ["v1.0"],
