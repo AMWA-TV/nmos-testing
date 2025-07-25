@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from enum import Enum, IntEnum
-from typing import Optional
+from typing import Dict, List, Optional
 from .BCP008Test import BCP008Test, NcLinkStatus, NcOverallStatus, NcStatusMonitorProperties, \
     NcSynchronizationStatus, NcTouchpointNmos
 from ..GenericTest import GenericTest, NMOSTestException
@@ -109,7 +109,7 @@ class BCP0080201Test(BCP008Test):
             "/docs/Overview.html#transmission-error-counters"
 
     # Status property and method IDs
-    def get_domain_status_property_ids(self) -> list[NcPropertyId]:
+    def get_domain_status_property_ids(self) -> List[NcPropertyId]:
         return [NcStatusMonitorProperties.OVERALL_STATUS,
                 NcSenderMonitorProperties.LINK_STATUS,
                 NcSenderMonitorProperties.TRANSMISSION_STATUS,
@@ -122,7 +122,7 @@ class BCP0080201Test(BCP008Test):
     def get_stream_status_transition_counter_property_id(self) -> NcPropertyId:
         return NcSenderMonitorProperties.TRANSMISSION_STATUS_TRANSITION_COUNTER.value
 
-    def get_inactiveable_status_property_ids(self) -> list[NcPropertyId]:
+    def get_inactiveable_status_property_ids(self) -> List[NcPropertyId]:
         return [NcStatusMonitorProperties.OVERALL_STATUS.value,
                 NcSenderMonitorProperties.TRANSMISSION_STATUS.value,
                 NcSenderMonitorProperties.ESSENCE_STATUS.value]
@@ -133,16 +133,16 @@ class BCP0080201Test(BCP008Test):
     def get_sync_source_id_property_id(self) -> NcPropertyId:
         return NcSenderMonitorProperties.SYNCHRONIZATION_SOURCE_ID.value
 
-    def get_healthy_statuses_dict(self) -> dict[NcPropertyId, int]:
+    def get_healthy_statuses_dict(self) -> Dict[NcPropertyId, int]:
         return {NcSenderMonitorProperties.TRANSMISSION_STATUS.value: NcTransmissionStatus.Healthy,
                 NcSenderMonitorProperties.ESSENCE_STATUS.value: NcEssenceStatus.Healthy}
 
-    def get_inactive_statuses_dict(self) -> dict[NcPropertyId, int]:
+    def get_inactive_statuses_dict(self) -> Dict[NcPropertyId, int]:
         return {NcStatusMonitorProperties.OVERALL_STATUS.value: NcOverallStatus.Inactive,
                 NcSenderMonitorProperties.TRANSMISSION_STATUS.value: NcTransmissionStatus.Inactive,
                 NcSenderMonitorProperties.ESSENCE_STATUS.value: NcEssenceStatus.Inactive}
 
-    def get_transition_counter_property_dict(self) -> dict[str, NcPropertyId]:
+    def get_transition_counter_property_dict(self) -> Dict[str, NcPropertyId]:
         # Ignore tranmission error counter in this check:
         # tranmission error counter increments independantly of these tests and therefore
         # cannot be predicted or its value guaranteed at any given time
@@ -155,7 +155,7 @@ class BCP0080201Test(BCP008Test):
                 "EssenceStatusTransitionCounter":
                 NcSenderMonitorProperties.ESSENCE_STATUS_TRANSITION_COUNTER.value}
 
-    def get_status_message_property_dict(self) -> dict[str, NcPropertyId]:
+    def get_status_message_property_dict(self) -> Dict[str, NcPropertyId]:
         return {"OverallStatusMessage":
                 NcStatusMonitorProperties.OVERALL_STATUS_MESSAGE.value,
                 "LinkStatusMessage":
@@ -167,14 +167,14 @@ class BCP0080201Test(BCP008Test):
                 "EssenceStatusMessage":
                 NcSenderMonitorProperties.ESSENCE_STATUS_MESSAGE.value}
 
-    def get_counter_method_ids(self) -> list[NcMethodId]:
+    def get_counter_method_ids(self) -> List[NcMethodId]:
         return [NcSenderMonitorMethods.GET_TRANSMISSION_ERROR_COUNTERS.value]
 
     def get_reset_counter_method_id(self) -> NcMethodId:
         return NcSenderMonitorMethods.RESET_COUNTERS.value
 
     # Resource
-    def get_monitors(self, test: GenericTest) -> list[NcObject]:
+    def get_monitors(self, test: GenericTest) -> List[NcObject]:
         if len(self.resource_monitors):
             return self.resource_monitors
 
@@ -229,7 +229,7 @@ class BCP0080201Test(BCP008Test):
 
         return False
 
-    def check_overall_status(self, monitor: NcObject, statuses: dict[NcPropertyId, int]):
+    def check_overall_status(self, monitor: NcObject, statuses: Dict[NcPropertyId, int]):
         # Devices MUST follow the rules listed below when mapping specific domain statuses
         # in the combined overallStatus:
         # * When the Sender is Inactive the overallStatus uses the Inactive option
@@ -276,7 +276,7 @@ class BCP0080201Test(BCP008Test):
 
         self.check_overall_status_metadata.checked = True
 
-    def validate_status_values(self, monitor: NcObject, statuses: dict[NcPropertyId, int]):
+    def validate_status_values(self, monitor: NcObject, statuses: Dict[NcPropertyId, int]):
         spec_link_root = f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#"
         invalid_statuses = []

@@ -16,7 +16,7 @@ from enum import Enum, IntEnum
 from jinja2 import Template
 from random import randint
 from requests.compat import json
-from typing import Optional
+from typing import Dict, List, Optional
 from uuid import uuid4
 from .BCP008Test import BCP008Test, NcLinkStatus, NcOverallStatus, NcStatusMonitorProperties, NcSynchronizationStatus, \
     NcTouchpointNmos
@@ -86,7 +86,7 @@ class BCP0080101Test(BCP008Test):
         BCP008Test.__init__(self, apis, **kwargs)
         self.sdp_params = None
 
-    def _make_receiver_sdp_params(self, test: GenericTest) -> dict[str, object]:
+    def _make_receiver_sdp_params(self, test: GenericTest) -> Dict[str, object]:
         rtp_receivers = []
         # For each receiver in the NuT make appropriate SDP params
         valid, resources = self.do_request("GET", self.node_url + "receivers")
@@ -192,7 +192,7 @@ class BCP0080101Test(BCP008Test):
             "/docs/Overview.html#late-and-lost-packets"
 
     # Status property and method IDs
-    def get_domain_status_property_ids(self) -> list[NcPropertyId]:
+    def get_domain_status_property_ids(self) -> List[NcPropertyId]:
         return [NcStatusMonitorProperties.OVERALL_STATUS,
                 NcReceiverMonitorProperties.LINK_STATUS,
                 NcReceiverMonitorProperties.CONNECTION_STATUS,
@@ -205,7 +205,7 @@ class BCP0080101Test(BCP008Test):
     def get_stream_status_transition_counter_property_id(self) -> NcPropertyId:
         return NcReceiverMonitorProperties.CONNECTION_STATUS_TRANSITION_COUNTER.value
 
-    def get_inactiveable_status_property_ids(self) -> list[NcPropertyId]:
+    def get_inactiveable_status_property_ids(self) -> List[NcPropertyId]:
         return [NcStatusMonitorProperties.OVERALL_STATUS.value,
                 NcReceiverMonitorProperties.CONNECTION_STATUS.value,
                 NcReceiverMonitorProperties.STREAM_STATUS.value]
@@ -216,16 +216,16 @@ class BCP0080101Test(BCP008Test):
     def get_sync_source_id_property_id(self) -> NcPropertyId:
         return NcReceiverMonitorProperties.SYNCHRONIZATION_SOURCE_ID.value
 
-    def get_healthy_statuses_dict(self) -> dict[NcPropertyId, int]:
+    def get_healthy_statuses_dict(self) -> Dict[NcPropertyId, int]:
         return {NcReceiverMonitorProperties.CONNECTION_STATUS.value: NcConnectionStatus.Healthy,
                 NcReceiverMonitorProperties.STREAM_STATUS.value: NcStreamStatus.Healthy}
 
-    def get_inactive_statuses_dict(self) -> dict[NcPropertyId, int]:
+    def get_inactive_statuses_dict(self) -> Dict[NcPropertyId, int]:
         return {NcStatusMonitorProperties.OVERALL_STATUS.value: NcOverallStatus.Inactive,
                 NcReceiverMonitorProperties.CONNECTION_STATUS.value: NcConnectionStatus.Inactive,
                 NcReceiverMonitorProperties.STREAM_STATUS.value: NcStreamStatus.Inactive}
 
-    def get_transition_counter_property_dict(self) -> dict[str, NcPropertyId]:
+    def get_transition_counter_property_dict(self) -> Dict[str, NcPropertyId]:
         # Ignore late and lost packets in this check:
         # late and lost packet counters increment independantly of these tests and therefore
         # cannot be predicted or their value guaranteed at any given time
@@ -238,7 +238,7 @@ class BCP0080101Test(BCP008Test):
                 "StreamStatusTransitionCounter":
                 NcReceiverMonitorProperties.STREAM_STATUS_TRANSITION_COUNTER.value}
 
-    def get_status_message_property_dict(self) -> dict[str, NcPropertyId]:
+    def get_status_message_property_dict(self) -> Dict[str, NcPropertyId]:
         return {"OverallStatusMessage":
                 NcStatusMonitorProperties.OVERALL_STATUS_MESSAGE.value,
                 "LinkStatusMessage":
@@ -250,7 +250,7 @@ class BCP0080101Test(BCP008Test):
                 "StreamStatusMessage":
                 NcReceiverMonitorProperties.STREAM_STATUS_MESSAGE.value}
 
-    def get_counter_method_ids(self) -> list[NcMethodId]:
+    def get_counter_method_ids(self) -> List[NcMethodId]:
         return [NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS.value,
                 NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS.value]
 
@@ -258,7 +258,7 @@ class BCP0080101Test(BCP008Test):
         return NcReceiverMonitorMethods.RESET_COUNTERS.value
 
     # Resource
-    def get_monitors(self, test) -> list[NcObject]:
+    def get_monitors(self, test) -> List[NcObject]:
         if len(self.resource_monitors):
             return self.resource_monitors
 
@@ -274,21 +274,21 @@ class BCP0080101Test(BCP008Test):
     def get_touchpoint_resource_type(self) -> str:
         return "receiver"
 
-    def activate_resource(self, test, receiver_id):
+    def activate_resource(self, test: GenericTest, resource_id: str):
         if not self.sdp_params:
             self.sdp_params = self._make_receiver_sdp_params(test)
 
-        url = f"single/receivers/{receiver_id}/staged"
+        url = f"single/receivers/{resource_id}/staged"
         activate_json = {"activation": {"mode": "activate_immediate"},
                          "master_enable": True,
                          "sender_id": str(uuid4()),
-                         "transport_file": {"data": self.sdp_params[receiver_id], "type": "application/sdp"}}
+                         "transport_file": {"data": self.sdp_params[resource_id], "type": "application/sdp"}}
 
         valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, activate_json)
         if not valid:
             raise NMOSTestException(test.FAIL(f"Error patching Receiver {str(response)}"))
 
-    def deactivate_resource(self, test, resource_id):
+    def deactivate_resource(self, test: GenericTest, resource_id: str):
         url = f"single/receivers/{resource_id}/staged"
         deactivate_json = {"master_enable": False, 'sender_id': None,
                            "activation": {"mode": "activate_immediate"}}
@@ -307,7 +307,7 @@ class BCP0080101Test(BCP008Test):
 
         return True
 
-    def check_overall_status(self, monitor: NcObject, statuses: dict[NcPropertyId, int]):
+    def check_overall_status(self, monitor: NcObject, statuses: Dict[NcPropertyId, int]):
         # Devices MUST follow the rules listed below when mapping specific domain statuses
         # in the combined overallStatus:
         # * When the Receiver is Inactive the overallStatus uses the Inactive option
@@ -354,7 +354,7 @@ class BCP0080101Test(BCP008Test):
 
         self.check_overall_status_metadata.checked = True
 
-    def validate_status_values(self, monitor: NcObject, statuses: dict[NcPropertyId, int]):
+    def validate_status_values(self, monitor: NcObject, statuses: Dict[NcPropertyId, int]):
         spec_link_root = f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#"
         invalid_statuses = []
@@ -395,10 +395,8 @@ class BCP0080101Test(BCP008Test):
         """Late packet counter increment when presentation is affected by packet arrival errors"""
         # For implementations which cannot measure individual late packets the late counters
         # MUST at the very least increment every time the presentation is affected due to late packet arrival.
-
         return test.MANUAL("Check by manually forcing an error condition")
 
     def test_16(self, test):
         """Late and lost packet counters are reset when a client invokes the ResetCounters method"""
-
         return test.MANUAL("Check manually")
