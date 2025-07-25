@@ -21,7 +21,7 @@ from copy import deepcopy
 from enum import IntEnum, Enum
 from itertools import takewhile, dropwhile
 from jsonschema import FormatChecker, SchemaError, validate, ValidationError
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 from .GenericTest import NMOSTestException, GenericTest
 from .TestResult import Test
@@ -504,7 +504,7 @@ class NcPropertyChangedEventData():
 
 
 class NcObject():
-    def __init__(self, class_id: list, oid: int, owner: Optional[int], role: str, role_path: list,
+    def __init__(self, class_id: List[int], oid: int, owner: Optional[int], role: str, role_path: List[str],
                  runtime_constraints: Optional[NcPropertyConstraints],
                  member_descriptor: NcBlockMemberDescriptor):
         self.class_id = class_id
@@ -517,7 +517,7 @@ class NcObject():
 
 
 class NcBlock(NcObject):
-    def __init__(self, class_id: list, oid: int, owner: Optional[int], role: str, role_path: list,
+    def __init__(self, class_id: List[int], oid: int, owner: Optional[int], role: str, role_path: List[str],
                  runtime_constraints: Optional[NcPropertyConstraints],
                  member_descriptor: NcBlockMemberDescriptor):
         NcObject.__init__(self, class_id, oid, owner, role, role_path, runtime_constraints, member_descriptor)
@@ -527,7 +527,7 @@ class NcBlock(NcObject):
     def add_child_object(self, nc_object):
         self.child_objects.append(nc_object)
 
-    def get_role_paths(self) -> list[list[str]]:
+    def get_role_paths(self) -> List[List[str]]:
         role_paths = []
         for child_object in self.child_objects:
             role_paths.append([child_object.role])
@@ -539,7 +539,7 @@ class NcBlock(NcObject):
                     role_paths.append(role_path)
         return role_paths
 
-    def get_oids(self, root=True) -> list[int]:
+    def get_oids(self, root=True) -> List[int]:
         oids = [self.oid] if root else []
         for child_object in self.child_objects:
             oids.append(child_object.oid)
@@ -562,7 +562,7 @@ class NcBlock(NcObject):
         return ret_val
 
     # NcBlock Methods
-    def get_member_descriptors(self, recurse=False) -> list[NcBlockMemberDescriptor]:
+    def get_member_descriptors(self, recurse=False) -> List[NcBlockMemberDescriptor]:
         query_results = []
         for child_object in self.child_objects:
             query_results.append(child_object.member_descriptor)
@@ -570,7 +570,7 @@ class NcBlock(NcObject):
                 query_results += child_object.get_member_descriptors(recurse)
         return query_results
 
-    def find_members_by_path(self, role_path) -> list[NcBlockMemberDescriptor]:
+    def find_members_by_path(self, role_path) -> List[NcBlockMemberDescriptor]:
         query_results = []
         query_role = role_path[0]
         for child_object in self.child_objects:
@@ -585,7 +585,7 @@ class NcBlock(NcObject):
                              role,
                              case_sensitive=False,
                              match_whole_string=False,
-                             recurse=False) -> list[NcBlockMemberDescriptor]:
+                             recurse=False) -> List[NcBlockMemberDescriptor]:
         def match(query_role, role, case_sensitive, match_whole_string):
             if case_sensitive:
                 return query_role == role if match_whole_string else query_role in role
@@ -606,7 +606,7 @@ class NcBlock(NcObject):
                                  class_id,
                                  include_derived=False,
                                  recurse=False,
-                                 get_objects=False) -> Union[list[NcBlockMemberDescriptor], list[NcObject]]:
+                                 get_objects=False) -> Union[List[NcBlockMemberDescriptor], List[NcObject]]:
         def match(query_class_id, class_id, include_derived):
             if query_class_id == (class_id[:len(query_class_id)] if include_derived else class_id):
                 return True
@@ -626,16 +626,16 @@ class NcBlock(NcObject):
 
 
 class NcManager(NcObject):
-    def __init__(self, class_id: list, oid: int, owner: Optional[int], role: list, role_path: str,
+    def __init__(self, class_id: List[int], oid: int, owner: Optional[int], role: List[str], role_path: str,
                  runtime_constraints: Optional[NcPropertyConstraints],
                  member_descriptor: NcBlockMemberDescriptor):
         NcObject.__init__(self, class_id, oid, owner, role, role_path, runtime_constraints, member_descriptor)
 
 
 class NcClassManager(NcManager):
-    def __init__(self, class_id: list, oid: int, owner: Optional[int], role: list, role_path: str,
-                 class_descriptors: list[NcClassDescriptor],
-                 datatype_descriptors: list[NcDatatypeDescriptor],
+    def __init__(self, class_id: List[int], oid: int, owner: Optional[int], role: List[str], role_path: str,
+                 class_descriptors: List[NcClassDescriptor],
+                 datatype_descriptors: List[NcDatatypeDescriptor],
                  runtime_constraints: Optional[NcPropertyConstraints],
                  member_descriptor: NcBlockMemberDescriptor):
         NcObject.__init__(self, class_id, oid, owner, role, role_path, runtime_constraints, member_descriptor)
@@ -1470,7 +1470,7 @@ class MS05Utils(NMOSUtils):
                        block: NcBlock,
                        get_constraints=False,
                        get_sequences=False,
-                       get_readonly=False) -> list[MS05PropertyMetadata]:
+                       get_readonly=False) -> List[MS05PropertyMetadata]:
 
         def is_read_only(class_id, property_descriptor):
             """Account for Worker enabled property cludge in the BCP-008 specs"""
