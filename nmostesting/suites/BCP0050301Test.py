@@ -386,6 +386,12 @@ class BCP0050301Test(GenericTest):
                     # check sender capability if present
                     if "constraint_sets" in sender["caps"]:
                         for constraint_set in sender["caps"]["constraint_sets"]:
+
+                            # Ignore disabled constraint sets
+                            if ("urn:x-nmos:cap:meta:enabled" in constraint_set and
+                                    not constraint_set["urn:x-nmos:cap:meta:enabled"]):
+                                continue
+
                             if has_key(constraint_set, privacy_capability):
                                 capability = get_key_value(constraint_set, privacy_capability)
                                 if "enum" in capability:
@@ -443,6 +449,10 @@ class BCP0050301Test(GenericTest):
             if msg != "":
                 warning += "|" + msg
 
+            # REFERENCE: The values of the `privacy` attribute parameters in the SDP transport file
+            #            of an active Sender MUST match the values of the active `ext_privacy_*`
+            #            transport parameters of that active Sender.
+            #
             # We do require an active sender to get final parameters and to know if there is
             # really no SDP transport file
             if active["master_enable"]:
@@ -682,7 +692,7 @@ class BCP0050301Test(GenericTest):
                                         else:
                                             pass
 
-                        # REFERENCE: An NMOS API MUST NOT allow to change the state (enabled or disabled) of
+                        # REFERENCE: The IS-05 NMOS API MUST NOT allow to change the state (enabled or disabled) of
                         # privacy encryption.
                         #
                         # It must not be possible to disable privacy encryption unless already disabled
@@ -887,6 +897,12 @@ class BCP0050301Test(GenericTest):
                     # check receiver capability if present
                     if "constraint_sets" in receiver["caps"]:
                         for constraint_set in receiver["caps"]["constraint_sets"]:
+
+                            # Ignore disabled constraint sets
+                            if ("urn:x-nmos:cap:meta:enabled" in constraint_set and
+                                    not constraint_set["urn:x-nmos:cap:meta:enabled"]):
+                                continue
+                    
                             if has_key(constraint_set, privacy_capability):
                                 capability = get_key_value(constraint_set, privacy_capability)
                                 if "enum" in capability:
@@ -1329,9 +1345,17 @@ class BCP0050301Test(GenericTest):
                         return test.DISABLED("sender {} : ECDH mode not supported".format(sender["id"]))
 
                     if active["master_enable"]:
-                        return test.DISABLED("sender {} : testing ECDH private/public keys pair regeneration require"
+                        return test.UNCLEAR("sender {} : testing ECDH private/public keys pair regeneration require"
                                              " inactive senders".format(sender["id"]))
 
+                    # REFERENCE: The [TR-10-13][] expression "becomes inactive", in the context of the ECDH
+                    #            private/public key pair, MUST be interpreted as an activation with `master_enable`
+                    #            set to `false`, resulting in `master_enable` remaining or becoming `false` at the
+                    #            `active` endpoint of a Sender.
+                    #
+                    #            De-activation of a Sender (with `master_enable` set to `false`), MUST regenerate
+                    #            the value of the `ext_privacy_ecdh_sender_public_key` transport parameter, provided
+                    #            that ECDH modes are supported.
                     previous_key = active["transport_params"][i][privacy_ecdh_sender_public_key]
 
                     valid, response = self.updateSenderParameter(
@@ -1523,9 +1547,17 @@ class BCP0050301Test(GenericTest):
                         return test.DISABLED("receiver {} : ECDH mode not supported".format(receiver["id"]))
 
                     if active["master_enable"]:
-                        return test.DISABLED("receiver {} : testing ECDH private/public keys pair regeneration require"
+                        return test.UNCLEAR("receiver {} : testing ECDH private/public keys pair regeneration require"
                                              " inactive receivers".format(receiver["id"]))
 
+                    # REFERENCE: The [TR-10-13][] expression "becomes inactive", in the context of the ECDH
+                    #            private/public key pair, MUST be interpreted as an activation with `master_enable`
+                    #            set to `false`, resulting in `master_enable` remaining or becoming `false` at the
+                    #            `active` endpoint of a Sender.
+                    #
+                    #            De-activation of a Receiver (with `master_enable` set to `false`) MUST regenerate
+                    #            the value of the `ext_privacy_ecdh_receiver_public_key` transport parameter, provided
+                    #            that ECDH modes are supported.
                     previous_key = active["transport_params"][i][privacy_ecdh_receiver_public_key]
 
                     valid, response = self.updateReceiverParameter(
@@ -1781,7 +1813,6 @@ class BCP0050301Test(GenericTest):
                     if privacy_attribute:
                         found_privacy = True
 
-                # SDP transport file must match with capabilities
                 if only_allow_true is not None:
                     # REFERENCE: If the `urn:x-nmos:cap:transport:privacy` capability only allows the value `true`, then
                     #            the Sender's associated SDP transport file MUST have an `privacy` attribute.
@@ -1879,14 +1910,14 @@ class BCP0050301Test(GenericTest):
                             not constraint_set["urn:x-nmos:cap:meta:enabled"]):
                         continue
 
-                    # REFERENCE: A Receiver SHOULD provide a `urn:x-nmos:cap:transport:privacy` capability to indicate
-                    #            its support for Senders that use privacy encryption protocol.
                     if has_key(constraint_set, "cap:transport:privacy"):
                         no_privacy_receivers = False
 
         if no_constraint_sets:
             return test.OPTIONAL("No Receiver describing BCP-004-01 Capabilities found")
 
+        # Note: it is not an error to have a Receiver that is not compliant with BCP-005-03 but it is
+        #       and error if such Receiver has privacy transport parameters. This is tested elsewhere.
         if no_privacy_receivers:
             return test.OPTIONAL("No BCP-005-03 (IPMX/PEP) Receiver found")
 
@@ -1926,6 +1957,404 @@ class BCP0050301Test(GenericTest):
         valid, response = self.is05_utils.checkCleanRequest("PATCH", url, data=data)
 
         return valid, response
+
+    def test_10(self, test):
+        """ Check that senders ECDH private/public key is NOT regenerated on an activation
+            with master_enable set to true """
+
+        reg_api = self.apis["ext-transport-parameters-register"]
+        reg_path = reg_api["spec_path"] + "/transport-parameters"
+
+        valid, result = self.get_is04_resources("senders")
+        if not valid:
+            return test.FAIL(result)
+
+        valid, result = self.get_is05_partial_resources("senders")
+        if not valid:
+            return test.FAIL(result)
+
+        warning = ""
+
+        if len(self.is04_resources["senders"].values()) == 0:
+            return test.UNCLEAR("No Senders were found on the Node")
+
+        no_privacy_senders = True
+
+        for sender in self.is04_resources["senders"].values():
+
+            # REFERENCE: A Sender compliant with this specification MUST provide a privacy Sender attribute to
+            # indicate that privacy encryption and the PEP protocol are used by the Sender.
+            #
+            # being compliant with BCP-005-03 (IPMX/PEP).
+            if not has_key(sender, "privacy"):
+                continue
+
+            no_privacy_senders = False
+
+            reg_schema = load_resolved_schema(reg_path, "ext-constraints-schema.json", path_prefix=False)
+
+            if reg_schema is not None:
+                url = "single/senders/{}/constraints".format(sender["id"])
+                valid, response = self.is05_utils.checkCleanRequest("GET", url)
+                if valid:
+
+                    # There is nothing to validate in the response as there are only constraints
+                    constraints = response.json()
+
+                    try:
+                        for params in constraints:
+                            params = {k: v for k, v in params.items() if k.startswith("ext_privacy")}
+                            self.validate_schema(params, reg_schema)
+                    except ValidationError as e:
+                        return test.FAIL("sender {} : transport parameters constraints do not match schema, error {}"
+                                         .format(sender["id"], e))
+                else:
+                    return test.FAIL("sender {} : request to transport parameters constraints is not valid"
+                                     .format(sender["id"]))
+            else:
+                test.ERROR("Cannot load ext-constraints-schema.json")
+
+            # Now check that the elements of the constraints, stages and active all match
+            reg_schema = load_resolved_schema(reg_path, "sender_transport_params_ext_register.json", path_prefix=False)
+            if reg_schema is None:
+                test.ERROR("Cannot load sender_transport_params_ext_register.json")
+
+            url = "single/senders/{}/staged".format(sender["id"])
+            valid, response = self.is05_utils.checkCleanRequest("GET", url)
+            if not valid:
+                return test.FAIL("sender {} : cannot get sender staged parameters".format(sender["id"]))
+            staged = response.json()
+
+            try:
+                for params in staged['transport_params']:
+                    params = {k: v for k, v in params.items() if k.startswith("ext_privacy")}
+                    self.validate_schema(params, reg_schema)
+            except ValidationError as e:
+                return test.FAIL("sender {} : staged transport parameters do not match schema, error {}"
+                                 .format(sender["id"], e))
+
+            url = "single/senders/{}/active".format(sender["id"])
+            valid, response = self.is05_utils.checkCleanRequest("GET", url)
+            if not valid:
+                return test.FAIL("sender {} : cannot get sender active parameters".format(sender["id"]))
+            active = response.json()
+
+            try:
+                for params in active['transport_params']:
+                    params = {k: v for k, v in params.items() if k.startswith("ext_privacy")}
+                    self.validate_schema(params, reg_schema)
+            except ValidationError as e:
+                return test.FAIL("sender {} : active transport parameters do not match schema, error {}"
+                                 .format(sender["id"], e))
+
+            if (len(constraints) != len(staged["transport_params"])
+                    or len(constraints) != len(active["transport_params"])):
+                return test.FAIL("sender {} : staged, active and constraints arrays are inconsistent"
+                                 .format(sender["id"]))
+
+            # now check transport minimum requirements
+            i = 0
+            for c_params in constraints:
+
+                valid, msg = checkSenderTransportParametersPEP(
+                    sender["transport"],
+                    c_params,
+                    staged["transport_params"][i],
+                    active["transport_params"][i])
+                if not valid:
+                    return test.FAIL("sender {} : active transport parameters is not valid against"
+                                     " minimum requirements, error {}".format(sender["id"], msg))
+                valid, generic, elliptic, msg = self.hasSenderTransportParametersPEP(
+                    sender["transport"],
+                    c_params,
+                    staged["transport_params"][i],
+                    active["transport_params"][i])
+                if not valid:
+                    return test.FAIL("sender {} : active transport parameters is not valid against"
+                                     " minimum requirements, error {}".format(sender["id"], msg))
+
+                null_curve = (privacy_ecdh_curve in constraints[i] and
+                              "enum" in constraints[i][privacy_ecdh_curve] and
+                              "NULL" in constraints[i][privacy_ecdh_curve]["enum"])
+
+                if generic and elliptic:
+
+                    if null_curve:
+                        return test.DISABLED("sender {} : ECDH mode not supported".format(sender["id"]))
+
+                    if not active["master_enable"]:
+                        return test.UNCLEAR("sender {} : testing ECDH private/public keys pair without regeneration"
+                                             " require active senders".format(sender["id"]))
+
+                    # REFERENCE: During an activation (`master_enable` becomes true) or re-activation (`master_enable`
+                    #            remains true), a Sender MAY change all privacy encryption parameters, but the Sender's
+                    #            ECDH private/public key pair MUST remain unchanged.
+                    previous_key = active["transport_params"][i][privacy_ecdh_sender_public_key]
+
+                    valid, response = self.updateSenderParameter(
+                        sender,
+                        True,
+                        privacy_ecdh_sender_public_key,
+                        previous_key,
+                        staged["transport_params"])
+                    if not valid:
+                        return test.FAIL("sender {} : fail activation, response {}".format(sender["id"], response))
+
+                    reg_schema = load_resolved_schema(reg_path, "ext-constraints-schema.json", path_prefix=False)
+
+                    if reg_schema is not None:
+                        url = "single/senders/{}/constraints".format(sender["id"])
+                        valid, response = self.is05_utils.checkCleanRequest("GET", url)
+                        if valid:
+
+                            # There is nothing to validate in the response as there are only constraints
+                            new_constraints = response.json()
+
+                            try:
+                                for params in new_constraints:
+                                    params = {k: v for k, v in params.items() if k.startswith("ext_privacy")}
+                                    self.validate_schema(params, reg_schema)
+                            except ValidationError as e:
+                                return test.FAIL("sender {} : transport parameters constraints do not match schema"
+                                                 ", error {}".format(sender["id"], e))
+                        else:
+                            return test.FAIL("sender {} : request to transport parameters constraints is not valid"
+                                             .format(sender["id"]))
+                    else:
+                        test.ERROR("Cannot load ext-constraints-schema.json")
+
+                    # Now check that the elements of the constraints, stages and active all match
+                    url = "single/senders/{}/staged".format(sender["id"])
+                    valid, response = self.is05_utils.checkCleanRequest("GET", url)
+                    if not valid:
+                        return test.FAIL("sender {} : cannot get sender staged parameters".format(sender["id"]))
+                    new_staged = response.json()
+
+                    url = "single/senders/{}/active".format(sender["id"])
+                    valid, response = self.is05_utils.checkCleanRequest("GET", url)
+                    if not valid:
+                        return test.FAIL("sender {} : cannot get sender active parameters".format(sender["id"]))
+                    new_active = response.json()
+
+                    if (len(new_constraints) != len(new_staged["transport_params"])
+                            or len(new_constraints) != len(new_active["transport_params"])):
+                        return test.FAIL("sender {} : staged, active and constraints arrays are inconsistent"
+                                         .format(sender["id"]))
+
+                    if previous_key != new_staged["transport_params"][i][privacy_ecdh_sender_public_key]:
+                        return test.FAIL("sender {} : ECDH private/public key {} regenerated on staged endpoint"
+                                         " at de-activation".format(sender["id"], previous_key))
+
+                    if previous_key != new_active["transport_params"][i][privacy_ecdh_sender_public_key]:
+                        return test.FAIL("sender {} : ECDH private/public key {} regenerated on active endpoint"
+                                         " at de-activation".format(sender["id"], previous_key))
+
+                i = i + 1
+
+        if no_privacy_senders:
+            return test.OPTIONAL("No BCP-005-03 (IPMX/PEP) Sender found")
+
+        if warning != "":
+            return test.WARNING(warning)
+        else:
+            return test.PASS()
+
+    def test_11(self, test):
+        """ Check that receivers ECDH private/public key is NOT regenerated on an activation
+            with master_enable set to true """
+
+        reg_api = self.apis["ext-transport-parameters-register"]
+        reg_path = reg_api["spec_path"] + "/transport-parameters"
+
+        valid, result = self.get_is04_resources("receivers")
+        if not valid:
+            return test.FAIL(result)
+
+        valid, result = self.get_is05_partial_resources("receivers")
+        if not valid:
+            return test.FAIL(result)
+
+        warning = ""
+
+        if len(self.is04_resources["receivers"].values()) == 0:
+            return test.UNCLEAR("No Receivers were found on the Node")
+
+        no_privacy_receivers = True
+
+        for receiver in self.is04_resources["receivers"].values():
+
+            reg_schema = load_resolved_schema(reg_path, "ext-constraints-schema.json", path_prefix=False)
+
+            if reg_schema is not None:
+                url = "single/receivers/{}/constraints".format(receiver["id"])
+                valid, response = self.is05_utils.checkCleanRequest("GET", url)
+                if valid:
+
+                    # There is nothing to validate in the response as there are only constraints
+                    constraints = response.json()
+
+                    try:
+                        for params in constraints:
+                            params = {k: v for k, v in params.items() if k.startswith("ext_privacy")}
+                            self.validate_schema(params, reg_schema)
+                    except ValidationError as e:
+                        return test.FAIL("receiver {} : transport parameters constraints do not match schema"
+                                         ", error {}".format(receiver["id"], e))
+                else:
+                    return test.FAIL("receiver {} : request to transport parameters constraints is not valid"
+                                     .format(receiver["id"]))
+            else:
+                test.ERROR("Cannot load ext-constraints-schema.json")
+
+            # Now check that the elements of the constraints, stages and active all match
+            reg_schema = load_resolved_schema(reg_path,
+                                              "receiver_transport_params_ext_register.json",
+                                              path_prefix=False)
+            if reg_schema is None:
+                test.ERROR("Cannot load receiver_transport_params_ext_register.json")
+
+            url = "single/receivers/{}/staged".format(receiver["id"])
+            valid, response = self.is05_utils.checkCleanRequest("GET", url)
+            if not valid:
+                return test.FAIL("receiver {} : cannot get receiver staged parameters".format(receiver["id"]))
+            staged = response.json()
+
+            try:
+                for params in staged['transport_params']:
+                    params = {k: v for k, v in params.items() if k.startswith("ext_privacy")}
+                    self.validate_schema(params, reg_schema)
+            except ValidationError as e:
+                return test.FAIL("receiver {} : staged transport parameters do not match schema, error {}"
+                                 .format(receiver["id"], e))
+
+            url = "single/receivers/{}/active".format(receiver["id"])
+            valid, response = self.is05_utils.checkCleanRequest("GET", url)
+            if not valid:
+                return test.FAIL("receiver {} : cannot get receiver active parameters".format(receiver["id"]))
+            active = response.json()
+
+            try:
+                for params in active['transport_params']:
+                    params = {k: v for k, v in params.items() if k.startswith("ext_privacy")}
+                    self.validate_schema(params, reg_schema)
+            except ValidationError as e:
+                return test.FAIL("receiver {} : active transport parameters do not match schema, error {}"
+                                 .format(receiver["id"], e))
+
+            if (len(constraints) != len(staged["transport_params"])
+                    or len(constraints) != len(active["transport_params"])):
+                return test.FAIL("receiver {} : staged, active and constraints arrays are inconsistent"
+                                 .format(receiver["id"]))
+
+            # now check transport minimum requirements
+            i = 0
+            for c_params in constraints:
+
+                valid, msg = checkReceiverTransportParametersPEP(
+                    receiver["transport"],
+                    c_params,
+                    staged["transport_params"][i],
+                    active["transport_params"][i])
+                if not valid:
+                    return test.FAIL("receiver {} : active transport parameters is not valid against"
+                                     " minimum requirements, error {}".format(receiver["id"], msg))
+                valid, generic, elliptic, msg = self.hasReceiverTransportParametersPEP(
+                    receiver["transport"],
+                    c_params,
+                    staged["transport_params"][i],
+                    active["transport_params"][i])
+                if not valid:
+                    return test.FAIL("receiver {} : active transport parameters is not valid against"
+                                     " minimum requirements, error {}".format(receiver["id"], msg))
+
+                null_curve = (privacy_ecdh_curve in constraints[i] and
+                              "enum" in constraints[i][privacy_ecdh_curve] and
+                              "NULL" in constraints[i][privacy_ecdh_curve]["enum"])
+
+                if generic:
+                    no_privacy_receivers = False
+
+                if generic and elliptic:
+
+                    if null_curve:
+                        return test.DISABLED("receiver {} : ECDH mode not supported".format(receiver["id"]))
+
+                    if not active["master_enable"]:
+                        return test.UNCLEAR("receiver {} : testing ECDH private/public keys pair without regeneration"
+                                             " require active receivers".format(receiver["id"]))
+
+                    # REFERENCE: During an activation (`master_enable` becomes `true`) or re-activation (`master_enable`
+                    #            remains true), a Receiver MAY change all privacy encryption parameters, but the
+                    #            Receiver's ECDH private/public key pair MUST remain unchanged.
+                    previous_key = active["transport_params"][i][privacy_ecdh_receiver_public_key]
+
+                    valid, response = self.updateReceiverParameter(
+                        receiver,
+                        True,
+                        privacy_ecdh_receiver_public_key,
+                        previous_key,
+                        staged["transport_params"])
+                    if not valid:
+                        return test.FAIL("receiver {} : fail activation, response {}".format(receiver["id"], response))
+
+                    reg_schema = load_resolved_schema(reg_path, "ext-constraints-schema.json", path_prefix=False)
+
+                    if reg_schema is not None:
+                        url = "single/receivers/{}/constraints".format(receiver["id"])
+                        valid, response = self.is05_utils.checkCleanRequest("GET", url)
+                        if valid:
+
+                            # There is nothing to validate in the response as there are only constraints
+                            new_constraints = response.json()
+
+                            try:
+                                for params in new_constraints:
+                                    params = {k: v for k, v in params.items() if k.startswith("ext_privacy")}
+                                    self.validate_schema(params, reg_schema)
+                            except ValidationError as e:
+                                return test.FAIL("receiver {} : transport parameters constraints do not match schema"
+                                                 ", error {}".format(receiver["id"], e))
+                        else:
+                            return test.FAIL("receiver {} : request to transport parameters constraints is not valid"
+                                             .format(receiver["id"]))
+                    else:
+                        test.ERROR("Cannot load ext-constraints-schema.json")
+
+                    # Now check that the elements of the constraints, stages and active all match
+                    url = "single/receivers/{}/staged".format(receiver["id"])
+                    valid, response = self.is05_utils.checkCleanRequest("GET", url)
+                    if not valid:
+                        return test.FAIL("receiver {} : cannot get receiver staged parameters".format(receiver["id"]))
+                    new_staged = response.json()
+
+                    url = "single/receivers/{}/active".format(receiver["id"])
+                    valid, response = self.is05_utils.checkCleanRequest("GET", url)
+                    if not valid:
+                        return test.FAIL("receiver {} : cannot get receiver active parameters".format(receiver["id"]))
+                    new_active = response.json()
+
+                    if (len(new_constraints) != len(new_staged["transport_params"])
+                            or len(new_constraints) != len(new_active["transport_params"])):
+                        return test.FAIL("receiver {} : staged, active and constraints arrays are inconsistent"
+                                         .format(receiver["id"]))
+
+                    if previous_key != new_staged["transport_params"][i][privacy_ecdh_receiver_public_key]:
+                        return test.FAIL("receiver {} : ECDH private/public key {} regenerated on staged endpoint"
+                                         " at de-activation".format(receiver["id"], previous_key))
+
+                    if previous_key != new_active["transport_params"][i][privacy_ecdh_receiver_public_key]:
+                        return test.FAIL("receiver {} : ECDH private/public key {} regenerated on active endpoint"
+                                         " at de-activation".format(receiver["id"], previous_key))
+
+                i = i + 1
+
+        if no_privacy_receivers:
+            return test.OPTIONAL("No BCP-005-03 (IPMX/PEP) Receiver found")
+
+        if warning != "":
+            return test.WARNING(warning)
+        else:
+            return test.PASS()
 
     def hasSenderTransportParametersPEP(self, transport, constraints, staged, active):
 
@@ -2403,7 +2832,8 @@ class BCP0050301Test(GenericTest):
 
         if is_sender:
             # REFERENCE: Each Sender using privacy encryption MUST be associated with a provisioned
-            # PSK via its key_id.
+            # PSK via its key_id. A Sender that is not associated with a PSK MUST NOT expose the
+            # IS-05 extended transport parameters of the Privacy Encryption Protocol.
             #
             # The key_id parameter constraints MUST allow only one value an be properly formatted
             if "enum" not in constraints[privacy_key_id]:
@@ -2456,7 +2886,9 @@ class BCP0050301Test(GenericTest):
             # REFERENCE: A Receiver MUST populate the ext_privacy_key_id extended transport parameter
             # in the IS-05 constraints endpoint with all acceptable key_id values. At activation time,
             # a Receiver using privacy encryption becomes associated with one of the provisioned PSKs
-            # through the ext_privacy_key_id extended transport parameter.
+            # through the ext_privacy_key_id extended transport parameter. A Receiver that is not
+            # associated with any PSK MUST NOT expose the IS-05 extended transport parameters of the
+            # Privacy Encryption Protocol.
             if master_enable:
                 if staged[privacy_key_id] not in enums:
                     return False, "{} {} : {} staged value {} is not within constraints {}".format(
