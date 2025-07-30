@@ -23,7 +23,8 @@ from ..Config import MS05_INVASIVE_TESTING
 from ..GenericTest import GenericTest, NMOSTestException
 from ..MS05Utils import NcBlock, NcBlockMemberDescriptor, NcBlockProperties, NcClassDescriptor, \
     NcDatatypeDescriptor, NcDatatypeType, NcMethodResult, NcMethodResultError, NcObject, NcObjectProperties, \
-    NcPropertyDescriptor, NcPropertyId, StandardClassIds
+    NcParameterConstraints, NcParameterConstraintsNumber, NcParameterConstraintsString, NcPropertyConstraints, \
+    NcPropertyConstraintsNumber, NcPropertyConstraintsString, NcPropertyDescriptor, NcPropertyId, StandardClassIds
 from ..IS14Utils import IS14Utils
 from .MS0501Test import MS0501Test
 
@@ -1561,4 +1562,148 @@ class IS1401Test(MS0501Test):
         if not test_metadata.checked:
             return test.UNCLEAR()
 
+        return test.PASS()
+
+    def _generate_incorrect_parameter(self,
+                                      test: GenericTest,
+                                      type_name: str,
+                                      property_descriptor: NcPropertyDescriptor,
+                                      original_value: any) -> any:
+        """Generate a value of the incorrect data type"""
+        class_manager = self.is14_utils.get_class_manager(test)
+        datatype_descriptor = class_manager.get_datatype(type_name)
+
+        if not property_descriptor.isNullable:
+            return None
+
+        if original_value is not None and isinstance(original_value, list) and property_descriptor.isSequence:
+            return original_value[0]
+
+        if datatype_descriptor.type == NcDatatypeType.Primitive:
+            return {"name": "incorrect", "description": "datatype"}
+
+        if datatype_descriptor.type == NcDatatypeType.Enum:
+            return {"name": "incorrect", "description": "datatype"}
+
+        if datatype_descriptor.type == NcDatatypeType.Struct:
+            return "Incorrect datatype"
+
+        if datatype_descriptor.type == NcDatatypeType.Typedef:
+            return self._generate_incorrect_parameter(test,
+                                                      datatype_descriptor.parentType,
+                                                      property_descriptor,
+                                                      original_value)
+
+        # If it got this far something has gone badly wrong
+        raise NMOSTestException(test.FAIL(f"Unknown MS-05 datatype type: {datatype_descriptor.type}"))
+
+    def test_26(self, test):
+        """Node under test handles incorrect datatypes in restore"""
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties"
+
+        bulk_properties_holder = self._get_bulk_properties_holder(test, bulk_properties_endpoint)
+
+        device_model = self.is14_utils.query_device_model(test)
+        properties_under_test = self.is14_utils.get_properties(test, device_model, get_readonly=True)
+
+        # Create a dict of properties to remove from bulk properties holder
+        properties_under_test_list = [".".join(p.role_path) + str(p.descriptor.id) for p in properties_under_test]
+
+        # Filter out the read only properties
+        bulk_properties_holder = self._filter_property_holders(bulk_properties_holder,
+                                                               properties_under_test_list,
+                                                               include=False)
+
+        if len(bulk_properties_holder.values) == 0:
+            return test.UNCLEAR("No writable properties found")
+
+        for object_properties_holder in bulk_properties_holder.values:
+            for property_holder in object_properties_holder.values:
+                incorrect_data_type = self._generate_incorrect_parameter(test,
+                                                                         property_holder.descriptor.typeName,
+                                                                         property_holder.descriptor,
+                                                                         property_holder.value)
+                property_holder.value = incorrect_data_type
+
+        test_metadata = IS1401Test.TestMetadata()
+        validations = self._validate_bulk_properties_holder(test,
+                                                            test_metadata,
+                                                            bulk_properties_endpoint,
+                                                            bulk_properties_holder)
+        # filter the property holders that have errors or warnings (which should be all of them)
+        problem_properties = self._create_notices_list(validations)
+
+        # Remove the problem properties from the dataset
+        bulk_properties_holder = self._filter_property_holders(bulk_properties_holder, problem_properties)
+
+        for object_properties_holder in bulk_properties_holder.values:
+            for property_holder in object_properties_holder.values:
+                test_metadata.error = True
+                test_metadata.error_msg += "Incorrect datatype should error or warn: " \
+                                           f"path={object_properties_holder.path}, " \
+                                           f"property descriptor={property_holder.descriptor}, " \
+                                           f"successfully to set to illegal value={property_holder.value}; "
+        if test_metadata.error:
+            return test.FAIL(test_metadata.error_msg)
+        return test.PASS()
+
+    def _generate_constraint_violation_parameter(self,
+                                                 test: GenericTest,
+                                                 constraints: Union[NcPropertyConstraints,
+                                                                    NcParameterConstraints]) -> any:
+        """Generate a value that violates the supplied constraints"""
+        if isinstance(constraints, (NcPropertyConstraintsNumber, NcParameterConstraintsNumber)):
+            return self._generate_number_parameters(constraints, violate_constraints=True)[0]
+        if isinstance(constraints, (NcPropertyConstraintsString, NcParameterConstraintsString)):
+            return self._generate_string_parameters(constraints, violate_constraints=True)[0]
+
+        # If it got this far something has gone badly wrong
+        raise NMOSTestException(test.FAIL(f"Unknown MS-05 constraint type: {constraints}"))
+
+    def test_27(self, test):
+        """Node under test handles constraint violations"""
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties"
+
+        bulk_properties_holder = self._get_bulk_properties_holder(test, bulk_properties_endpoint)
+
+        device_model = self.is14_utils.query_device_model(test)
+        properties_under_test = self.is14_utils.get_properties(test, device_model, get_constraints=True)
+
+        # Create a dict of properties to remove from bulk properties holder
+        properties_under_test_list = [".".join(p.role_path) + str(p.descriptor.id) for p in properties_under_test]
+
+        # Filter out all but the constrained properties
+        bulk_properties_holder = self._filter_property_holders(bulk_properties_holder,
+                                                               properties_under_test_list,
+                                                               include=True)
+
+        if len(bulk_properties_holder.values) == 0:
+            return test.UNCLEAR("No constrained properties found")
+
+        for object_properties_holder in bulk_properties_holder.values:
+            for property_holder in object_properties_holder.values:
+                incorrect_value = self._generate_constraint_violation_parameter(test,
+                                                                                property_holder.descriptor.constraints)
+                property_holder.value = incorrect_value
+
+        test_metadata = IS1401Test.TestMetadata()
+        validations = self._validate_bulk_properties_holder(test,
+                                                            test_metadata,
+                                                            bulk_properties_endpoint,
+                                                            bulk_properties_holder)
+        # filter the property holders that have errors or warnings (which should be all of them)
+        problem_properties = self._create_notices_list(validations)
+
+        # Remove the problem properties from the dataset
+        bulk_properties_holder = self._filter_property_holders(bulk_properties_holder, problem_properties)
+
+        for object_properties_holder in bulk_properties_holder.values:
+            for property_holder in object_properties_holder.values:
+                test_metadata.error = True
+                test_metadata.error_msg += "Constraint violation not handled: " \
+                                           f"path={object_properties_holder.path}, " \
+                                           f"property descriptor={property_holder.descriptor}, " \
+                                           f"successfully to set to illegal value={property_holder.value}; "
+        if test_metadata.error:
+            return test.FAIL(test_metadata.error_msg)
         return test.PASS()

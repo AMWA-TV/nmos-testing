@@ -218,7 +218,7 @@ class NcPropertyDescriptor(NcDescriptor):
 
     def __str__(self):
         return f"[id={self.id}, name={self.name}, typeName={self.typeName}, " \
-            f"isReadOnly={self.isReadOnly}, owner={self.isNullable}, " \
+            f"isReadOnly={self.isReadOnly}, isNullable={self.isNullable}, " \
             f"isSequence={self.isSequence}, isDeprecated={self.isDeprecated}, " \
             f"constraints={self.constraints}]"
 
