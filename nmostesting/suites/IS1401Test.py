@@ -1363,7 +1363,7 @@ class IS1401Test(MS0501Test):
             return test.WARNING(check_rebuild_objects_metadata.error_msg)
 
         if not check_rebuild_objects_metadata.checked:
-            return test.UNCLEAR("Unable to modify any read only properties in rebuildable objects")
+            return test.UNCLEAR("No modifiable read only properties found")
 
         return test.PASS()
 
@@ -1577,7 +1577,7 @@ class IS1401Test(MS0501Test):
             return None
 
         if original_value is not None and isinstance(original_value, list) and property_descriptor.isSequence:
-            return original_value[0]
+            return original_value[0] if len(original_value) else 0
 
         if datatype_descriptor.type == NcDatatypeType.Primitive:
             return {"name": "incorrect", "description": "datatype"}
@@ -1619,12 +1619,10 @@ class IS1401Test(MS0501Test):
 
         for object_properties_holder in bulk_properties_holder.values:
             for property_holder in object_properties_holder.values:
-                incorrect_data_type = self._generate_incorrect_parameter(test,
-                                                                         property_holder.descriptor.typeName,
-                                                                         property_holder.descriptor,
-                                                                         property_holder.value)
-                property_holder.value = incorrect_data_type
-
+                property_holder.value = self._generate_incorrect_parameter(test,
+                                                                           property_holder.descriptor.typeName,
+                                                                           property_holder.descriptor,
+                                                                           property_holder.value)
         test_metadata = IS1401Test.TestMetadata()
         validations = self._validate_bulk_properties_holder(test,
                                                             test_metadata,
@@ -1653,9 +1651,11 @@ class IS1401Test(MS0501Test):
                                                                     NcParameterConstraints]) -> any:
         """Generate a value that violates the supplied constraints"""
         if isinstance(constraints, (NcPropertyConstraintsNumber, NcParameterConstraintsNumber)):
-            return self._generate_number_parameters(constraints, violate_constraints=True)[0]
+            number_parameters = self._generate_number_parameters(constraints, violate_constraints=True)
+            return number_parameters[0] if len(number_parameters) else None
         if isinstance(constraints, (NcPropertyConstraintsString, NcParameterConstraintsString)):
-            return self._generate_string_parameters(constraints, violate_constraints=True)[0]
+            string_parameters = self._generate_string_parameters(constraints, violate_constraints=True)
+            return string_parameters[0] if len(string_parameters) else None
 
         # If it got this far something has gone badly wrong
         raise NMOSTestException(test.FAIL(f"Unknown MS-05 constraint type: {constraints}"))
@@ -1677,26 +1677,39 @@ class IS1401Test(MS0501Test):
                                                                properties_under_test_list,
                                                                include=True)
 
-        if len(bulk_properties_holder.values) == 0:
-            return test.UNCLEAR("No constrained properties found")
-
+        constraints_dict = {".".join(p.role_path) + str(p.descriptor.id): p.constraints for p in properties_under_test}
+        ignore_properties_list = []
         for object_properties_holder in bulk_properties_holder.values:
             for property_holder in object_properties_holder.values:
-                incorrect_value = self._generate_constraint_violation_parameter(test,
-                                                                                property_holder.descriptor.constraints)
-                property_holder.value = incorrect_value
+                key = ".".join(object_properties_holder.path) + str(property_holder.id)
+                constraints = constraints_dict[key]
+                parameter = self._generate_constraint_violation_parameter(test, constraints)
+                if parameter is None:
+                    # If we can't create a value that violates constraints then ignore this property
+                    ignore_properties_list.append(key)
+                else:
+                    property_holder.value = parameter
+
+        # Filter out ignored properties
+        bulk_properties_holder = self._filter_property_holders(bulk_properties_holder,
+                                                               ignore_properties_list,
+                                                               include=False)
+        # If there are no properties left to test, we can't test
+        if len(bulk_properties_holder.values) == 0:
+            return test.UNCLEAR("No testable constrained properties found")
 
         test_metadata = IS1401Test.TestMetadata()
         validations = self._validate_bulk_properties_holder(test,
                                                             test_metadata,
                                                             bulk_properties_endpoint,
                                                             bulk_properties_holder)
-        # filter the property holders that have errors or warnings (which should be all of them)
+        # Filter the property holders that have errors or warnings (which should be all of them)
         problem_properties = self._create_notices_list(validations)
 
         # Remove the problem properties from the dataset
         bulk_properties_holder = self._filter_property_holders(bulk_properties_holder, problem_properties)
 
+        # Any properties left have were not handled correctly
         for object_properties_holder in bulk_properties_holder.values:
             for property_holder in object_properties_holder.values:
                 test_metadata.error = True
