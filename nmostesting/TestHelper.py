@@ -25,12 +25,14 @@ import os
 import jsonref
 import netifaces
 import paho.mqtt.client as mqtt
-from copy import copy
+from copy import deepcopy
 from pathlib import Path
 from enum import IntEnum
 from numbers import Number
 from functools import cmp_to_key
 from collections.abc import KeysView
+from threading import Lock
+from time import time
 from urllib.parse import urlparse
 
 from . import Config as CONFIG
@@ -287,6 +289,11 @@ def check_content_type(headers, expected_type="application/json"):
 class WebsocketWorker(threading.Thread):
     """Websocket Client Worker Thread"""
 
+    class Message():
+        def __init__(self, message):
+            self.received_time = time()
+            self.message = message
+
     def __init__(self, ws_href):
         """
         Initializer
@@ -313,6 +320,7 @@ class WebsocketWorker(threading.Thread):
         self.error_occurred = False
         self.connected = False
         self.error_message = ""
+        self.mutex = Lock()
 
     def run(self):
         url = urlparse(self.ws.url)
@@ -326,7 +334,8 @@ class WebsocketWorker(threading.Thread):
         self.connected = True
 
     def on_message(self, ws, message):
-        self.messages.append(message)
+        with self.mutex:
+            self.messages.append(WebsocketWorker.Message(message))
 
     def on_close(self, ws, close_status, close_message):
         self.connected = False
@@ -347,8 +356,15 @@ class WebsocketWorker(threading.Thread):
         return self.connected
 
     def get_messages(self):
-        msg_cpy = copy(self.messages)
-        self.clear_messages()  # Reset message list after reading
+        with self.mutex:
+            msg_cpy = [m.message for m in self.messages]
+            self.messages.clear()  # Reset message list after reading
+        return msg_cpy
+
+    def get_timestamped_messages(self):
+        with self.mutex:
+            msg_cpy = deepcopy(self.messages)
+            self.messages.clear()  # Reset message list after reading
         return msg_cpy
 
     def did_error_occur(self):
@@ -361,7 +377,8 @@ class WebsocketWorker(threading.Thread):
         return len(self.messages) > 0
 
     def clear_messages(self):
-        self.messages.clear()
+        with self.mutex:
+            self.messages.clear()
 
 
 class MQTTClientWorker:
