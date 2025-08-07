@@ -171,29 +171,29 @@ class Registry(object):
                 break
         return path_match
 
-    def check_authorized(self, headers, path, write=False):
+    def check_authorized(self, headers, path, scopes=["x-nmos-registration"], write=False):
         if ENABLE_AUTH:
             try:
+                if "Authorization" not in request.headers:
+                    return 400, "Authorization header not found"
                 if not request.headers["Authorization"].startswith("Bearer "):
-                    return 400
+                    return 400, "Bearer not found in Authorization header"
                 token = request.headers["Authorization"].split(" ")[1]
                 claims = jwt.decode(token, PRIMARY_AUTH.generate_jwk())
                 claims.validate()
                 if claims["iss"] != PRIMARY_AUTH.make_issuer():
-                    return 401
+                    return 401, f"Unexpected issuer, expected: {PRIMARY_AUTH.make_issuer()}, actual: {claims['iss']}"
                 # TODO: Check 'aud' claim matches 'mocks.<domain>'
-                if not self._check_path_match(path, claims["x-nmos-registration"]["read"]):
-                    return 403
-                if write:
-                    if not self._check_path_match(path, claims["x-nmos-registration"]["write"]):
-                        return 403
-            except KeyError:
-                # TODO: Add debug which can be returned in the error response JSON
-                return 400
-            except Exception:
-                # TODO: Add debug which can be returned in the error response JSON
-                return 400
-        return True
+                for scope in scopes:
+                    if not self._check_path_match(path, claims[scope]["read"]):
+                        return 403, f"Paths mismatch for {scope} read claims"
+                    if write and not self._check_path_match(path, claims[scope]["write"]):
+                        return 403, f"Paths mismatch for {scope} write claims"
+            except KeyError as err:
+                return 400, f"KeyError: {err}"
+            except Exception as err:
+                return 400, f"Exception: {err}"
+        return True, ""
 
     # Query API subscription support methods
 
@@ -351,9 +351,11 @@ def registration_root():
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
+    authorized, error_message = registry.check_authorized(request.headers,
+                                                          request.path,
+                                                          scopes=["x-nmos-registration"])
     if authorized is not True:
-        abort(authorized)
+        abort(authorized, description=error_message)
 
     base_data = [version + '/' for version in SPECIFICATIONS["is-04"]["versions"]]
 
@@ -366,9 +368,11 @@ def base_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
+    authorized, error_message = registry.check_authorized(request.headers,
+                                                          request.path,
+                                                          scopes=["x-nmos-registration"])
     if authorized is not True:
-        abort(authorized)
+        abort(authorized, description=error_message)
     base_data = ["resource/", "health/"]
     # Using json.dumps to support older Flask versions http://flask.pocoo.org/docs/1.0/security/#json-security
 
@@ -380,9 +384,12 @@ def post_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
-    authorized = registry.check_authorized(request.headers, request.path, True)
+    authorized, error_message = registry.check_authorized(request.headers,
+                                                          request.path,
+                                                          scopes=["x-nmos-registration"],
+                                                          write=True)
     if authorized is not True:
-        abort(authorized)
+        abort(authorized, description=error_message)
     if not registry.test_first_reg:
         registered = False
         try:
@@ -410,9 +417,12 @@ def delete_resource(version, resource_type, resource_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
-    authorized = registry.check_authorized(request.headers, request.path, True)
+    authorized, error_message = registry.check_authorized(request.headers,
+                                                          request.path,
+                                                          scopes=["x-nmos-registration"],
+                                                          write=True)
     if authorized is not True:
-        abort(authorized)
+        abort(authorized, description=error_message)
     resource_type = resource_type.rstrip("s")
     if not registry.test_first_reg:
         registered = False
@@ -444,9 +454,12 @@ def heartbeat(version, node_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
-    authorized = registry.check_authorized(request.headers, request.path, True)
+    authorized, error_message = registry.check_authorized(request.headers,
+                                                          request.path,
+                                                          scopes=["x-nmos-registration"],
+                                                          write=True)
     if authorized is not True:
-        abort(authorized)
+        abort(authorized, description=error_message)
     if node_id in registry.get_resources()["node"]:
         # store raw request payload, in order to check for empty request bodies later
         try:
@@ -463,9 +476,11 @@ def query_root():
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
+    authorized, error_message = registry.check_authorized(request.headers,
+                                                          request.path,
+                                                          scopes=["x-nmos-query"])
     if authorized is not True:
-        abort(authorized)
+        abort(authorized, description=error_message)
 
     base_data = [version + '/' for version in SPECIFICATIONS["is-04"]["versions"]]
 
@@ -477,9 +492,11 @@ def query(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
+    authorized, error_message = registry.check_authorized(request.headers,
+                                                          request.path,
+                                                          scopes=["x-nmos-query"])
     if authorized is not True:
-        abort(authorized)
+        abort(authorized, description=error_message)
 
     registry.requested_query_api_version = version
 
@@ -501,9 +518,11 @@ def query_resource(version, resource):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
+    authorized, error_message = registry.check_authorized(request.headers,
+                                                          request.path,
+                                                          scopes=["x-nmos-query"])
     if authorized is not True:
-        abort(authorized)
+        abort(authorized, description=error_message)
 
     registry.requested_query_api_version = version
 
@@ -626,9 +645,11 @@ def get_resource(version, resource, resource_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
+    authorized, error_message = registry.check_authorized(request.headers,
+                                                          request.path,
+                                                          scopes=["x-nmos-query"])
     if authorized is not True:
-        abort(authorized)
+        abort(authorized, description=error_message)
 
     registry.requested_query_api_version = version
     registry.query_api_called = True
@@ -652,9 +673,12 @@ def post_subscription(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
+    authorized, error_message = registry.check_authorized(request.headers,
+                                                          request.path,
+                                                          scopes=["x-nmos-query"],
+                                                          write=True)
     if authorized is not True:
-        abort(authorized)
+        abort(authorized, description=error_message)
 
     registry.requested_query_api_version = version
     subscription_request = request.json
@@ -696,9 +720,12 @@ def delete_subscription(version, subscription_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
+    authorized, error_message = registry.check_authorized(request.headers,
+                                                          request.path,
+                                                          scopes=["x-nmos-query"],
+                                                          write=True)
     if authorized is not True:
-        abort(authorized)
+        abort(authorized, description=error_message)
 
     registry.requested_query_api_version = version
 

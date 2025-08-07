@@ -302,10 +302,6 @@ def auth_auth():
         # Recommended parameters
         #   state
 
-        ctype_valid, ctype_message = check_content_type(request.headers, "application/x-www-form-urlencoded")
-        if not ctype_valid:
-            raise AuthException("invalid_request", ctype_message)
-
         # hmm, no client authorization done, just redirects a random authorization code back to the client
         # TODO: add web pages for client authorization for the future
 
@@ -370,7 +366,6 @@ def auth_auth():
 def auth_token():
     auth = AUTHS[flask.current_app.config["AUTH_INSTANCE"]]
     try:
-        auth_header_required = False
         scopes = []
 
         ctype_valid, ctype_message = check_content_type(request.headers, "application/x-www-form-urlencoded")
@@ -395,13 +390,12 @@ def auth_token():
 
             refresh_token = query["refresh_token"][0] if "refresh_token" in query else None
 
+            # Scope query parameter is OPTIONAL https://datatracker.ietf.org/doc/html/rfc6749#section-6
             scopes = query["scope"][0].split() if "scope" in query else SCOPE.split() if SCOPE else []
             if scopes:
                 scope_found = IS10Utils.is_any_contain(scopes, SCOPES)
                 if not scope_found:
                     raise AuthException("invalid_scope", "scope: {} are not supported".format(scopes))
-            else:
-                raise AuthException("invalid_scope", "empty scope")
 
             if grant_type:
                 # Authorization Code Grant
@@ -484,8 +478,6 @@ def auth_token():
                 else:
                     raise AuthException("unsupported_grant_type",
                                         "missing client_assertion_type used for private_key_jwt client authentication")
-            else:
-                auth_header_required = True
 
         # for the Confidential client, client_id and client_secret are embedded in the Authorization header
         auth_header = request.headers.get("Authorization", None)
@@ -504,8 +496,6 @@ def auth_token():
                                         "missing client_id or client_secret from authorization header")
             else:
                 raise AuthException("invalid_client", "invalid authorization header")
-        elif auth_header_required:
-            raise AuthException("invalid_client", "invalid authorization header", HTTPStatus.UNAUTHORIZED)
 
         # client_id MUST be provided by all types of client
         if not client_id:
