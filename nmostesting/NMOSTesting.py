@@ -84,11 +84,14 @@ from .suites import IS0902Test
 # from .suites import IS1001Test
 from .suites import IS1101Test
 from .suites import IS1201Test
+from .suites import IS1401Test
 from .suites import BCP00301Test
 from .suites import BCP0050101Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
 from .suites import BCP00604Test
+from .suites import BCP0080101Test
+from .suites import BCP0080201Test
 from .suites import BCP0050301Test
 
 FLASK_APPS = []
@@ -384,6 +387,31 @@ TEST_DEFINITIONS = {
         "class": IS1201Test.IS1201Test,
         "urlpath": True
     },
+    "IS-14-01": {
+        "name": "IS-14 Device Configuration",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node",
+            "disable_fields": ["selector"]
+        }, {
+            "spec_key": "is-14",
+            "api_key": "configuration"
+        }, {
+            "spec_key": "ms-05-02",
+            "api_key": "controlframework",
+            "disable_fields": ["host", "port", "selector"]
+        }, {
+            "spec_key": "testing-facade",
+            "api_key": "testquestion",
+            "disable_fields": ["selector"] if CONFIG.MS05_INTERACTIVE_TESTING else ["host", "port", "selector"]
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-control-feature-sets",
+            "api_key": "featuresets"
+        }],
+        "class": IS1401Test.IS1401Test,
+        "selector": True
+    },
     "BCP-003-01": {
         "name": "BCP-003-01 Secure Communication",
         "specs": [{
@@ -431,6 +459,66 @@ TEST_DEFINITIONS = {
         }],
         "class": BCP0060102Test.BCP0060102Test
     },
+    "BCP-008-01-01": {
+        "name": "BCP-008-01 Receiver Status Monitoring",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node",
+            "disable_fields": ["urlpath"]
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection",
+            "disable_fields": ["urlpath"]
+        }, {
+            "spec_key": "is-12",
+            "api_key": "ncp",
+            "websocket": True,
+        }, {
+            "spec_key": "ms-05-02",
+            "api_key": "controlframework",
+            "disable_fields": ["host", "port", "urlpath"]
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-control-feature-sets",
+            "api_key": "featuresets"
+        }, {
+            "spec_key": "bcp-008-01",
+            "api_key": "receivermonitor",
+            "disable_fields": ["host", "port", "urlpath"]
+        }],
+        "class": BCP0080101Test.BCP0080101Test,
+        "urlpath": True
+    },
+    "BCP-008-02-01": {
+        "name": "BCP-008-02 Sender Status Monitoring",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node",
+            "disable_fields": ["urlpath"]
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection",
+            "disable_fields": ["urlpath"]
+        }, {
+            "spec_key": "is-12",
+            "api_key": "ncp",
+            "websocket": True,
+        }, {
+            "spec_key": "ms-05-02",
+            "api_key": "controlframework",
+            "disable_fields": ["host", "port", "urlpath"]
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-control-feature-sets",
+            "api_key": "featuresets"
+        }, {
+            "spec_key": "bcp-008-02",
+            "api_key": "sendermonitor",
+            "disable_fields": ["host", "port", "urlpath"]
+        }],
+        "class": BCP0080201Test.BCP0080201Test,
+        "urlpath": True
+    },
     "BCP-006-04": {
         "name": "BCP-006-04 NMOS With MPEG TS",
         "specs": [{
@@ -475,7 +563,7 @@ TEST_DEFINITIONS = {
             "api_key": "sender-caps"
         }],
         "class": BCP0050301Test.BCP0050301Test
-    },
+    }
 }
 
 
