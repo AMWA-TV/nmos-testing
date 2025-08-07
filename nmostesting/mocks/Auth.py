@@ -113,6 +113,7 @@ class Auth(object):
             self.host = get_mocks_hostname()
         # authorization code of the authorization code flow
         self.code = None
+        self.scopes_cache = {}  # remember client scopes
 
     def make_mdns_info(self, priority=0, api_ver=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
@@ -338,6 +339,8 @@ def auth_auth():
             if not scope_found:
                 error = "invalid_request"
                 error_description = "scope: {} are not supported".format(scopes)
+            # cache the client scopes
+            auth.scopes_cache[request.args["client_id"]] = request.args["scope"].split()
 
         vars = {}
         if error:
@@ -391,11 +394,16 @@ def auth_token():
             refresh_token = query["refresh_token"][0] if "refresh_token" in query else None
 
             # Scope query parameter is OPTIONAL https://datatracker.ietf.org/doc/html/rfc6749#section-6
-            scopes = query["scope"][0].split() if "scope" in query else SCOPE.split() if SCOPE else []
+            # Use scopes cached from when the token was created if not provided in query
+            cached_scopes = auth.scopes_cache[client_id] if client_id in auth.scopes_cache else []
+            scopes = query["scope"][0].split() if "scope" in query else cached_scopes \
+                if len(cached_scopes) else SCOPE.split() if SCOPE else []
             if scopes:
                 scope_found = IS10Utils.is_any_contain(scopes, SCOPES)
                 if not scope_found:
                     raise AuthException("invalid_scope", "scope: {} are not supported".format(scopes))
+            else:
+                raise AuthException("invalid_scope", "empty scope")
 
             if grant_type:
                 # Authorization Code Grant
