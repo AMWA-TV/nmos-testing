@@ -24,6 +24,8 @@ from jinja2 import Template
 from .. import Config as CONFIG
 from ..TestHelper import get_default_ip, do_request
 from ..IS04Utils import IS04Utils
+from ..IS10Utils import IS10Utils
+from .Auth import PRIMARY_AUTH
 
 
 class Node(object):
@@ -376,12 +378,24 @@ def x_nmos_root():
 def connection_root():
     base_data = ['v1.0/', 'v1.1/']
 
+    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
+                                                              request.path,
+                                                              scopes=["x-nmos-connection"])
+    if authorized is not True:
+        abort(authorized, description=error_message)
+
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
 
 @NODE_API.route('/x-nmos/connection/<version>', methods=['GET'], strict_slashes=False)
 def version(version):
     base_data = ['bulk/', 'single/']
+
+    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
+                                                              request.path,
+                                                              scopes=["x-nmos-connection"])
+    if authorized is not True:
+        abort(authorized, description=error_message)
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
@@ -390,11 +404,23 @@ def version(version):
 def single(version):
     base_data = ['senders/', 'receivers/']
 
+    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
+                                                              request.path,
+                                                              scopes=["x-nmos-connection"])
+    if authorized is not True:
+        abort(authorized, description=error_message)
+
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
 
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/', methods=["GET"], strict_slashes=False)
 def resources(version, resource):
+    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
+                                                              request.path,
+                                                              scopes=["x-nmos-connection"])
+    if authorized is not True:
+        abort(authorized, description=error_message)
+
     if resource == 'senders':
         base_data = [r + '/' for r in [*NODE.senders]]
     elif resource == 'receivers':
@@ -405,6 +431,12 @@ def resources(version, resource):
 
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>', methods=["GET"], strict_slashes=False)
 def connection(version, resource, resource_id):
+    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
+                                                              request.path,
+                                                              scopes=["x-nmos-connection"])
+    if authorized is not True:
+        abort(authorized, description=error_message)
+
     if resource != 'senders' and resource != 'receivers':
         abort(404)
 
@@ -441,6 +473,12 @@ def _get_constraints(resource):
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/constraints',
                 methods=["GET"], strict_slashes=False)
 def constraints(version, resource, resource_id):
+    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
+                                                              request.path,
+                                                              scopes=["x-nmos-connection"])
+    if authorized is not True:
+        abort(authorized, description=error_message)
+
     base_data = [_get_constraints(resource)]
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
@@ -479,6 +517,13 @@ def staged(version, resource, resource_id):
     activating a connection without staging or deactivating an active connection
     Updates data then POSTs updated resource to registry
     """
+    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
+                                                              request.path,
+                                                              scopes=["x-nmos-connection"],
+                                                              write=request.method == 'PATCH')
+    if authorized is not True:
+        abort(authorized, description=error_message)
+
     # Track requests
     NODE.staged_requests.append({'method': request.method, 'resource': resource, 'resource_id': resource_id,
                                  'data': request.get_json(silent=True)})
@@ -516,6 +561,11 @@ def staged(version, resource, resource_id):
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/active',
                 methods=["GET"], strict_slashes=False)
 def active(version, resource, resource_id):
+    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
+                                                              request.path,
+                                                              scopes=["x-nmos-connection"])
+    if authorized is not True:
+        abort(authorized, description=error_message)
     try:
         if resource == 'senders':
             base_data = NODE.senders[resource_id]['activations']['active']
@@ -530,6 +580,11 @@ def active(version, resource, resource_id):
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/transporttype',
                 methods=["GET"], strict_slashes=False)
 def transport_type(version, resource, resource_id):
+    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
+                                                              request.path,
+                                                              scopes=["x-nmos-connection"])
+    if authorized is not True:
+        abort(authorized, description=error_message)
     # TODO fetch from resource info
     base_data = "urn:x-nmos:transport:rtp"
 
@@ -584,6 +639,11 @@ def node_sdp(media_type, media_subtype):
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/transportfile',
                 methods=["GET"], strict_slashes=False)
 def transport_file(version, resource, resource_id):
+    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
+                                                              request.path,
+                                                              scopes=["x-nmos-connection"])
+    if authorized is not True:
+        abort(authorized, description=error_message)
     # GET should either redirect to the location of the transport file or return it directly
     try:
         if resource == 'senders':
