@@ -380,7 +380,7 @@ def connection_root():
 
     authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
                                                               request.path,
-                                                              scopes=["x-nmos-connection"])
+                                                              scope="x-nmos-connection")
     if authorized is not True:
         abort(authorized, description=error_message)
 
@@ -393,7 +393,7 @@ def version(version):
 
     authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
                                                               request.path,
-                                                              scopes=["x-nmos-connection"])
+                                                              scope="x-nmos-connection")
     if authorized is not True:
         abort(authorized, description=error_message)
 
@@ -406,7 +406,7 @@ def single(version):
 
     authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
                                                               request.path,
-                                                              scopes=["x-nmos-connection"])
+                                                              scope="x-nmos-connection")
     if authorized is not True:
         abort(authorized, description=error_message)
 
@@ -417,7 +417,7 @@ def single(version):
 def resources(version, resource):
     authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
                                                               request.path,
-                                                              scopes=["x-nmos-connection"])
+                                                              scope="x-nmos-connection")
     if authorized is not True:
         abort(authorized, description=error_message)
 
@@ -433,7 +433,7 @@ def resources(version, resource):
 def connection(version, resource, resource_id):
     authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
                                                               request.path,
-                                                              scopes=["x-nmos-connection"])
+                                                              scope="x-nmos-connection")
     if authorized is not True:
         abort(authorized, description=error_message)
 
@@ -475,7 +475,7 @@ def _get_constraints(resource):
 def constraints(version, resource, resource_id):
     authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
                                                               request.path,
-                                                              scopes=["x-nmos-connection"])
+                                                              scope="x-nmos-connection")
     if authorized is not True:
         abort(authorized, description=error_message)
 
@@ -517,10 +517,11 @@ def staged(version, resource, resource_id):
     activating a connection without staging or deactivating an active connection
     Updates data then POSTs updated resource to registry
     """
+    write = (request.method == 'PATCH')
     authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
                                                               request.path,
-                                                              scopes=["x-nmos-connection"],
-                                                              write=request.method == 'PATCH')
+                                                              scope="x-nmos-connection",
+                                                              write=write)
     if authorized is not True:
         abort(authorized, description=error_message)
 
@@ -563,7 +564,7 @@ def staged(version, resource, resource_id):
 def active(version, resource, resource_id):
     authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
                                                               request.path,
-                                                              scopes=["x-nmos-connection"])
+                                                              scope="x-nmos-connection")
     if authorized is not True:
         abort(authorized, description=error_message)
     try:
@@ -582,7 +583,7 @@ def active(version, resource, resource_id):
 def transport_type(version, resource, resource_id):
     authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
                                                               request.path,
-                                                              scopes=["x-nmos-connection"])
+                                                              scope="x-nmos-connection")
     if authorized is not True:
         abort(authorized, description=error_message)
     # TODO fetch from resource info
@@ -641,7 +642,7 @@ def node_sdp(media_type, media_subtype):
 def transport_file(version, resource, resource_id):
     authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
                                                               request.path,
-                                                              scopes=["x-nmos-connection"])
+                                                              scope="x-nmos-connection")
     if authorized is not True:
         abort(authorized, description=error_message)
     # GET should either redirect to the location of the transport file or return it directly

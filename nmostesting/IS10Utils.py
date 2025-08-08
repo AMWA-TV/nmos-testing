@@ -161,7 +161,7 @@ class IS10Utils(NMOSUtils):
         return False
 
     @staticmethod
-    def check_authorization(auth, path, scopes=["x-nmos-registration"], write=False):
+    def check_authorization(auth, path, scope="x-nmos-registration", write=False):
         def _check_path_match(path, path_wildcards):
             path_match = False
             for path_wildcard in path_wildcards:
@@ -183,11 +183,10 @@ class IS10Utils(NMOSUtils):
                 if claims["iss"] != auth.make_issuer():
                     return 401, f"Unexpected issuer, expected: {auth.make_issuer()}, actual: {claims['iss']}"
                 # TODO: Check 'aud' claim matches 'mocks.<domain>'
-                for scope in scopes:
-                    if not _check_path_match(path, claims[scope]["read"]):
-                        return 403, f"Paths mismatch for {scope} read claims"
-                    if write and not _check_path_match(path, claims[scope]["write"]):
-                        return 403, f"Paths mismatch for {scope} write claims"
+                if not _check_path_match(path, claims[scope]["read"]):
+                    return 403, f"Paths mismatch for {scope} read claims"
+                if write and not _check_path_match(path, claims[scope]["write"]):
+                    return 403, f"Paths mismatch for {scope} write claims"
             except KeyError as err:
                 return 400, f"KeyError: {err}"
             except Exception as err:

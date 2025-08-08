@@ -79,6 +79,7 @@ class Registry(object):
         self.query_api_called = False
         self.paging_limit = 100
         self.pagination_used = False
+        self.auth_cache = {}
 
     def add(self, headers, payload, version):
         self.last_time = time.time()
@@ -162,6 +163,23 @@ class Registry(object):
             except Exception:
                 return None
         return None
+
+    def check_authorization(self, auth, path, scope, write=False):
+        if scope in self.auth_cache and \
+                ((write and self.auth_cache[scope]["Write"]) or self.auth_cache[scope]["Read"]):
+            return True, ""
+
+        authorized, error_message = IS10Utils.check_authorization(auth,
+                                                                  path,
+                                                                  scope=scope,
+                                                                  write=write)
+        if authorized:
+            if scope not in self.auth_cache:
+                self.auth_cache[scope] = {"Read": True, "Write": write}
+            else:
+                self.auth_cache[scope]["Read"] = True
+                self.auth_cache[scope]["Write"] = self.auth_cache[scope]["Write"] or write
+        return authorized, error_message
 
     # Query API subscription support methods
 
@@ -319,9 +337,9 @@ def registration_root():
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
-                                                              request.path,
-                                                              scopes=["x-nmos-registration"])
+    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
+                                                             request.path,
+                                                             scope="x-nmos-registration")
     if authorized is not True:
         abort(authorized, description=error_message)
 
@@ -336,9 +354,9 @@ def base_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
-                                                              request.path,
-                                                              scopes=["x-nmos-registration"])
+    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
+                                                             request.path,
+                                                             scope="x-nmos-registration")
 
     if authorized is not True:
         abort(authorized, description=error_message)
@@ -353,10 +371,10 @@ def post_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
-    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
-                                                              request.path,
-                                                              scopes=["x-nmos-registration"],
-                                                              write=True)
+    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
+                                                             request.path,
+                                                             scope="x-nmos-registration",
+                                                             write=True)
 
     if authorized is not True:
         abort(authorized, description=error_message)
@@ -387,10 +405,10 @@ def delete_resource(version, resource_type, resource_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
-    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
-                                                              request.path,
-                                                              scopes=["x-nmos-registration"],
-                                                              write=True)
+    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
+                                                             request.path,
+                                                             scope="x-nmos-registration",
+                                                             write=True)
 
     if authorized is not True:
         abort(authorized, description=error_message)
@@ -425,10 +443,10 @@ def heartbeat(version, node_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
-    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
-                                                              request.path,
-                                                              scopes=["x-nmos-registration"],
-                                                              write=True)
+    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
+                                                             request.path,
+                                                             scope="x-nmos-registration",
+                                                             write=True)
 
     if authorized is not True:
         abort(authorized, description=error_message)
@@ -448,9 +466,9 @@ def query_root():
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
-                                                              request.path,
-                                                              scopes=["x-nmos-query"])
+    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
+                                                             request.path,
+                                                             scope="x-nmos-query")
 
     if authorized is not True:
         abort(authorized, description=error_message)
@@ -465,9 +483,9 @@ def query(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
-                                                              request.path,
-                                                              scopes=["x-nmos-query"])
+    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
+                                                             request.path,
+                                                             scope="x-nmos-query")
 
     if authorized is not True:
         abort(authorized, description=error_message)
@@ -492,9 +510,9 @@ def query_resource(version, resource):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
-                                                              request.path,
-                                                              scopes=["x-nmos-query"])
+    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
+                                                             request.path,
+                                                             scope="x-nmos-query")
 
     if authorized is not True:
         abort(authorized, description=error_message)
@@ -620,9 +638,9 @@ def get_resource(version, resource, resource_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
-                                                              request.path,
-                                                              scopes=["x-nmos-query"])
+    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
+                                                             request.path,
+                                                             scope="x-nmos-query")
 
     if authorized is not True:
         abort(authorized, description=error_message)
@@ -649,10 +667,10 @@ def post_subscription(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
-                                                              request.path,
-                                                              scopes=["x-nmos-query"],
-                                                              write=True)
+    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
+                                                             request.path,
+                                                             scope="x-nmos-query",
+                                                             write=True)
 
     if authorized is not True:
         abort(authorized, description=error_message)
@@ -697,10 +715,10 @@ def delete_subscription(version, subscription_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized, error_message = IS10Utils.check_authorization(PRIMARY_AUTH,
-                                                              request.path,
-                                                              scopes=["x-nmos-query"],
-                                                              write=True)
+    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
+                                                             request.path,
+                                                             scope="x-nmos-query",
+                                                             write=True)
 
     if authorized is not True:
         abort(authorized, description=error_message)
