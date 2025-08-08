@@ -165,7 +165,11 @@ class Registry(object):
         return None
 
     def check_authorization(self, auth, path, scope, write=False):
-        if scope in self.auth_cache and \
+        if not ENABLE_AUTH:
+            return True, ""
+
+        if "Authorization" in request.headers and request.headers["Authorization"].startswith("Bearer ") \
+                and scope in self.auth_cache and \
                 ((write and self.auth_cache[scope]["Write"]) or self.auth_cache[scope]["Read"]):
             return True, ""
 

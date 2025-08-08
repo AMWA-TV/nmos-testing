@@ -364,7 +364,11 @@ class Node(object):
         return response_data, response_code
 
     def check_authorization(self, auth, path, scope, write=False):
-        if scope in self.auth_cache and \
+        if not CONFIG.ENABLE_AUTH:
+            return True, ""
+
+        if "Authorization" in request.headers and request.headers["Authorization"].startswith("Bearer ") \
+                and scope in self.auth_cache and \
                 ((write and self.auth_cache[scope]["Write"]) or self.auth_cache[scope]["Read"]):
             return True, ""
 
