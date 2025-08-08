@@ -340,7 +340,7 @@ def auth_auth():
                 error = "invalid_request"
                 error_description = "scope: {} are not supported".format(scopes)
             # cache the client scopes
-            auth.scopes_cache[request.args["client_id"]] = request.args["scope"].split()
+            auth.scopes_cache[request.args["client_id"]] = scopes
 
         vars = {}
         if error:
@@ -393,7 +393,9 @@ def auth_token():
 
             refresh_token = query["refresh_token"][0] if "refresh_token" in query else None
 
-            # Scope query parameter is OPTIONAL https://datatracker.ietf.org/doc/html/rfc6749#section-6
+            # Scope query parameter is OPTIONAL
+            # see https://datatracker.ietf.org/doc/html/rfc6749#section-4.4.2
+            # and https://datatracker.ietf.org/doc/html/rfc6749#section-6
             # Use scopes cached from when the token was created if not provided in query
             cached_scopes = auth.scopes_cache[client_id] if client_id in auth.scopes_cache else []
             scopes = query["scope"][0].split() if "scope" in query else cached_scopes \
