@@ -432,7 +432,7 @@ TEST_DEFINITIONS = {
         }],
         "class": BCP0060102Test.BCP0060102Test
     },
-    "BCP-004-02": {
+    "BCP-004-02-01": {
         "name": "BCP-004-02 Sender Capabilities",
         "specs": [{
             "spec_key": "is-04",
@@ -1301,3 +1301,4 @@ def main(args):
 
     # Exit the application with the desired code
     sys.exit(exit_code)
+
