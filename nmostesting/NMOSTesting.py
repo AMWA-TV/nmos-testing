@@ -534,8 +534,8 @@ TEST_DEFINITIONS = {
         }],
         "class": BCP00604Test.BCP00604Test
     },
-    "BCP-005-03": {
-        "name": "IPMX/PEP",
+    "BCP-005-03-01": {
+        "name": "NMOS With IPMX/PEP",
         "specs": [{
             "spec_key": "is-04",
             "api_key": "node"
@@ -1408,3 +1408,4 @@ def main(args):
 
     # Exit the application with the desired code
     sys.exit(exit_code)
+
