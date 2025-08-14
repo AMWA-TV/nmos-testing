@@ -223,7 +223,7 @@ def do_request(method, url, headers=None, **kwargs):
         print("{} {} {}".format(method.upper(), url, response.status_code if response is not None else "<no response>"))
 
 
-def load_resolved_schema(spec_path, file_name=None, schema_obj=None, path_prefix=True):
+def load_resolved_schema(spec_path, file_name=None, schema_obj=None, path_prefix=True, search_paths=[]):
     """
     Parses JSON as well as resolves any `$ref`s, including references to
     local files and remote (HTTP/S) files.
@@ -251,6 +251,27 @@ def load_resolved_schema(spec_path, file_name=None, schema_obj=None, path_prefix
         if uri.startswith(is07_base_uri):
             # rather than recreate the cache path from config, cheat by just using the original base URI
             uri = base_uri_path + uri[len(is07_base_uri):]
+
+        search_paths.insert(0, spec_path)
+
+        for sp in search_paths:
+
+            alt_base_path = os.path.abspath(sp)
+            if not alt_base_path.endswith("/"):
+                alt_base_path = alt_base_path + "/"
+
+            # strip any JSON Pointer fragment, then take the last path component
+            ref_no_fragment = uri.split("#", 1)[0]
+            basename = Path(ref_no_fragment).name
+
+            candidate = Path(alt_base_path) / basename
+            if candidate.exists():
+                if os.name == "nt":
+                    alt_base_uri_path = "file:///" + str(candidate).replace('\\', '/')
+                else:
+                    alt_base_uri_path = "file://" + str(candidate)
+
+                return jsonref.jsonloader(alt_base_uri_path)
 
         return jsonref.jsonloader(uri)
 

@@ -90,6 +90,7 @@ from .suites import BCP0050101Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
 from .suites import BCP00604Test
+from .suites import BCP0070201Test
 from .suites import BCP0080101Test
 from .suites import BCP0080201Test
 
@@ -533,6 +534,30 @@ TEST_DEFINITIONS = {
             "api_key": "sender-register"
         }],
         "class": BCP00604Test.BCP00604Test
+    },
+    "BCP-007-02-01": {
+        "name": "BCP-007-02 NMOS With IPMX/USB",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "flow-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "sender-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "source-register"
+        }, {
+            "spec_key": "bcp-007-02",
+            "api_key": "usb-transport"
+        }],
+        "class": BCP0070201Test.BCP0070201Test
     }
 }
 
@@ -818,8 +843,25 @@ def init_spec_cache():
         if repo_data["repo"] is None:
             continue
         if not os.path.exists(path):
-            print(" * Initialising repository '{}'".format(repo_data["repo"]))
-            repo = git.Repo.clone_from('https://github.com/AMWA-TV/' + repo_data["repo"] + '.git', path)
+
+            if "url" not in repo_data or repo_data["url"] is None:
+                repo_url = 'https://github.com/AMWA-TV/'
+            else:
+                repo_url = repo_data["url"]
+            if "branch" not in repo_data or repo_data["branch"] is None:
+                repo_branch = None
+            else:
+                repo_branch = repo_data["branch"]
+
+            print(" * Initialising repository '{}' from branch '{}' at url '{}'".format(
+                repo_data["repo"], repo_branch, repo_url))
+
+            repo = git.Repo.clone_from(repo_url + repo_data["repo"] + '.git', path)
+
+            if repo_branch is not None:
+                repo.git.checkout(repo_branch)
+                print(repo.git.status())
+
             update_last_pull = True
         else:
             repo = git.Repo(path)
@@ -919,6 +961,7 @@ def format_test_results(results, endpoints, format, args):
             num_extra_dots = max_name_len - len(test_result.name)
             test_state = str(TestStates.DISABLED if test_result.name in ignored_tests else test_result.state)
             formatted += "{} ...{} {}\r\n".format(test_result.name, ("." * num_extra_dots), test_state)
+            formatted += test_result.detail + "\r\n"
         formatted += "----------------------------\r\n"
         formatted += "Ran {} tests in ".format(len(results["result"])) + "{0:.3f}s".format(total_time) + "\r\n"
     return formatted
