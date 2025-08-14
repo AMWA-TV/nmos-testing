@@ -267,7 +267,7 @@ class BCP0070201Test(GenericTest):
                     if flow_map[parent_flow]["format"] == "urn:x-nmos:format:data":
                         if flow_map[parent_flow]["media_type"] == "application/usb":
                             return test.FAIL("flow {}: USB data flow cannot be parent of a mux Flow".format(
-                                parent_flow["id"]))
+                                parent_flow))
 
             for flow in usb_flows:
                 # There are no required attributes
@@ -321,7 +321,7 @@ class BCP0070201Test(GenericTest):
                     if flow_map[parent_flow]["format"] == "urn:x-nmos:format:data":
                         if flow_map[parent_flow]["media_type"] == "application/usb":
                             return test.FAIL("flow {}: USB data flow cannot be parent of a mux Flow".format(
-                                parent_flow["id"]))
+                                parent_flow))
 
             for flow in usb_flows:
                 source = source_map[flow["source_id"]]
@@ -438,7 +438,7 @@ class BCP0070201Test(GenericTest):
 
             if len(usb_senders) > 0:
                 if warn_message != "":
-                    return test.warn_message(warn_message)
+                    return test.WARNING(warn_message)
                 else:
                     return test.PASS()
 
@@ -627,7 +627,7 @@ class BCP0070201Test(GenericTest):
                             warn_message += "|receiver {}: SHOULD indicate the supported {} using the " \
                                 "'{}' parameter constraint.".format(receiver["id"], target, constraint)
             if warn_message != "":
-                return test.warn_message(warn_message)
+                return test.WARNING(warn_message)
 
             if len(usb_receivers) > 0:
                 return test.PASS()
@@ -692,7 +692,7 @@ class BCP0070201Test(GenericTest):
 
             if len(usb_receivers) > 0:
                 if warn_message != "":
-                    return test.warn_message(warn_message)
+                    return test.WARNING(warn_message)
                 else:
                     return test.PASS()
 
@@ -791,7 +791,7 @@ class BCP0070201Test(GenericTest):
 
         if len(usb_senders) > 0:
             if warn_message != "":
-                return test.warn_message(warn_message)
+                return test.WARNING(warn_message)
             else:
                 return test.PASS()
 
@@ -900,7 +900,7 @@ class BCP0070201Test(GenericTest):
 
         if len(usb_senders) > 0:
             if warn_message != "":
-                return test.warn_message(warn_message)
+                return test.WARNING(warn_message)
             else:
                 return test.PASS()
 
@@ -917,7 +917,7 @@ class BCP0070201Test(GenericTest):
         if not valid:
             return test.FAIL(result)
 
-        valid, result = self.get_is05_partial_resources("senders")
+        valid, result = self.get_is05_partial_resources("receivers")
         if not valid:
             return test.FAIL(result)
 
@@ -977,7 +977,7 @@ class BCP0070201Test(GenericTest):
 
         if len(usb_receivers) > 0:
             if warn_message != "":
-                return test.warn_message(warn_message)
+                return test.WARNING(warn_message)
             else:
                 return test.PASS()
 
@@ -1089,7 +1089,7 @@ class BCP0070201Test(GenericTest):
 
         if len(usb_receivers) > 0:
             if warn_message != "":
-                return test.warn_message(warn_message)
+                return test.WARNING(warn_message)
             else:
                 return test.PASS()
 
@@ -1162,7 +1162,7 @@ def check_usb_class_capability(usb_class_capability):
         return False, "MUST be integers in the range 0 to 255"
     if "maximum" in usb_class_capability and (not isinstance(usb_class_capability["maximum"], int)
                                               or usb_class_capability["maximum"] < 0
-                                              or usb_class_capability["minimum"] > 255):
+                                              or usb_class_capability["maximum"] > 255):
         return False, "MUST be integers in the range 0 to 255"
     if "minimum" in usb_class_capability and "maximum" not in usb_class_capability:
         return False, "MUST be integers in the range 0 to 255"
