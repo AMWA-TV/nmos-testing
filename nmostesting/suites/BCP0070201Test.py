@@ -193,7 +193,7 @@ class BCP0070201Test(GenericTest):
 
         reg_schema = None
 
-        if urn_without_namespace(transport) in ('transport:usb'):
+        if urn_without_namespace(transport) in ('transport:usb',):
             base_reg_api = self.apis[CONNECTION_API_KEY]
             base_reg_path = base_reg_api["spec_path"] + "/APIs/schemas"
             reg_api = self.apis["usb-transport"]
@@ -626,11 +626,12 @@ class BCP0070201Test(GenericTest):
                         if not has_key(constraint_set, constraint):
                             warn_message += "|receiver {}: SHOULD indicate the supported {} using the " \
                                 "'{}' parameter constraint.".format(receiver["id"], target, constraint)
-            if warn_message != "":
-                return test.WARNING(warn_message)
 
             if len(usb_receivers) > 0:
-                return test.PASS()
+                if warn_message != "":
+                    return test.WARNING(warn_message)
+                else:
+                    return test.PASS()
 
         except KeyError as ex:
             return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
@@ -735,7 +736,7 @@ class BCP0070201Test(GenericTest):
             return test.FAIL(result)
 
         usb_senders = [sender for sender in self.is04_resources["senders"].values()
-                       if urn_without_namespace(sender["transport"]) in ('transport:usb')]
+                       if urn_without_namespace(sender["transport"]) in ('transport:usb',)]
 
         warn_message = ""
 
@@ -813,7 +814,7 @@ class BCP0070201Test(GenericTest):
             return test.FAIL(result)
 
         usb_senders = [sender for sender in self.is04_resources["senders"].values()
-                       if urn_without_namespace(sender["transport"]) in ('transport:usb')]
+                       if urn_without_namespace(sender["transport"]) in ('transport:usb',)]
 
         warn_message = ""
 
@@ -889,7 +890,7 @@ class BCP0070201Test(GenericTest):
             i = 0
             for c_params in constraints:
 
-                if urn_without_namespace(sender["transport"]) in ("transport:usb"):
+                if urn_without_namespace(sender["transport"]) in ("transport:usb",):
                     valid, msg = checkSenderTransportParametersUsb(
                         sender["transport"], c_params, staged["transport_params"][i], active["transport_params"][i])
                     if not valid:
@@ -922,7 +923,7 @@ class BCP0070201Test(GenericTest):
             return test.FAIL(result)
 
         usb_receivers = [receiver for receiver in self.is04_resources["receivers"].values()
-                         if urn_without_namespace(receiver["transport"]) in ('transport:usb')]
+                         if urn_without_namespace(receiver["transport"]) in ('transport:usb',)]
 
         warn_message = ""
 
@@ -1002,7 +1003,7 @@ class BCP0070201Test(GenericTest):
             return test.FAIL(result)
 
         usb_receivers = [receiver for receiver in self.is04_resources["receivers"].values()
-                         if urn_without_namespace(receiver["transport"]) in ('transport:usb')]
+                         if urn_without_namespace(receiver["transport"]) in ('transport:usb',)]
 
         warn_message = ""
 
