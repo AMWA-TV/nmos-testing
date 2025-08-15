@@ -460,7 +460,7 @@ TEST_DEFINITIONS = {
         }],
         "class": BCP0060102Test.BCP0060102Test
     },
-    "BCP-008-01": {
+    "BCP-008-01-01": {
         "name": "BCP-008-01 Receiver Status Monitoring",
         "specs": [{
             "spec_key": "is-04",
@@ -490,7 +490,7 @@ TEST_DEFINITIONS = {
         "class": BCP0080101Test.BCP0080101Test,
         "urlpath": True
     },
-    "BCP-008-02": {
+    "BCP-008-02-01": {
         "name": "BCP-008-02 Sender Status Monitoring",
         "specs": [{
             "spec_key": "is-04",
