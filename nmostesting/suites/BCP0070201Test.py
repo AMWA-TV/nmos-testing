@@ -275,7 +275,7 @@ class BCP0070201Test(GenericTest):
                 try:
                     self.validate_schema(flow, reg_schema)
                 except ValidationError as e:
-                    return test.FAIL("flow {} does not comply with the schema for Data Flow additional and "
+                    return test.FAIL("flow {}: does not comply with the schema for Data Flow additional and "
                                      "extensible attributes defined in the NMOS Parameter Registers: "
                                      "{}".format(flow["id"], str(e)),
                                      "https://specs.amwa.tv/nmos-parameter-registers/branches/{}"
@@ -335,7 +335,7 @@ class BCP0070201Test(GenericTest):
                 try:
                     self.validate_schema(source, reg_schema)
                 except ValidationError as e:
-                    return test.FAIL("source {} does not comply with the schema for Source additional and "
+                    return test.FAIL("source {}: does not comply with the schema for Source additional and "
                                      "extensible attributes defined in the NMOS Parameter Registers: "
                                      "{}".format(source["id"], str(e)),
                                      "https://specs.amwa.tv/nmos-parameter-registers/branches/{}"
@@ -428,7 +428,7 @@ class BCP0070201Test(GenericTest):
                         if has_key(constraint_set, constraint):
                             ok, msg = check_usb_class_capability(get_key_value(constraint_set, constraint))
                             if not ok:
-                                return test.FAIL("sender {}: invalid {} capabilities, error {}".format(
+                                return test.FAIL("sender {}: invalid {} capabilities, error {}.".format(
                                     sender["id"], constraint, msg))
                         else:
                             warn_message += "|sender {}: SHOULD declare {} capabilities".format(
@@ -527,15 +527,15 @@ class BCP0070201Test(GenericTest):
                         return test.FAIL("sender {}: SDP transport file <fmt> MUST be 'usb'".format(sender["id"]))
 
                 if found_media == 0:
-                    return test.FAIL("SDP for sender {}: is missing a media description line".format(sender["id"]))
+                    return test.FAIL("sender {}: SDP transport file is missing a media description line".format(sender["id"]))
 
                 if found_media > 2:
-                    return test.FAIL("SDP for sender {}: at most two media description lines MUST"
-                                     " be used with redundancy".format(sender["id"]))
+                    return test.FAIL("sender {}: at most two media description lines MUST"
+                                     " be used with redundancy in the SDP transport file".format(sender["id"]))
 
                 if found_setup != found_media:
-                    return test.FAIL("SDP for sender {}: there MUST be as many 'a=setup:passive' lines as there are"
-                                     " media description lines".format(sender["id"]))
+                    return test.FAIL("sender {}: there MUST be as many 'a=setup:passive' lines as there are"
+                                     " media description lines in the SDP transport file".format(sender["id"]))
 
             if access_error:
                 return test.UNCLEAR("One or more of the tested Senders had null or empty 'manifest_href' or "
@@ -663,7 +663,7 @@ class BCP0070201Test(GenericTest):
 
                 # check required attributes are present
                 if "constraint_sets" not in receiver["caps"]:
-                    return test.FAIL("Receiver {} MUST indicate constraints in accordance with BCP-004-01 using "
+                    return test.FAIL("receiver {}: MUST indicate constraints in accordance with BCP-004-01 using "
                                      "the 'caps' attribute 'constraint_sets'.".format(receiver["id"]))
 
                 # exclude constraint sets for other media types
@@ -675,7 +675,7 @@ class BCP0070201Test(GenericTest):
                                                 constraint_set[media_type_constraint]["enum"]))]
 
                 if len(usb_constraint_sets) == 0:
-                    return test.FAIL("Receiver {} MUST indicate constraints in accordance with BCP-004-01 using "
+                    return test.FAIL("receiver {}: MUST indicate constraints in accordance with BCP-004-01 using "
                                      "the 'caps' attribute 'constraint_sets'.".format(receiver["id"]))
 
                 # check recommended attributes are present
@@ -753,18 +753,21 @@ class BCP0070201Test(GenericTest):
                                              "/single/senders/{senderId}/staged", response.status_code)
                     valid, msg = self.check_response_without_transport_params(schema, "GET", response)
                     if not valid:
-                        return test.FAIL("sender request to staged transport parameters is not"
-                                         " valid against schemas, error {}".format(msg))
+                        return test.FAIL("sender {}: request to staged transport parameters is not"
+                                         " valid against schemas, error {}".format(sender["id"], msg))
 
                     staged = response.json()
 
+                    if len(staged) > 2:
+                        return test.FAIL("sender {}: at most two staged transport parameters legs MUST"
+                                        " be used with redundancy".format(sender["id"]))
                     try:
                         for params in staged["transport_params"]:
                             self.validate_schema(params, reg_schema)
                     except ValidationError as e:
-                        return test.FAIL("sender staged transport parameters do not match schema, error {}".format(e))
+                        return test.FAIL("sender {}: staged transport parameters do not match schema, error {}".format(sender["id"], e))
                 else:
-                    return test.FAIL("sender request to staged transport parameters is not valid")
+                    return test.FAIL("sender {}: request to staged transport parameters is not valid".format(sender["id"]))
 
                 url = "single/senders/{}/active".format(sender["id"])
                 valid, response = self.is05_utils.checkCleanRequest("GET", url)
@@ -774,19 +777,22 @@ class BCP0070201Test(GenericTest):
                                              "/single/senders/{senderId}/active", response.status_code)
                     valid, msg = self.check_response_without_transport_params(schema, "GET", response)
                     if not valid:
-                        return test.FAIL("sender request to active transport parameters is not"
-                                         " valid against schemas, error {}".format(msg))
+                        return test.FAIL("sender {}: request to active transport parameters is not"
+                                         " valid against schemas, error {}".format(sender["id"], msg))
 
                     active = response.json()
+
+                    if len(active) > 2:
+                        return test.FAIL("sender {}: at most two active transport parameters legs MUST"
+                                        " be used with redundancy".format(sender["id"]))
 
                     try:
                         for params in active["transport_params"]:
                             self.validate_schema(params, reg_schema)
-
                     except ValidationError as e:
-                        return test.FAIL("sender active transport parameters do not match schema, error {}".format(e))
+                        return test.FAIL("sender {}: active transport parameters do not match schema, error {}".format(sender["id"], e))
                 else:
-                    return test.FAIL("sender request to active transport parameters is not valid")
+                    return test.FAIL("sender {}: request to active transport parameters is not valid".format(sender["id"]))
             else:
                 warn_message += "|unknown transport {}".format(sender["transport"])
 
@@ -830,14 +836,17 @@ class BCP0070201Test(GenericTest):
                     # There is nothing to validate in the response as there are only constraints
                     constraints = response.json()
 
+                    if len(constraints) > 2:
+                        return test.FAIL("sender {}: at most two constraints transport parameters legs MUST"
+                                        " be used with redundancy".format(sender["id"]))
                     try:
                         for params in constraints:
                             self.validate_schema(params, reg_schema)
                     except ValidationError as e:
-                        return test.FAIL("sender transport parameters constraints do not"
-                                         " match schema, error {}".format(e))
+                        return test.FAIL("sender {}: transport parameters constraints do not"
+                                         " match schema, error {}".format(sender["id"], e))
                 else:
-                    return test.FAIL("sender request to transport parameters constraints is not valid")
+                    return test.FAIL("sender {}: request to transport parameters constraints is not valid".format(sender["id"]))
             else:
                 warn_message += "|unknown transport {}".format(sender["transport"])
 
@@ -845,18 +854,18 @@ class BCP0070201Test(GenericTest):
             url = "single/senders/{}/staged".format(sender["id"])
             valid, response = self.is05_utils.checkCleanRequest("GET", url)
             if not valid:
-                return test.FAIL("cannot get sender staged parameters")
+                return test.FAIL("sender {}: cannot get staged parameters".format(sender["id"]))
             staged = response.json()
 
             url = "single/senders/{}/active".format(sender["id"])
             valid, response = self.is05_utils.checkCleanRequest("GET", url)
             if not valid:
-                return test.FAIL("cannot get sender active parameters")
+                return test.FAIL("sender {}: cannot get active parameters".format(sender["id"]))
             active = response.json()
 
             if (len(constraints) != len(staged["transport_params"])
                     or len(constraints) != len(active["transport_params"])):
-                return test.FAIL("sender staged, active and constraints arrays are inconsistent")
+                return test.FAIL("sender {}: staged, active and constraints arrays are inconsistent".format(sender["id"]))
 
             # across staged, active and constraints
             i = 0
@@ -866,7 +875,7 @@ class BCP0070201Test(GenericTest):
 
                 for c in c_params.keys():
                     if (c not in s_params.keys()) or (c not in a_params.keys()):
-                        return test.FAIL("sender staged, active and constraints parameters are inconsistent")
+                        return test.FAIL("sender {}: staged, active and constraints parameters are inconsistent".format(sender["id"]))
 
                 i = i + 1
 
@@ -874,17 +883,17 @@ class BCP0070201Test(GenericTest):
             for c_params in constraints:
                 for c in c_params.keys():
                     if (c not in constraints[0].keys()):
-                        return test.FAIL("sender constraints parameters are inconsistent")
+                        return test.FAIL("sender {}: constraints parameters are inconsistent".format(sender["id"]))
 
             for s_params in staged["transport_params"]:
                 for c in s_params.keys():
                     if (c not in staged["transport_params"][0].keys()):
-                        return test.FAIL("sender staged parameters are inconsistent")
+                        return test.FAIL("sender {}: staged parameters are inconsistent".format(sender["id"]))
 
             for a_params in active["transport_params"]:
                 for c in a_params.keys():
                     if (c not in active["transport_params"][0].keys()):
-                        return test.FAIL("sender active parameters are inconsistent")
+                        return test.FAIL("sender {}: active parameters are inconsistent".format(sender["id"]))
 
             # now check transport minimum requirements
             i = 0
@@ -894,8 +903,8 @@ class BCP0070201Test(GenericTest):
                     valid, msg = checkSenderTransportParametersUsb(
                         sender["transport"], c_params, staged["transport_params"][i], active["transport_params"][i])
                     if not valid:
-                        return test.FAIL("sender active transport parameters is not"
-                                         " valid against minimum requirements, error {}".format(msg))
+                        return test.FAIL("sender {}: active transport parameters is not"
+                                         " valid against minimum requirements, error {}".format(sender["id"], msg))
 
                 i = i + 1
 
@@ -940,18 +949,21 @@ class BCP0070201Test(GenericTest):
                                              "/single/receivers/{receiverId}/staged", response.status_code)
                     valid, msg = self.check_response_without_transport_params(schema, "GET", response)
                     if not valid:
-                        return test.FAIL("receiver request to staged transport parameters is not"
-                                         " valid against schemas, error {}".format(msg))
+                        return test.FAIL("receiver {}: request to staged transport parameters is not"
+                                         " valid against schemas, error {}".format(receiver["id"], msg))
 
                     staged = response.json()
 
+                    if len(staged) > 2:
+                        return test.FAIL("receiver {}: at most two staged transport parameters legs MUST"
+                                        " be used with redundancy".format(receiver["id"]))
                     try:
                         for params in staged["transport_params"]:
                             self.validate_schema(params, reg_schema)
                     except ValidationError as e:
-                        return test.FAIL("receiver staged transport parameters do not match schema, error {}".format(e))
+                        return test.FAIL("receiver {}: staged transport parameters do not match schema, error {}".format(receiver["id"], e))
                 else:
-                    return test.FAIL("receiver request to staged transport parameters is not valid")
+                    return test.FAIL("receiver {}: request to staged transport parameters is not valid".format(receiver["id"]))
 
                 url = "single/receivers/{}/active".format(receiver["id"])
                 valid, response = self.is05_utils.checkCleanRequest("GET", url)
@@ -961,18 +973,21 @@ class BCP0070201Test(GenericTest):
                                              "/single/receivers/{receiverId}/active", response.status_code)
                     valid, msg = self.check_response_without_transport_params(schema, "GET", response)
                     if not valid:
-                        return test.FAIL("receiver request to active transport parameters is not"
-                                         " valid against schemas, error {}".format(msg))
+                        return test.FAIL("receiver {}: request to active transport parameters is not"
+                                         " valid against schemas, error {}".format(receiver["id"], msg))
 
                     active = response.json()
 
+                    if len(active) > 2:
+                        return test.FAIL("receiver {}: at most two active transport parameters legs MUST"
+                                        " be used with redundancy".format(receiver["id"]))
                     try:
                         for params in active["transport_params"]:
                             self.validate_schema(params, reg_schema)
                     except ValidationError as e:
-                        return test.FAIL("receiver active transport parameters do not match schema, error {}".format(e))
+                        return test.FAIL("receiver {}: active transport parameters do not match schema, error {}".format(receiver["id"], e))
                 else:
-                    return test.FAIL("receiver request to active transport parameters is not valid")
+                    return test.FAIL("receiver {}: request to active transport parameters is not valid".format(receiver["id"]))
             else:
                 warn_message += "|unknown transport {}".format(receiver["transport"])
 
@@ -1019,14 +1034,17 @@ class BCP0070201Test(GenericTest):
                     # There is nothing to validate in the response as there are only constraints
                     constraints = response.json()
 
+                    if len(constraints) > 2:
+                        return test.FAIL("receiver {}: at most two constraints transport parameters legs MUST"
+                                        " be used with redundancy".format(receiver["id"]))
                     try:
                         for params in constraints:
                             self.validate_schema(params, reg_schema)
                     except ValidationError as e:
-                        return test.FAIL("receiver transport parameters constraints do not"
-                                         " match schema, error {}".format(e))
+                        return test.FAIL("receiver {}: transport parameters constraints do not"
+                                         " match schema, error {}".format(receiver["id"], e))
                 else:
-                    return test.FAIL("receiver request to transport parameters constraints is not valid")
+                    return test.FAIL("receiver {}: request to transport parameters constraints is not valid".format(receiver["id"]))
             else:
                 warn_message += "|unknown transport {}".format(receiver["transport"])
 
@@ -1034,18 +1052,18 @@ class BCP0070201Test(GenericTest):
             url = "single/receivers/{}/staged".format(receiver["id"])
             valid, response = self.is05_utils.checkCleanRequest("GET", url)
             if not valid:
-                return test.FAIL("cannot get receiver staged parameters")
+                return test.FAIL("receiver {}: cannot get staged parameters".format(receiver["id"]))
             staged = response.json()
 
             url = "single/receivers/{}/active".format(receiver["id"])
             valid, response = self.is05_utils.checkCleanRequest("GET", url)
             if not valid:
-                return test.FAIL("cannot get receiver active parameters")
+                return test.FAIL("receiver {}: cannot get active parameters".format(receiver["id"]))
             active = response.json()
 
             if (len(constraints) != len(staged["transport_params"])
                     or len(constraints) != len(active["transport_params"])):
-                return test.FAIL("receiver staged, active and constraints arrays are inconsistent")
+                return test.FAIL("receiver {}: staged, active and constraints arrays are inconsistent".format(receiver["id"]))
 
             # across staged, active and constraints
             i = 0
@@ -1056,7 +1074,7 @@ class BCP0070201Test(GenericTest):
                 # Use active as a reference
                 for c in a_params.keys():
                     if (c not in c_params.keys()) or (c not in s_params.keys()):
-                        return test.FAIL("receiver staged, active and constraints parameters are inconsistent")
+                        return test.FAIL("receiver {}: staged, active and constraints parameters are inconsistent".format(receiver["id"]))
 
                 i = i + 1
 
@@ -1064,17 +1082,17 @@ class BCP0070201Test(GenericTest):
             for c_params in constraints:
                 for c in c_params.keys():
                     if (c not in constraints[0].keys()):
-                        return test.FAIL("receiver constraints parameters are inconsistent")
+                        return test.FAIL("receiver {}: constraints parameters are inconsistent".format(receiver["id"]))
 
             for s_params in staged["transport_params"]:
                 for c in s_params.keys():
                     if (c not in staged["transport_params"][0].keys()):
-                        return test.FAIL("receiver staged parameters are inconsistent")
+                        return test.FAIL("receiver {}: staged parameters are inconsistent".format(receiver["id"]))
 
             for a_params in active["transport_params"]:
                 for c in a_params.keys():
                     if (c not in active["transport_params"][0].keys()):
-                        return test.FAIL("receiver active parameters are inconsistent")
+                        return test.FAIL("receiver {}: active parameters are inconsistent".format(receiver["id"]))
 
             # now check transport minimum requirements
             i = 0
@@ -1083,8 +1101,8 @@ class BCP0070201Test(GenericTest):
                 valid, msg = checkReceiverTransportParametersUsb(
                     receiver["transport"], c_params, staged["transport_params"][i], active["transport_params"][i])
                 if not valid:
-                    return test.FAIL("receiver active transport parameters is not"
-                                     " valid against minimum requirements, error {}".format(msg))
+                    return test.FAIL("receiver {}: active transport parameters is not"
+                                     " valid against minimum requirements, error {}".format(receiver["id"], msg))
 
                 i = i + 1
 
