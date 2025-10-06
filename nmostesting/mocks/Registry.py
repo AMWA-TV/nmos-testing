@@ -649,16 +649,6 @@ def post_subscription(version):
 @check_enabled_and_authorization
 def delete_subscription(version, subscription_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
-                                                             request.path,
-                                                             scope="x-nmos-query",
-                                                             write=True)
-
-    if authorized is not True:
-        abort(authorized, description=error_message)
-
     registry.requested_query_api_version = version
 
     try:
