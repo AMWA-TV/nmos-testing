@@ -325,28 +325,35 @@ REGISTRIES = [Registry(REGISTRY_COMMON, i + 1) for i in range(NUM_REGISTRIES)]
 REGISTRY_API = Blueprint('registry_api', __name__)
 
 
-@REGISTRY_API.route('/x-nmos', methods=["GET"], strict_slashes=False)
-def x_nmos():
-    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
+# Authorization decorator
+def check_enabled_and_authorization(func):
+    def wrapper(*args, **kwargs):
+        registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
+        if not registry.enabled:
+            abort(503)
+        authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
+                                                                 request.path,
+                                                                 scope="x-nmos-registration")
+        if authorized is not True:
+            abort(authorized, description=error_message)
 
+        return func(*args, **kwargs)
+    # Rename wrapper to allow decoration of decorator
+    wrapper.__name__ = func.__name__
+    return wrapper
+
+
+@REGISTRY_API.route('/x-nmos', methods=["GET"], strict_slashes=False)
+@check_enabled_and_authorization
+def x_nmos():
     base_data = ['query/', 'registration/']
 
     return Response(json.dumps(base_data), mimetype='application/json')
 
 
 @REGISTRY_API.route('/x-nmos/registration', methods=["GET"], strict_slashes=False)
+@check_enabled_and_authorization
 def registration_root():
-    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
-                                                             request.path,
-                                                             scope="x-nmos-registration")
-    if authorized is not True:
-        abort(authorized, description=error_message)
-
     base_data = [version + '/' for version in SPECIFICATIONS["is-04"]["versions"]]
 
     return Response(json.dumps(base_data), mimetype='application/json')
@@ -354,16 +361,8 @@ def registration_root():
 
 # IS-04 resources
 @REGISTRY_API.route('/x-nmos/registration/<version>', methods=["GET"], strict_slashes=False)
+@check_enabled_and_authorization
 def base_resource(version):
-    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
-                                                             request.path,
-                                                             scope="x-nmos-registration")
-
-    if authorized is not True:
-        abort(authorized, description=error_message)
     base_data = ["resource/", "health/"]
     # Using json.dumps to support older Flask versions http://flask.pocoo.org/docs/1.0/security/#json-security
 
@@ -371,17 +370,9 @@ def base_resource(version):
 
 
 @REGISTRY_API.route('/x-nmos/registration/<version>/resource', methods=["POST"])
+@check_enabled_and_authorization
 def post_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(500)
-    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
-                                                             request.path,
-                                                             scope="x-nmos-registration",
-                                                             write=True)
-
-    if authorized is not True:
-        abort(authorized, description=error_message)
     if not registry.test_first_reg:
         registered = False
         try:
@@ -405,17 +396,9 @@ def post_resource(version):
 
 
 @REGISTRY_API.route('/x-nmos/registration/<version>/resource/<resource_type>/<resource_id>', methods=["DELETE"])
+@check_enabled_and_authorization
 def delete_resource(version, resource_type, resource_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(500)
-    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
-                                                             request.path,
-                                                             scope="x-nmos-registration",
-                                                             write=True)
-
-    if authorized is not True:
-        abort(authorized, description=error_message)
     resource_type = resource_type.rstrip("s")
     if not registry.test_first_reg:
         registered = False
@@ -443,17 +426,9 @@ def delete_resource(version, resource_type, resource_id):
 
 
 @REGISTRY_API.route('/x-nmos/registration/<version>/health/nodes/<node_id>', methods=["POST"])
+@check_enabled_and_authorization
 def heartbeat(version, node_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(500)
-    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
-                                                             request.path,
-                                                             scope="x-nmos-registration",
-                                                             write=True)
-
-    if authorized is not True:
-        abort(authorized, description=error_message)
     if node_id in registry.get_resources()["node"]:
         # store raw request payload, in order to check for empty request bodies later
         try:
@@ -466,34 +441,17 @@ def heartbeat(version, node_id):
 
 
 @REGISTRY_API.route('/x-nmos/query', methods=["GET"], strict_slashes=False)
+@check_enabled_and_authorization
 def query_root():
-    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
-                                                             request.path,
-                                                             scope="x-nmos-query")
-
-    if authorized is not True:
-        abort(authorized, description=error_message)
-
     base_data = [version + '/' for version in SPECIFICATIONS["is-04"]["versions"]]
 
     return Response(json.dumps(base_data), mimetype='application/json')
 
 
 @REGISTRY_API.route('/x-nmos/query/<version>', methods=["GET"], strict_slashes=False)
+@check_enabled_and_authorization
 def query(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
-                                                             request.path,
-                                                             scope="x-nmos-query")
-
-    if authorized is not True:
-        abort(authorized, description=error_message)
-
     registry.requested_query_api_version = version
 
     base_data = ['devices/', 'flows/', 'nodes/', 'receivers/', 'senders/', 'sources/', 'subscriptions/']
@@ -510,17 +468,9 @@ def compare_resources(resource1, resource2):
 
 
 @REGISTRY_API.route('/x-nmos/query/<version>/<resource>', methods=["GET"], strict_slashes=False)
+@check_enabled_and_authorization
 def query_resource(version, resource):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
-                                                             request.path,
-                                                             scope="x-nmos-query")
-
-    if authorized is not True:
-        abort(authorized, description=error_message)
-
     registry.requested_query_api_version = version
 
     # NOTE: Advanced Query Syntax (RQL) is not currently supported
@@ -638,17 +588,9 @@ def query_resource(version, resource):
 
 
 @REGISTRY_API.route('/x-nmos/query/<version>/<resource>/<resource_id>', methods=['GET'], strict_slashes=False)
+@check_enabled_and_authorization
 def get_resource(version, resource, resource_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
-                                                             request.path,
-                                                             scope="x-nmos-query")
-
-    if authorized is not True:
-        abort(authorized, description=error_message)
-
     registry.requested_query_api_version = version
     registry.query_api_called = True
 
@@ -666,19 +608,9 @@ def get_resource(version, resource, resource_id):
 
 
 @REGISTRY_API.route('/x-nmos/query/<version>/subscriptions', methods=["POST"])
+@check_enabled_and_authorization
 def post_subscription(version):
-
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
-                                                             request.path,
-                                                             scope="x-nmos-query",
-                                                             write=True)
-
-    if authorized is not True:
-        abort(authorized, description=error_message)
-
     registry.requested_query_api_version = version
     subscription_request = request.json
 
@@ -714,8 +646,8 @@ def post_subscription(version):
 
 
 @REGISTRY_API.route('/x-nmos/query/<version>/subscriptions/<subscription_id>', methods=["DELETE"])
+@check_enabled_and_authorization
 def delete_subscription(version, subscription_id):
-
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
