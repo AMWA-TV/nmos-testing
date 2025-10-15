@@ -15,6 +15,7 @@
 from Crypto.PublicKey import RSA
 from authlib.jose import jwt, JsonWebKey
 
+import re
 import time
 import uuid
 
@@ -22,6 +23,7 @@ from .NMOSUtils import NMOSUtils
 from OpenSSL import crypto
 from cryptography.hazmat.primitives import serialization
 from cryptography import x509
+from flask import request
 from .TestHelper import get_default_ip, get_mocks_hostname
 
 from . import Config as CONFIG
@@ -157,3 +159,36 @@ class IS10Utils(NMOSUtils):
             if item in [e.name for e in enum]:
                 return True
         return False
+
+    @staticmethod
+    def check_authorization(auth, path, scope="x-nmos-registration", write=False):
+        def _check_path_match(path, path_wildcards):
+            path_match = False
+            for path_wildcard in path_wildcards:
+                pattern = path_wildcard.replace("*", ".*")
+                if re.search(pattern, path):
+                    path_match = True
+                    break
+            return path_match
+
+        if CONFIG.ENABLE_AUTH:
+            try:
+                if "Authorization" not in request.headers:
+                    return 400, "Authorization header not found"
+                if not request.headers["Authorization"].startswith("Bearer "):
+                    return 400, "Bearer not found in Authorization header"
+                token = request.headers["Authorization"].split(" ")[1]
+                claims = jwt.decode(token, auth.generate_jwk())
+                claims.validate()
+                if claims["iss"] != auth.make_issuer():
+                    return 401, f"Unexpected issuer, expected: {auth.make_issuer()}, actual: {claims['iss']}"
+                # TODO: Check 'aud' claim matches 'mocks.<domain>'
+                if not _check_path_match(path, claims[scope]["read"]):
+                    return 403, f"Paths mismatch for {scope} read claims"
+                if write and not _check_path_match(path, claims[scope]["write"]):
+                    return 403, f"Paths mismatch for {scope} write claims"
+            except KeyError as err:
+                return 400, f"KeyError: {err}"
+            except Exception as err:
+                return 400, f"Exception: {err}"
+        return True, ""

@@ -171,6 +171,12 @@ class IS12Utils(MS05Utils):
             for tm in self.ncp_websocket.get_timestamped_messages():
                 parsed_message = json.loads(tm.message)
 
+                if parsed_message is None:
+                    raise NMOSTestException(test.FAIL(
+                        f"Null message received for command: {str(command_json)}",
+                        f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]['spec_branch']}"
+                        "/docs/Protocol_messaging.html#command-message-type"))
+
                 if self.message_type_to_schema_name(parsed_message.get("messageType")):
                     self._validate_is12_schema(
                         test,
@@ -230,7 +236,7 @@ class IS12Utils(MS05Utils):
         # Get any timestamped messages that have arrived in the interim period
         for tm in self.ncp_websocket.get_timestamped_messages():
             parsed_message = json.loads(tm.message)
-            if parsed_message["messageType"] == MessageTypes.Notification:
+            if parsed_message and parsed_message["messageType"] == MessageTypes.Notification:
                 self.notifications += [IS12Notification(n, tm.received_time)
                                        for n in parsed_message["notifications"]]
         return self.notifications
