@@ -297,7 +297,7 @@ class MS0501Test(GenericTest):
                 self.get_sequence_item_metadata.error_msg += f"{error_msg_base}" \
                     f"property name={property_descriptor.name}: " \
                     f"property id={str(property_descriptor.id)}: " \
-                    f"GetSequenceItem error: {method_result.error}; "
+                    f"GetSequenceItem error: {method_result.errorMessage}; "
                 continue
             if self.ms05_utils.is_error_status(method_result.status):
                 self.get_sequence_item_metadata.error = True
