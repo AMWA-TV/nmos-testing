@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Start Avahi Daemon for mDNS discovery
+[ -e "/etc/init.d/dbus" ] && /etc/init.d/dbus start || dbus-daemon --system --fork
+[ -e "/etc/init.d/avahi-daemon" ] && /etc/init.d/avahi-daemon start || avahi-daemon --daemonize
+
 # Start NMOS Testing
 python3 nmos-test.py &
   
