@@ -170,6 +170,7 @@ FLASK_APPS.append(ocsp_app)
 # Primary Authorization server
 if CONFIG.ENABLE_AUTH:
     auth_app = Flask(__name__)
+    CORS(auth_app)
     auth_app.debug = False
     auth_app.config['AUTH_INSTANCE'] = 0
     auth_app.config['PORT'] = PRIMARY_AUTH.port

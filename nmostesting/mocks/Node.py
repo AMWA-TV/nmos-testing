@@ -24,6 +24,8 @@ from jinja2 import Template
 from .. import Config as CONFIG
 from ..TestHelper import get_default_ip, do_request
 from ..IS04Utils import IS04Utils
+from ..IS10Utils import IS10Utils
+from .Auth import PRIMARY_AUTH
 
 
 class Node(object):
@@ -39,6 +41,7 @@ class Node(object):
         self.receivers = {}
         self.senders = {}
         self.patched_sdp = {}
+        self.auth_cache = {}
 
     def get_sender(self, media_type="video/raw", version="v1.3"):
         protocol = "http"
@@ -360,9 +363,47 @@ class Node(object):
 
         return response_data, response_code
 
+    def check_authorization(self, auth, path, scope, write=False):
+        if not CONFIG.ENABLE_AUTH:
+            return True, ""
+
+        if "Authorization" in request.headers and request.headers["Authorization"].startswith("Bearer ") \
+                and scope in self.auth_cache and \
+                ((write and self.auth_cache[scope]["Write"]) or self.auth_cache[scope]["Read"]):
+            return True, ""
+
+        authorized, error_message = IS10Utils.check_authorization(auth,
+                                                                  path,
+                                                                  scope=scope,
+                                                                  write=write)
+        if authorized:
+            if scope not in self.auth_cache:
+                self.auth_cache[scope] = {"Read": True, "Write": write}
+            else:
+                self.auth_cache[scope]["Read"] = True
+                self.auth_cache[scope]["Write"] = self.auth_cache[scope]["Write"] or write
+        return authorized, error_message
+
 
 NODE = Node(1)
 NODE_API = Blueprint('node_api', __name__)
+
+
+# Authorization decorator
+def check_authorization(func):
+    def wrapper(*args, **kwargs):
+        write = (request.method == 'PATCH')
+        authorized, error_message = NODE.check_authorization(PRIMARY_AUTH,
+                                                             request.path,
+                                                             scope="x-nmos-connection",
+                                                             write=write)
+        if authorized is not True:
+            abort(authorized, description=error_message)
+
+        return func(*args, **kwargs)
+    # Rename wrapper to allow decoration of decorator
+    wrapper.__name__ = func.__name__
+    return wrapper
 
 
 @NODE_API.route('/x-nmos', methods=['GET'], strict_slashes=False)
@@ -373,6 +414,7 @@ def x_nmos_root():
 
 
 @NODE_API.route('/x-nmos/connection', methods=['GET'], strict_slashes=False)
+@check_authorization
 def connection_root():
     base_data = ['v1.0/', 'v1.1/']
 
@@ -380,6 +422,7 @@ def connection_root():
 
 
 @NODE_API.route('/x-nmos/connection/<version>', methods=['GET'], strict_slashes=False)
+@check_authorization
 def version(version):
     base_data = ['bulk/', 'single/']
 
@@ -387,6 +430,7 @@ def version(version):
 
 
 @NODE_API.route('/x-nmos/connection/<version>/single', methods=['GET'], strict_slashes=False)
+@check_authorization
 def single(version):
     base_data = ['senders/', 'receivers/']
 
@@ -394,6 +438,7 @@ def single(version):
 
 
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/', methods=["GET"], strict_slashes=False)
+@check_authorization
 def resources(version, resource):
     if resource == 'senders':
         base_data = [r + '/' for r in [*NODE.senders]]
@@ -404,6 +449,7 @@ def resources(version, resource):
 
 
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>', methods=["GET"], strict_slashes=False)
+@check_authorization
 def connection(version, resource, resource_id):
     if resource != 'senders' and resource != 'receivers':
         abort(404)
@@ -440,6 +486,7 @@ def _get_constraints(resource):
 
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/constraints',
                 methods=["GET"], strict_slashes=False)
+@check_authorization
 def constraints(version, resource, resource_id):
     base_data = [_get_constraints(resource)]
 
@@ -472,6 +519,7 @@ def _check_constraint(constraint, transport_param):
 
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/staged',
                 methods=["GET", "PATCH"], strict_slashes=False)
+@check_authorization
 def staged(version, resource, resource_id):
     """
     GET returns current staged data for given resource
@@ -515,6 +563,7 @@ def staged(version, resource, resource_id):
 
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/active',
                 methods=["GET"], strict_slashes=False)
+@check_authorization
 def active(version, resource, resource_id):
     try:
         if resource == 'senders':
@@ -529,6 +578,7 @@ def active(version, resource, resource_id):
 
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/transporttype',
                 methods=["GET"], strict_slashes=False)
+@check_authorization
 def transport_type(version, resource, resource_id):
     # TODO fetch from resource info
     base_data = "urn:x-nmos:transport:rtp"
@@ -583,6 +633,7 @@ def node_sdp(media_type, media_subtype):
 
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/transportfile',
                 methods=["GET"], strict_slashes=False)
+@check_authorization
 def transport_file(version, resource, resource_id):
     # GET should either redirect to the location of the transport file or return it directly
     try:
