@@ -41,7 +41,7 @@ class IS05Utils(NMOSUtils):
             valid_transports.append("urn:x-nmos:transport:websocket")
             valid_transports.append("urn:x-nmos:transport:mqtt")
         return valid_transports
-    
+
     def get_valid_transports_with_transport_file(self, api_version):
         """Identify the valid transport types which allow a transport file for a given version of IS-05"""
         valid_transports = ["urn:x-nmos:transport:rtp",
