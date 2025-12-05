@@ -37,13 +37,9 @@ class IS05Utils(NMOSUtils):
                             "urn:x-nmos:transport:rtp.mcast",
                             "urn:x-nmos:transport:rtp.ucast",
                             "urn:x-nmos:transport:dash"]
-        if self.compare_api_version(api_version, "v1.1") >= 0:
+        if self.compare_api_version(api_version, "v1.1") >= 0 and not with_transport_file_support:
             valid_transports.append("urn:x-nmos:transport:websocket")
             valid_transports.append("urn:x-nmos:transport:mqtt")
-
-        if not with_transport_file_support:
-            valid_transports.remove("urn:x-nmos:transport:websocket")
-            valid_transports.remove("urn:x-nmos:transport:mqtt")
         return valid_transports
 
     def check_num_legs(self, url, res_type, uuid):
