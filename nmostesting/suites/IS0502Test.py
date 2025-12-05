@@ -579,8 +579,8 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         try:
-            valid_transports = self.is05_utils.get_valid_transports_with_transport_file(
-                self.apis[CONN_API_KEY]["version"])
+            valid_transports = self.is05_utils.get_valid_transports(
+                self.apis[CONN_API_KEY]["version"], with_transport_file_support=False)
 
             access_error = False
 
