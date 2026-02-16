@@ -890,7 +890,8 @@ def format_test_results(results, endpoints, format, args):
                 "name": test_result.name,
                 "state": str(TestStates.DISABLED if test_result.name in ignored_tests else test_result.state),
                 "detail": test_result.detail,
-                "duration": test_result.elapsed_time
+                "duration": test_result.elapsed_time,
+                "description": test_result.description
             })
         formatted = json.dumps(formatted, sort_keys=True, indent=4)
     elif format == "junit":
