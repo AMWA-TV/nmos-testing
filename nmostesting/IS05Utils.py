@@ -535,6 +535,10 @@ class IS05Utils(NMOSUtils):
                 sdp_global = sdp_sections[0]
                 sdp_media_sections = sdp_sections[1:]
                 sdp_groups_line = re.search(r"a=group:DUP (.+)", sdp_global)
+                connection_global = None
+                connection_global_line = re.search(r"c=IN IP[4,6] ([^/\r\n]*)(?:/[0-9]+){0,2}", sdp_global)
+                if connection_global_line is not None:
+                    connection_global = connection_global_line.group(1)
                 tp_compare = []
                 if sdp_groups_line:
                     sdp_group_names = sdp_groups_line.group(1).split()
@@ -553,7 +557,14 @@ class IS05Utils(NMOSUtils):
                         return False, "SDP destination port {} does not match transport_params: {}" \
                                       .format(media_line.group(2), transport_params["destination_port"])
                     connection_line = re.search(r"c=IN IP[4,6] ([^/\r\n]*)(?:/[0-9]+){0,2}", sdp_data)
-                    if connection_line.group(1) != transport_params["destination_ip"]:
+                    if connection_line is None:
+                        if connection_global is None:
+                            return False, "SDP has no session-level connection description, and no connection line in media description {}"\
+                                        .format(index)
+                        elif connection_global != transport_params["destination_ip"]:
+                            return False, "SDP has no connection line for media description {}, and session destination IP {} does not match transport_params: {}" \
+                                        .format(index, connection_global, transport_params["destination_ip"])
+                    elif connection_line.group(1) != transport_params["destination_ip"]:
                         return False, "SDP destination IP {} does not match transport_params: {}" \
                                       .format(connection_line.group(1), transport_params["destination_ip"])
                     filter_line = re.search(r"a=source-filter: incl IN IP[4,6] (\S*) (\S*)", sdp_data)
