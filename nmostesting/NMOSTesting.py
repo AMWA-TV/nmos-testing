@@ -1282,8 +1282,10 @@ def run_api_tests(args, data_format):
 
 def main(args):
     global CMD_ARGS, DNS_SERVER, TOOL_VERSION
-    # Check if we're testing unicast DNS discovery, and if so ensure we have elevated privileges
-    if CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast":
+    # Check if we're testing unicast DNS discovery with default port number,
+    #  and if so ensure we have elevated privileges
+    if CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast" \
+       and CONFIG.DNS_PORT == None:
         is_admin = False
         if platform.system() == "Windows":
             from ctypes import windll
@@ -1292,7 +1294,7 @@ def main(args):
         elif os.geteuid() == 0:
             is_admin = True
         if not is_admin:
-            print(" * ERROR: In order to test DNS-SD in unicast mode, the test suite must be run "
+            print(" * ERROR: In order to test DNS-SD in unicast mode with default port number, the test suite must be run "
                   "with elevated permissions")
             sys.exit(ExitCodes.ERROR)
 
