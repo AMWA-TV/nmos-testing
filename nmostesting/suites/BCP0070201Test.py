@@ -305,7 +305,7 @@ class BCP0070201Test(GenericTest):
                 return test.FAIL(result)
 
         reg_path = reg_api["spec_path"] + "/source-attributes"
-        reg_schema = load_resolved_schema(reg_path, "source_register.json", path_prefix=False)
+        reg_schema = load_resolved_schema(reg_path, "source_data_register.json", path_prefix=False)
 
         source_map = {source["id"]: source for source in self.is04_resources["sources"].values()}
         flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"].values()}
@@ -339,7 +339,7 @@ class BCP0070201Test(GenericTest):
                                      "extensible attributes defined in the NMOS Parameter Registers: "
                                      "{}".format(source["id"], str(e)),
                                      "https://specs.amwa.tv/nmos-parameter-registers/branches/{}"
-                                     "/source-attributes/source_register.html"
+                                     "/source-attributes/source_data_register.html"
                                      .format(reg_api["spec_branch"]))
 
                 # Check that the optional 'usb_devices' attribute has proper structure
