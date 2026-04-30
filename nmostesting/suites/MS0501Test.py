@@ -1810,7 +1810,7 @@ class MS0501Test(GenericTest):
         maximum = (constraints.maximum or sys.maxsize if constraints else sys.maxsize)
         step = (constraints.step or 1 if constraints else 1)
 
-        valid_value = floor((((maximum - minimum) / 2) + minimum) / step) * step + minimum
+        valid_value = floor(((maximum - minimum) / 2) / step) * step + minimum
 
         # Valid value
         if not violate_constraints:
