@@ -90,6 +90,7 @@ from .suites import BCP0050101Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
 from .suites import BCP00604Test
+from .suites import BCP0070301Test
 from .suites import BCP0080101Test
 from .suites import BCP0080201Test
 
@@ -534,6 +535,28 @@ TEST_DEFINITIONS = {
             "api_key": "sender-register"
         }],
         "class": BCP00604Test.BCP00604Test
+    },
+    "BCP-007-03-01": {
+        "name": "BCP-007-03 NMOS With MXL",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection",
+            "default_version": "v1.2"
+        }],
+        "extra_specs": [{
+            "spec_key": "bcp-004-01",
+            "api_key": "receiver-caps"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "caps-register"
+        }, {
+            "spec_key": "bcp-007-03",
+            "api_key": "mxl-schemas"
+        }],
+        "class": BCP0070301Test.BCP0070301Test
     }
 }
 
