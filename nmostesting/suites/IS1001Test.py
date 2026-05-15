@@ -17,7 +17,7 @@ import socket
 import requests
 from time import sleep
 from urllib.parse import parse_qs
-from OpenSSL import crypto
+from cryptography import x509
 
 from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException
 from .. import Config as CONFIG
@@ -425,7 +425,10 @@ class IS1001Test(GenericTest):
 
         # Check that the certificate can be loaded and is therefore a valid PEM certificate
         try:
-            crypto.load_certificate(crypto.FILETYPE_PEM, response.json()[0])
+            pem = response.json()[0]
+            if isinstance(pem, str):
+                pem = pem.encode("ascii")
+            x509.load_pem_x509_certificate(pem)
             return test.PASS()
         except Exception as e:
             self._raise_nmos_exception(self, test, response, string=str(e))
