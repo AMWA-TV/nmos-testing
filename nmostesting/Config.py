@@ -111,6 +111,11 @@ KEYS_MOCKS = [
     "test_data/BCP00301/ca/intermediate/private/rsa.mocks.testsuite.nmos.tv.key.pem"
 ]
 
+# Combined client certificate and key.
+# Can be either path to the combined certificate
+# or a tuple of (cert_path, key_path).
+CERT_CLIENT = None
+
 # Test using authorization as per AMWA IS-10 and BCP-003-02
 ENABLE_AUTH = False
 
