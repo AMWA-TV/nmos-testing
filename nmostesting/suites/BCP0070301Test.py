@@ -33,6 +33,8 @@ CAPS_REGISTER_KEY = "caps-register"
 MXL_SCHEMA_KEY = "mxl-schemas"
 
 MXL_TRANSPORT = "urn:x-nmos:transport:mxl"
+_MXL_TP_PARAMS = ("mxl_domain_id", "mxl_flow_id")
+_PATCH_OK = frozenset((200, 202))
 
 # NMOS Formats register entries use URNs of this form (IS-04 resources).
 _FORMAT_URN_RE = re.compile(r"^urn:x-nmos:format:[A-Za-z0-9_:-]+$")
@@ -108,13 +110,86 @@ class BCP0070301Test(GenericTest):
             return False
         return "mxl_domain_id" in leg and "mxl_flow_id" in leg
 
-    def _staged_value_allowed(self, staged_val, constraint_entry):
-        """Return True if staged_val satisfies constraint_entry (enum/min/max)"""
+    @staticmethod
+    def _staged_value_satisfies_constraint(staged_val, constraint_entry):
+        """Return True if staged_val satisfies an IS-05 constraint record.
+
+        null and auto are permitted on staged by the transport parameter schema;
+        constraints only further restrict concrete values (per BCP-007-03 / IS-05).
+        """
+        if staged_val is None or staged_val == "auto":
+            return True
         if not isinstance(constraint_entry, dict):
             return True
-        if "enum" in constraint_entry:
-            return staged_val in constraint_entry["enum"]
+        if "enum" in constraint_entry and staged_val not in constraint_entry["enum"]:
+            return False
+        if "minimum" in constraint_entry and isinstance(staged_val, (int, float)):
+            if staged_val < constraint_entry["minimum"]:
+                return False
+        if "maximum" in constraint_entry and isinstance(staged_val, (int, float)):
+            if staged_val > constraint_entry["maximum"]:
+                return False
+        if "pattern" in constraint_entry and isinstance(staged_val, str):
+            if re.fullmatch(constraint_entry["pattern"], staged_val) is None:
+                return False
         return True
+
+    @staticmethod
+    def _constraints_enum_lists_auto(leg):
+        if not isinstance(leg, dict):
+            return []
+        return [param for param in _MXL_TP_PARAMS
+                if isinstance(leg.get(param), dict)
+                and "enum" in leg[param]
+                and "auto" in leg[param]["enum"]]
+
+    @staticmethod
+    def _leg_values_contain_auto(legs):
+        if not isinstance(legs, list):
+            return False
+        for leg in legs:
+            if isinstance(leg, dict) and "auto" in leg.values():
+                return True
+        return False
+
+    @staticmethod
+    def _mxl_param_value_valid(value):
+        """True if value is null (unconfigured) or a concrete resolved value."""
+        return value is None or (isinstance(value, str) and value != "auto")
+
+    @staticmethod
+    def _staged_patch_body_omit_transport_file(staged):
+        """Build a PATCH body from GET /staged, omitting transport_file.
+
+        Unset activation objects (all-null fields from GET) are also omitted: many
+        implementations reject them on PATCH even though MXL receivers must accept
+        requests without transport_file.
+        """
+        body = {k: v for k, v in staged.items() if k != "transport_file"}
+        activation = staged.get("activation")
+        if isinstance(activation, dict) and all(v is None for v in activation.values()):
+            body.pop("activation", None)
+        return body
+
+    def _patch_mxl_staged(self, kind, resource_id, staged, leg_overrides, activate=False):
+        base = f"single/{kind}s/{resource_id}/"
+        tp = deepcopy(staged.get("transport_params", []))
+        if not tp or not isinstance(tp[0], dict):
+            return False, "No transport_params leg to patch"
+        tp[0].update(leg_overrides)
+        body = self._staged_patch_body_omit_transport_file(staged)
+        body["transport_params"] = tp
+        if activate:
+            body["activation"] = {"mode": "activate_immediate"}
+        return self.do_request("PATCH", self.connection_url + base + "staged/", json=body)
+
+    def _get_staged(self, kind, resource_id):
+        base = f"single/{kind}s/{resource_id}/"
+        return self.is05_utils.checkCleanRequestJSON("GET", base + "staged/")
+
+    def _get_active(self, kind, resource_id):
+        base = f"single/{kind}s/{resource_id}/"
+        return self.is05_utils.checkCleanRequestJSON("GET", base + "active/")
 
     def test_01(self, test):
         """Node implements IS-04 version 1.3 or higher"""
@@ -128,7 +203,7 @@ class BCP0070301Test(GenericTest):
         return test.FAIL("Node API must be v1.3 or greater for BCP-007-03")
 
     def test_02(self, test):
-        """Node exposes Source, Flow and Sender resources for each MXL writer in the IS-04 Node API"""
+        """Node exposes Source, Flow and Sender resources for each MXL writer"""
 
         for rt in ["senders", "flows", "sources"]:
             valid, result = self.get_is04_resources(rt)
@@ -158,7 +233,7 @@ class BCP0070301Test(GenericTest):
         return test.PASS()
 
     def test_03(self, test):
-        """MXL Flow format and media_type use values from the NMOS parameter registers"""
+        """MXL Flow format and media_type use NMOS parameter register values"""
 
         for rt in ["senders", "flows"]:
             valid, result = self.get_is04_resources(rt)
@@ -424,7 +499,58 @@ class BCP0070301Test(GenericTest):
         return test.PASS()
 
     def test_12(self, test):
-        """Sender and Receiver constraints list allowed mxl_domain_id and mxl_flow_id values per BCP-007-03"""
+        """Staged MXL parameters comply with transport schema and per-parameter IS-05 constraints"""
+
+        for rt in ["senders", "receivers"]:
+            valid, result = self.get_is04_resources(rt)
+            if not valid:
+                return test.FAIL(result)
+
+        checked = False
+        for kind, resources, schema in (
+                ("sender", self._mxl_senders(),
+                 load_resolved_schema(self.apis[MXL_SCHEMA_KEY]["spec_path"],
+                                      "sender_transport_params_mxl.json")),
+                ("receiver", self._mxl_receivers(),
+                 load_resolved_schema(self.apis[MXL_SCHEMA_KEY]["spec_path"],
+                                      "receiver_transport_params_mxl.json")),
+        ):
+            for resource in self._apply_max_test_iteration_cap(resources):
+                checked = True
+
+                valid_c, constraints = self.is05_utils.checkCleanRequestJSON(
+                    "GET", f"single/{kind}s/{resource['id']}/constraints/")
+                if not valid_c:
+                    return test.FAIL(str(constraints))
+                if not isinstance(constraints, list) or len(constraints) != 1:
+                    return test.FAIL(f"{kind} {resource['id']} must expose exactly one constraints leg")
+
+                valid_s, staged = self.is05_utils.checkCleanRequestJSON(
+                    "GET", f"single/{kind}s/{resource['id']}/staged/")
+                if not valid_s:
+                    return test.FAIL(str(staged))
+                if not isinstance(staged.get("transport_params"), list) or len(staged["transport_params"]) != 1:
+                    return test.FAIL(f"{kind} {resource['id']} staged transport_params must have exactly one leg")
+
+                try:
+                    self.validate_schema(staged["transport_params"][0], schema)
+                except ValidationError as e:
+                    return test.FAIL(f"{kind} {resource['id']} staged transport_params invalid vs transport "
+                                     f"schema: {e}")
+
+                for param in _MXL_TP_PARAMS:
+                    if (isinstance(constraints[0].get(param), dict)
+                            and not self._staged_value_satisfies_constraint(
+                                staged["transport_params"][0].get(param), constraints[0][param])):
+                        return test.FAIL(f"{kind} {resource['id']} staged {param} value "
+                                         f"{staged['transport_params'][0].get(param)!r} does not satisfy constraints")
+
+        if not checked:
+            return test.UNCLEAR("No MXL Senders or Receivers found")
+        return test.PASS()
+
+    def test_13(self, test):
+        """Constraints MUST NOT list auto for mxl_domain_id or mxl_flow_id"""
 
         for rt in ["senders", "receivers"]:
             valid, result = self.get_is04_resources(rt)
@@ -436,60 +562,18 @@ class BCP0070301Test(GenericTest):
             for resource in self._apply_max_test_iteration_cap(resources):
                 checked = True
                 base = f"single/{kind}s/{resource['id']}/"
-
                 valid_c, constraints = self.is05_utils.checkCleanRequestJSON("GET", base + "constraints/")
                 if not valid_c:
                     return test.FAIL(str(constraints))
-                leg_c = constraints[0]
-
-                valid_s, staged = self.is05_utils.checkCleanRequestJSON("GET", base + "staged/")
-                if not valid_s:
-                    return test.FAIL(str(staged))
-                leg_s = staged["transport_params"][0]
-
-                for param in ("mxl_domain_id", "mxl_flow_id"):
-                    ce = leg_c.get(param)
-                    if isinstance(ce, dict) and "enum" in ce:
-                        if not self._staged_value_allowed(leg_s.get(param), ce):
-                            return test.FAIL(f"{kind} {resource['id']} staged {param} value {leg_s.get(param)} "
-                                             f"not allowed by constraints enum")
+                if not isinstance(constraints, list) or len(constraints) != 1:
+                    return test.FAIL(f"{kind} {resource['id']} must expose exactly one constraints leg")
+                auto_params = self._constraints_enum_lists_auto(constraints[0])
+                if auto_params:
+                    return test.FAIL(f"{kind} {resource['id']} constraints must not list auto for: "
+                                     f"{', '.join(auto_params)}")
 
         if not checked:
             return test.UNCLEAR("No MXL Senders or Receivers found")
-        return test.PASS()
-
-    def test_13(self, test):
-        """MXL Senders and Receivers reject the special value auto for mxl_domain_id and mxl_flow_id"""
-
-        for rt in ["senders", "receivers"]:
-            valid, result = self.get_is04_resources(rt)
-            if not valid:
-                return test.FAIL(result)
-
-        tested = False
-        for kind, resources in (("sender", self._mxl_senders()), ("receiver", self._mxl_receivers())):
-            for resource in self._apply_max_test_iteration_cap(resources):
-                base = f"single/{kind}s/{resource['id']}/"
-                valid_g, staged = self.is05_utils.checkCleanRequestJSON("GET", base + "staged/")
-                if not valid_g:
-                    return test.FAIL(str(staged))
-                if "transport_params" not in staged:
-                    continue
-                tp = deepcopy(staged["transport_params"])
-                if not tp or not isinstance(tp[0], dict):
-                    continue
-                tp[0]["mxl_domain_id"] = "auto"
-                body = {k: v for k, v in staged.items() if k != "transport_file"}
-                body["transport_params"] = tp
-                tested = True
-                valid_p, response = self.do_request("PATCH", self.connection_url + base + "staged/", json=body)
-                if not valid_p:
-                    return test.FAIL(str(response))
-                if response.status_code in (200, 202):
-                    return test.FAIL(f"{kind} {resource['id']} incorrectly accepted mxl_domain_id auto")
-
-        if not tested:
-            return test.UNCLEAR("No MXL staged transport_params to test")
         return test.PASS()
 
     def test_14(self, test):
@@ -508,7 +592,7 @@ class BCP0070301Test(GenericTest):
             valid_g, staged = self.is05_utils.checkCleanRequestJSON("GET", base + "staged/")
             if not valid_g:
                 return test.FAIL(str(staged))
-            body = {k: v for k, v in staged.items() if k != "transport_file"}
+            body = self._staged_patch_body_omit_transport_file(staged)
             valid_p, resp = self.do_request("PATCH", self.connection_url + base + "staged/", json=body)
             if not valid_p:
                 return test.FAIL(f"PATCH failed: {resp}")
@@ -524,3 +608,162 @@ class BCP0070301Test(GenericTest):
 
         return test.NA("Whether MXL read/write starts or stops on activation cannot be verified by this tool without "
                        "implementation-specific telemetry (R-ACT-ON/OFF, S-ACT-ON/OFF).")
+
+    def test_16(self, test):
+        """Node exposes Receiver resources for MXL readers in the IS-04 Node API"""
+
+        valid, result = self.get_is04_resources("receivers")
+        if not valid:
+            return test.FAIL(result)
+
+        if not self._mxl_receivers():
+            return test.UNCLEAR("No MXL Receiver resources found")
+
+        return test.PASS()
+
+    def test_17(self, test):
+        """MXL transport parameters use null when undetermined; active MUST NOT contain auto"""
+
+        for rt in ["senders", "receivers"]:
+            valid, result = self.get_is04_resources(rt)
+            if not valid:
+                return test.FAIL(result)
+
+        checked = False
+        for kind, resources in (("sender", self._mxl_senders()), ("receiver", self._mxl_receivers())):
+            for resource in self._apply_max_test_iteration_cap(resources):
+                checked = True
+                rid = resource["id"]
+                for endpoint in ("staged", "active"):
+                    valid_j, data = self.is05_utils.checkCleanRequestJSON(
+                        "GET", f"single/{kind}s/{rid}/{endpoint}/")
+                    if not valid_j:
+                        return test.FAIL(str(data))
+                    tp = data.get("transport_params", [])
+                    if endpoint == "active" and self._leg_values_contain_auto(tp):
+                        return test.FAIL(f"{kind} {rid} active transport_params must not contain auto")
+                    if not isinstance(tp, list) or len(tp) != 1 or not isinstance(tp[0], dict):
+                        return test.FAIL(f"{kind} {rid} {endpoint} transport_params must have one leg")
+                    for param in _MXL_TP_PARAMS:
+                        val = tp[0].get(param)
+                        if param not in tp[0]:
+                            return test.FAIL(f"{kind} {rid} {endpoint} missing {param}")
+                        if endpoint == "active" and val == "auto":
+                            return test.FAIL(f"{kind} {rid} active {param} must not be auto")
+                        if endpoint == "active" and not self._mxl_param_value_valid(val):
+                            return test.FAIL(f"{kind} {rid} active {param} must be null or a concrete value, "
+                                             f"got {val!r}")
+
+        if not checked:
+            return test.UNCLEAR("No MXL Senders or Receivers found")
+        return test.PASS()
+
+    def test_18(self, test):
+        """MXL Sender accepts null and resolvable auto for mxl_domain_id and mxl_flow_id"""
+
+        valid, result = self.get_is04_resources("senders")
+        if not valid:
+            return test.FAIL(result)
+
+        senders = self._mxl_senders()
+        if not senders:
+            return test.UNCLEAR("No MXL Sender resources found")
+
+        for sender in self._apply_max_test_iteration_cap(senders):
+            sid = sender["id"]
+            for param in _MXL_TP_PARAMS:
+                valid_g, staged = self._get_staged("sender", sid)
+                if not valid_g:
+                    return test.FAIL(str(staged))
+
+                valid_p, response = self._patch_mxl_staged("sender", sid, staged, {param: None})
+                if not valid_p:
+                    return test.FAIL(str(response))
+                if response.status_code not in _PATCH_OK:
+                    return test.FAIL(f"Sender {sid} must accept null for {param}, got {response.status_code}")
+
+                valid_g, staged = self._get_staged("sender", sid)
+                if not valid_g:
+                    return test.FAIL(str(staged))
+
+                valid_p, response = self._patch_mxl_staged("sender", sid, staged, {param: "auto"}, activate=True)
+                if not valid_p:
+                    return test.FAIL(str(response))
+                if response.status_code not in _PATCH_OK:
+                    return test.FAIL(f"Sender {sid} must accept auto for {param} when resolvable, "
+                                     f"got {response.status_code}")
+
+                valid_a, active = self._get_active("sender", sid)
+                if not valid_a:
+                    return test.FAIL(str(active))
+                atp = active.get("transport_params", [])
+                if not isinstance(atp, list) or len(atp) != 1:
+                    return test.FAIL(f"Sender {sid} active transport_params must have one leg")
+                if atp[0].get(param) == "auto":
+                    return test.FAIL(f"Sender {sid} patched auto for {param} did not resolve on /active")
+
+        return test.PASS()
+
+    def test_19(self, test):
+        """MXL Receiver null and auto semantics for mxl_domain_id and mxl_flow_id"""
+
+        valid, result = self.get_is04_resources("receivers")
+        if not valid:
+            return test.FAIL(result)
+
+        receivers = self._mxl_receivers()
+        if not receivers:
+            return test.UNCLEAR("No MXL Receiver resources found")
+
+        for receiver in self._apply_max_test_iteration_cap(receivers):
+            rid = receiver["id"]
+
+            valid_g, staged = self._get_staged("receiver", rid)
+            if not valid_g:
+                return test.FAIL(str(staged))
+
+            valid_p, response = self._patch_mxl_staged("receiver", rid, staged, {"mxl_flow_id": None})
+            if not valid_p:
+                return test.FAIL(str(response))
+            if response.status_code not in _PATCH_OK:
+                return test.FAIL(f"Receiver {rid} must accept null for mxl_flow_id, got {response.status_code}")
+
+            valid_g, staged = self._get_staged("receiver", rid)
+            if not valid_g:
+                return test.FAIL(str(staged))
+
+            valid_p, response = self._patch_mxl_staged("receiver", rid, staged, {"mxl_flow_id": "auto"})
+            if not valid_p:
+                return test.FAIL(str(response))
+            if response.status_code in _PATCH_OK:
+                return test.FAIL(f"Receiver {rid} must not accept auto for mxl_flow_id")
+
+            valid_g, staged = self._get_staged("receiver", rid)
+            if not valid_g:
+                return test.FAIL(str(staged))
+
+            valid_p, response = self._patch_mxl_staged("receiver", rid, staged, {"mxl_domain_id": None})
+            if not valid_p:
+                return test.FAIL(str(response))
+            if response.status_code not in _PATCH_OK:
+                return test.FAIL(f"Receiver {rid} must accept null for mxl_domain_id, got {response.status_code}")
+
+            valid_g, staged = self._get_staged("receiver", rid)
+            if not valid_g:
+                return test.FAIL(str(staged))
+
+            valid_p, response = self._patch_mxl_staged(
+                "receiver", rid, staged, {"mxl_domain_id": "auto"}, activate=True)
+            if not valid_p:
+                return test.FAIL(str(response))
+            if response.status_code in _PATCH_OK:
+                valid_a, active = self._get_active("receiver", rid)
+                if not valid_a:
+                    return test.FAIL(str(active))
+                atp = active.get("transport_params", [])
+                if not isinstance(atp, list) or len(atp) != 1:
+                    return test.FAIL(f"Receiver {rid} active transport_params must have one leg")
+                if atp[0].get("mxl_domain_id") == "auto":
+                    return test.FAIL(f"Receiver {rid} patched auto for mxl_domain_id did not resolve on /active")
+
+        return test.PASS()
