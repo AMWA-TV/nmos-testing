@@ -18,11 +18,13 @@ from authlib.jose import jwt, JsonWebKey
 import re
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from .NMOSUtils import NMOSUtils
-from OpenSSL import crypto
-from cryptography.hazmat.primitives import serialization
 from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import ExtensionOID, NameOID
 from flask import request
 from .TestHelper import get_default_ip, get_mocks_hostname
 
@@ -86,69 +88,84 @@ class IS10Utils(NMOSUtils):
     @staticmethod
     def make_key_cert_files(cert_file, key_file):
         """Create a 10 years CA Root signed certificate for the mock server """
-        # create a key pair
-        k = crypto.PKey()
-        k.generate_key(crypto.TYPE_RSA, 2048)
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
-        # load Root CA cert
         cacert = open(CONFIG.CERT_TRUST_ROOT_CA, "r").read()
-        ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, cacert)
-        # get Root CA cert Common Name to be used in the new certificate
-        ca_cn = ca_cert.get_subject().CN
+        ca_cert = x509.load_pem_x509_certificate(cacert.encode("utf-8"))
 
-        # create cert
-        cert = crypto.X509()
-        cert.set_version(2)
-        # country
-        cert.get_subject().C = "GB"
-        # state or province name
-        cert.get_subject().ST = "England"
-        # organization
-        cert.get_subject().O = "NMOS Testing Ltd"  # noqa: E741
-        ca_cert_subject = cert.get_subject()
-        # issuer common name - CA Root common name
-        ca_cert_subject.CN = ca_cn
-        cert.set_issuer(ca_cert_subject)
-        # common name - mocks.<dns domain>
-        cert.get_subject().CN = "mocks.{}".format(CONFIG.DNS_DOMAIN)
-        # serial number - random
-        cert.set_serial_number(x509.random_serial_number())
-        # not before - now
-        cert.gmtime_adj_notBefore(0)
-        # not after - 10 years
-        cert.gmtime_adj_notAfter(10*365*24*60*60)
-        cert.set_pubkey(k)
+        subject = x509.Name([
+            x509.NameAttribute(NameOID.COUNTRY_NAME, "GB"),
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "England"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "NMOS Testing Ltd"),  # noqa: E741
+            x509.NameAttribute(NameOID.COMMON_NAME, "mocks.{}".format(CONFIG.DNS_DOMAIN)),
+        ])
 
-        # create cert extension
-        # subject alternative name - mocks.<dns domain> and  nmos-mocks.local
-        san = ["DNS:mocks.{}".format(CONFIG.DNS_DOMAIN), "DNS:nmos-mocks.local"]
-        cert_ext = []
-        cert_ext.append(crypto.X509Extension(b'subjectKeyIdentifier', False, b'hash', cert))
-        cert_ext.append(crypto.X509Extension(b'authorityKeyIdentifier',
-                                             False, b'keyid,issuer:always', issuer=ca_cert))
-        cert_ext.append(crypto.X509Extension(b'basicConstraints', False, b'CA:FALSE'))
-        cert_ext.append(crypto.X509Extension(b'keyUsage', True, b'digitalSignature, keyEncipherment'))
-        cert_ext.append(crypto.X509Extension(b'subjectAltName', False, ','.join(san).encode()))
-        cert.add_extensions(cert_ext)
+        public_key = private_key.public_key()
+        now = datetime.now(timezone.utc)
+        try:
+            issuer_ski = ca_cert.extensions.get_extension_for_oid(
+                ExtensionOID.SUBJECT_KEY_IDENTIFIER
+            ).value
+            aki = x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(issuer_ski)
+        except x509.ExtensionNotFound:
+            aki = x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key())
 
-        # sign cert with Root CA key
+        builder = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(ca_cert.subject)
+            .public_key(public_key)
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(now)
+            .not_valid_after(now + timedelta(days=10 * 365))
+            .add_extension(
+                x509.SubjectKeyIdentifier.from_public_key(public_key), critical=False
+            )
+            .add_extension(aki, critical=False)
+            .add_extension(
+                x509.BasicConstraints(ca=False, path_length=None), critical=False
+            )
+            .add_extension(
+                x509.KeyUsage(
+                    digital_signature=True,
+                    key_encipherment=True,
+                    content_commitment=False,
+                    data_encipherment=False,
+                    key_agreement=False,
+                    encipher_only=False,
+                    decipher_only=False,
+                    key_cert_sign=False,
+                    crl_sign=False,
+                ),
+                critical=True,
+            )
+            .add_extension(
+                x509.SubjectAlternativeName(
+                    [
+                        x509.DNSName("mocks.{}".format(CONFIG.DNS_DOMAIN)),
+                        x509.DNSName("nmos-mocks.local"),
+                    ]
+                ),
+                critical=False,
+            )
+        )
+
         capkey = open(CONFIG.KEY_TRUST_ROOT_CA, "r").read()
-        ca_pkey = crypto.load_privatekey(crypto.FILETYPE_PEM, capkey)
-        cert.sign(ca_pkey, 'sha256')
+        ca_private_key = serialization.load_pem_private_key(
+            capkey.encode("utf-8"), password=None
+        )
+        cert = builder.sign(ca_private_key, hashes.SHA256())
 
-        # write chain certificate file
         if cert_file is not None:
             with open(cert_file, "wt") as f:
-                f.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert).decode("utf-8"))
+                f.write(cert.public_bytes(serialization.Encoding.PEM).decode("utf-8"))
                 f.write(cacert)
-        # write private key file
         if key_file is not None:
-
             with open(key_file, "wb") as f:
-                pem = k.to_cryptography_key().private_bytes(
+                pem = private_key.private_bytes(
                     encoding=serialization.Encoding.PEM,
                     format=serialization.PrivateFormat.TraditionalOpenSSL,
-                    encryption_algorithm=serialization.NoEncryption()
+                    encryption_algorithm=serialization.NoEncryption(),
                 )
                 f.write(pem)
 

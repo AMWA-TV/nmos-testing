@@ -12,7 +12,7 @@ dnslib
 jinja2
 junit-xml
 rfc3987
-pyopenssl
+cryptography>=42.0.0
 paho-mqtt
 authlib
 websockets
