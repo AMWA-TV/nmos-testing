@@ -98,6 +98,8 @@ class WatchingResolver(ForwardingZoneResolver):
 class DNS(object):
     def __init__(self):
         self.default_ip = get_default_ip()
+        self.dns_ip = CONFIG.DNS_IP if CONFIG.DNS_IP else self.default_ip
+        self.dns_port = CONFIG.DNS_PORT if CONFIG.DNS_PORT else 53
         self.resolver = None
         self.server = None
         self.base_zone_data = None
@@ -153,15 +155,15 @@ class DNS(object):
 
     def start(self):
         if not self.server:
-            print(" * Starting DNS server on {}:53".format(self.default_ip))
+            print(" * Starting DNS server on {}:{}".format(self.dns_ip, self.dns_port))
             try:
-                self.server = DNSServer(self.resolver, port=53, address=self.default_ip)
+                self.server = DNSServer(self.resolver, port=self.dns_port, address=self.dns_ip)
                 self.server.start_thread()
             except Exception as e:
-                print(" * ERROR: Unable to bind to port 53. DNS server could not start: {}".format(e))
+                print(" * ERROR: Unable to bind to {}:{}. DNS server could not start: {}".format(self.dns_ip, self.dns_port, e))
 
     def stop(self):
         if self.server:
-            print(" * Stopping DNS server on {}:53".format(self.default_ip))
+            print(" * Stopping DNS server on {}:{}".format(self.dns_ip, self.dns_port))
             self.server.stop()
             self.server = None
