@@ -21,7 +21,7 @@ from pathlib import Path
 from jsonschema import ValidationError
 
 from .. import Config as CONFIG
-from ..GenericTest import GenericTest
+from ..GenericTest import GenericTest, requires_api_version
 from ..IS04Utils import IS04Utils
 from ..IS05Utils import IS05Utils
 from ..TestHelper import load_resolved_schema
@@ -191,17 +191,7 @@ class BCP0070301Test(GenericTest):
         base = f"single/{kind}s/{resource_id}/"
         return self.is05_utils.checkCleanRequestJSON("GET", base + "active/")
 
-    def test_01(self, test):
-        """Node implements IS-04 version 1.3 or higher"""
-
-        api = self.apis[NODE_API_KEY]
-        if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
-            valid, result = self.do_request("GET", self.node_url)
-            if valid:
-                return test.PASS()
-            return test.FAIL(f"Node API did not respond as expected: {result}")
-        return test.FAIL("Node API must be v1.3 or greater for BCP-007-03")
-
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_02(self, test):
         """Node exposes Source, Flow and Sender resources for each MXL writer"""
 
@@ -232,6 +222,7 @@ class BCP0070301Test(GenericTest):
 
         return test.PASS()
 
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_03(self, test):
         """MXL Flow format and media_type use NMOS parameter register values"""
 
@@ -261,6 +252,7 @@ class BCP0070301Test(GenericTest):
 
         return test.PASS()
 
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_04(self, test):
         """MXL Source format uses a value from the NMOS formats parameter register"""
 
@@ -293,6 +285,7 @@ class BCP0070301Test(GenericTest):
 
         return test.PASS()
 
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_05(self, test):
         """MXL Sender transport, interface_bindings and manifest_href are correct"""
 
@@ -317,6 +310,8 @@ class BCP0070301Test(GenericTest):
 
         return test.PASS()
 
+    @requires_api_version(CONN_API_KEY, "v1.2")
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_06(self, test):
         """MXL IS-05 Sender transportfile endpoint returns 404"""
 
@@ -339,6 +334,7 @@ class BCP0070301Test(GenericTest):
 
         return test.PASS()
 
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_07(self, test):
         """MXL Receiver transport, interface_bindings, format and media_type are correct"""
 
@@ -368,6 +364,7 @@ class BCP0070301Test(GenericTest):
 
         return test.PASS()
 
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_08(self, test):
         """Receiver declares BCP-004-01 constraints"""
 
@@ -409,17 +406,8 @@ class BCP0070301Test(GenericTest):
 
         return test.PASS()
 
-    def test_09(self, test):
-        """Node implements IS-05 version 1.2 or higher"""
-
-        api = self.apis[CONN_API_KEY]
-        if self.is05_utils.compare_api_version(api["version"], "v1.2") >= 0:
-            valid, result = self.do_request("GET", self.connection_url + "single/")
-            if valid and result.status_code == 200:
-                return test.PASS()
-            return test.FAIL("Connection API did not respond as expected")
-        return test.FAIL("Connection API must be v1.2 or higher for BCP-007-03")
-
+    @requires_api_version(CONN_API_KEY, "v1.2")
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_10(self, test):
         """MXL Sender and Receiver transport parameters are correct"""
 
@@ -464,6 +452,8 @@ class BCP0070301Test(GenericTest):
             return test.UNCLEAR("No MXL Senders or Receivers found")
         return test.PASS()
 
+    @requires_api_version(CONN_API_KEY, "v1.2")
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_11(self, test):
         """Transport parameter payloads conform to BCP-007-03 MXL sender and receiver transport parameter schemas"""
 
@@ -498,6 +488,8 @@ class BCP0070301Test(GenericTest):
             return test.UNCLEAR("No MXL Senders or Receivers found")
         return test.PASS()
 
+    @requires_api_version(CONN_API_KEY, "v1.2")
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_12(self, test):
         """Staged MXL parameters comply with transport schema and per-parameter IS-05 constraints"""
 
@@ -549,6 +541,8 @@ class BCP0070301Test(GenericTest):
             return test.UNCLEAR("No MXL Senders or Receivers found")
         return test.PASS()
 
+    @requires_api_version(CONN_API_KEY, "v1.2")
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_13(self, test):
         """Constraints MUST NOT list auto for mxl_domain_id or mxl_flow_id"""
 
@@ -576,6 +570,8 @@ class BCP0070301Test(GenericTest):
             return test.UNCLEAR("No MXL Senders or Receivers found")
         return test.PASS()
 
+    @requires_api_version(CONN_API_KEY, "v1.2")
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_14(self, test):
         """MXL IS-05 Receiver staged PATCH succeeds when transport_file is omitted from the request body"""
 
@@ -602,13 +598,15 @@ class BCP0070301Test(GenericTest):
 
         return test.PASS()
 
+    @requires_api_version(CONN_API_KEY, "v1.2")
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_15(self, test):
-        """Whether MXL read/write start or stop on activation is verifiable only with
-        implementation-specific telemetry."""
+        """MXL read/write starts or stops on activation."""
 
-        return test.NA("Whether MXL read/write starts or stops on activation cannot be verified by this tool without "
-                       "implementation-specific telemetry (R-ACT-ON/OFF, S-ACT-ON/OFF).")
+        return test.MANUAL("Whether MXL read/write starts or stops on activation cannot be verified"
+                           " automatically by this tool")
 
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_16(self, test):
         """Node exposes Receiver resources for MXL readers in the IS-04 Node API"""
 
@@ -621,6 +619,8 @@ class BCP0070301Test(GenericTest):
 
         return test.PASS()
 
+    @requires_api_version(CONN_API_KEY, "v1.2")
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_17(self, test):
         """MXL transport parameters use null when undetermined; active MUST NOT contain auto"""
 
@@ -658,6 +658,8 @@ class BCP0070301Test(GenericTest):
             return test.UNCLEAR("No MXL Senders or Receivers found")
         return test.PASS()
 
+    @requires_api_version(CONN_API_KEY, "v1.2")
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_18(self, test):
         """MXL Sender accepts null and resolvable auto for mxl_domain_id and mxl_flow_id"""
 
@@ -704,6 +706,8 @@ class BCP0070301Test(GenericTest):
 
         return test.PASS()
 
+    @requires_api_version(CONN_API_KEY, "v1.2")
+    @requires_api_version(NODE_API_KEY, "v1.3")
     def test_19(self, test):
         """MXL Receiver null and auto semantics for mxl_domain_id and mxl_flow_id"""
 
