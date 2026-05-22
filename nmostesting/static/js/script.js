@@ -19,7 +19,8 @@ function updateDropdown() {
         for (var i=0; i<specData[specKey]["versions"].length; i++) {
           versionDropdown.options[i] = new Option(specData[specKey]["versions"][i], specData[specKey]["versions"][i]);
         }
-        versionDropdown.value = specData[specKey]["default_version"];
+        var specEntry = testData["specs"][apiNum];
+        versionDropdown.value = specEntry["default_version"] || specData[specKey]["default_version"];
         if (apiKey in specData[specKey]["apis"]) {
           label.innerHTML = specData[specKey]["apis"][apiKey]["name"] + ":";
         } else {
