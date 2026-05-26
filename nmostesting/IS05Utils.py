@@ -40,6 +40,8 @@ class IS05Utils(NMOSUtils):
         if self.compare_api_version(api_version, "v1.1") >= 0 and include_transports_without_transport_file:
             valid_transports.append("urn:x-nmos:transport:websocket")
             valid_transports.append("urn:x-nmos:transport:mqtt")
+        if self.compare_api_version(api_version, "v1.2") >= 0 and include_transports_without_transport_file:
+            valid_transports.append("urn:x-nmos:transport:mxl")
         return valid_transports
 
     def check_num_legs(self, url, res_type, uuid):
