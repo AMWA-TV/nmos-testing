@@ -435,6 +435,12 @@ SPECIFICATIONS = {
             },
             "sender-register": {
                 "name": "Sender Attributes Register"
+            },
+            "formats-register": {
+                "name": "Formats Register"
+            },
+            "media-types-register": {
+                "name": "Media Types Register"
             }
         }
     },

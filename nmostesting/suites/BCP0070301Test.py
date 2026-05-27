@@ -30,16 +30,13 @@ NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
 RECEIVER_CAPS_KEY = "receiver-caps"
 CAPS_REGISTER_KEY = "caps-register"
+FORMATS_REGISTER_KEY = "formats-register"
+MEDIA_TYPES_REGISTER_KEY = "media-types-register"
 MXL_SCHEMA_KEY = "mxl-schemas"
 
 MXL_TRANSPORT = "urn:x-nmos:transport:mxl"
 _MXL_TP_PARAMS = ("mxl_domain_id", "mxl_flow_id")
 _PATCH_OK = frozenset((200, 202))
-
-# NMOS Formats register entries use URNs of this form (IS-04 resources).
-_FORMAT_URN_RE = re.compile(r"^urn:x-nmos:format:[A-Za-z0-9_:-]+$")
-# Media types register uses MIME-style strings.
-_MEDIA_TYPE_RE = re.compile(r"^[a-z0-9][a-z0-9.!#$&^*+\\-]*/[a-zA-Z0-9][a-zA-Z0-9.!#$&^*+\\-]*$")
 
 
 class BCP0070301Test(GenericTest):
@@ -94,11 +91,13 @@ class BCP0070301Test(GenericTest):
             return items[:n]
         return items
 
-    def _is_registered_format_urn(self, value):
-        return isinstance(value, str) and bool(_FORMAT_URN_RE.match(value))
+    def _formats_register_schema(self):
+        reg_path = os.path.join(self.apis[FORMATS_REGISTER_KEY]["spec_path"], "formats")
+        return load_resolved_schema(reg_path, "format_register.json", path_prefix=False)
 
-    def _is_registered_media_type(self, value):
-        return isinstance(value, str) and bool(_MEDIA_TYPE_RE.match(value))
+    def _media_types_register_schema(self):
+        reg_path = os.path.join(self.apis[MEDIA_TYPES_REGISTER_KEY]["spec_path"], "media-types")
+        return load_resolved_schema(reg_path, "media_type_register.json", path_prefix=False)
 
     @staticmethod
     def _leg_has_mxl_keys(leg):
@@ -226,6 +225,11 @@ class BCP0070301Test(GenericTest):
     def test_03(self, test):
         """MXL Flow format and media_type use NMOS parameter register values"""
 
+        format_schema = self._formats_register_schema()
+        media_type_schema = self._media_types_register_schema()
+        formats_reg = self.apis[FORMATS_REGISTER_KEY]
+        media_types_reg = self.apis[MEDIA_TYPES_REGISTER_KEY]
+
         for rt in ["senders", "flows"]:
             valid, result = self.get_is04_resources(rt)
             if not valid:
@@ -243,18 +247,29 @@ class BCP0070301Test(GenericTest):
 
         for fid in self._apply_max_test_iteration_cap(list(mxl_flow_ids)):
             flow = flow_map[fid]
-            fmt = flow.get("format")
-            if not self._is_registered_format_urn(fmt):
-                return test.FAIL(f"Flow {flow['id']} has invalid or missing 'format' for the formats register")
-            mt = flow.get("media_type")
-            if not self._is_registered_media_type(mt):
-                return test.FAIL(f"Flow {flow['id']} 'media_type' must be a registered media type string")
+            try:
+                self.validate_schema(flow.get("format"), format_schema)
+            except ValidationError as e:
+                return test.FAIL(
+                    f"Flow {flow['id']} has invalid or missing 'format' for the formats register: {e}",
+                    f"https://specs.amwa.tv/nmos-parameter-registers/branches/{formats_reg['spec_branch']}/formats/",
+                )
+            try:
+                self.validate_schema(flow.get("media_type"), media_type_schema)
+            except ValidationError as e:
+                return test.FAIL(
+                    f"Flow {flow['id']} 'media_type' must be a registered media type string: {e}",
+                    f"https://specs.amwa.tv/nmos-parameter-registers/branches/{media_types_reg['spec_branch']}/media-types/",
+                )
 
         return test.PASS()
 
     @requires_api_version(NODE_API_KEY, "v1.3")
     def test_04(self, test):
         """MXL Source format uses a value from the NMOS formats parameter register"""
+
+        format_schema = self._formats_register_schema()
+        formats_reg = self.apis[FORMATS_REGISTER_KEY]
 
         for rt in ["senders", "flows", "sources"]:
             valid, result = self.get_is04_resources(rt)
@@ -279,9 +294,13 @@ class BCP0070301Test(GenericTest):
             src = source_map.get(sid)
             if not src:
                 return test.FAIL(f"Source {sid} not found")
-            fmt = src.get("format")
-            if not self._is_registered_format_urn(fmt):
-                return test.FAIL(f"Source {sid} has invalid or missing 'format' for the formats register")
+            try:
+                self.validate_schema(src.get("format"), format_schema)
+            except ValidationError as e:
+                return test.FAIL(
+                    f"Source {sid} has invalid or missing 'format' for the formats register: {e}",
+                    f"https://specs.amwa.tv/nmos-parameter-registers/branches/{formats_reg['spec_branch']}/formats/",
+                )
 
         return test.PASS()
 
@@ -338,6 +357,11 @@ class BCP0070301Test(GenericTest):
     def test_07(self, test):
         """MXL Receiver transport, interface_bindings, format and media_type are correct"""
 
+        format_schema = self._formats_register_schema()
+        media_type_schema = self._media_types_register_schema()
+        formats_reg = self.apis[FORMATS_REGISTER_KEY]
+        media_types_reg = self.apis[MEDIA_TYPES_REGISTER_KEY]
+
         valid, result = self.get_is04_resources("receivers")
         if not valid:
             return test.FAIL(result)
@@ -352,15 +376,24 @@ class BCP0070301Test(GenericTest):
             ib = receiver.get("interface_bindings")
             if not isinstance(ib, list) or ib != []:
                 return test.FAIL(f"Receiver {receiver['id']} must have interface_bindings []")
-            fmt = receiver.get("format")
-            if not self._is_registered_format_urn(fmt):
-                return test.FAIL(f"Receiver {receiver['id']} has invalid 'format' for the formats register")
+            try:
+                self.validate_schema(receiver.get("format"), format_schema)
+            except ValidationError as e:
+                return test.FAIL(
+                    f"Receiver {receiver['id']} has invalid 'format' for the formats register: {e}",
+                    f"https://specs.amwa.tv/nmos-parameter-registers/branches/{formats_reg['spec_branch']}/formats/",
+                )
             mts = receiver.get("caps", {}).get("media_types")
             if not isinstance(mts, list) or len(mts) < 1:
                 return test.FAIL(f"Receiver {receiver['id']} caps.media_types must have at least one entry")
-            invalid_mt = next((mt for mt in mts if not self._is_registered_media_type(mt)), None)
-            if invalid_mt is not None:
-                return test.FAIL(f"Receiver {receiver['id']} caps.media_types contains invalid entry: {invalid_mt}")
+            for mt in mts:
+                try:
+                    self.validate_schema(mt, media_type_schema)
+                except ValidationError as e:
+                    return test.FAIL(
+                        f"Receiver {receiver['id']} caps.media_types contains invalid entry: {e}",
+                        f"https://specs.amwa.tv/nmos-parameter-registers/branches/{media_types_reg['spec_branch']}/media-types/",
+                    )
 
         return test.PASS()
 

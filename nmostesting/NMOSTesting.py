@@ -553,6 +553,12 @@ TEST_DEFINITIONS = {
             "spec_key": "nmos-parameter-registers",
             "api_key": "caps-register"
         }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "formats-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "media-types-register"
+        }, {
             "spec_key": "bcp-007-03",
             "api_key": "mxl-schemas"
         }],
