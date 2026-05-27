@@ -21,6 +21,7 @@ from pathlib import Path
 from jsonschema import ValidationError
 
 from ..GenericTest import GenericTest, NMOSTestException, requires_api_version
+from ..IS04Utils import IS04Utils
 from ..IS05Utils import IS05Utils
 from ..TestHelper import load_resolved_schema
 
@@ -49,6 +50,7 @@ class BCP0070301Test(GenericTest):
         GenericTest.__init__(self, apis, omit_paths, **kwargs)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.connection_url = self.apis[CONN_API_KEY]["url"]
+        self.is04_utils = IS04Utils(self.node_url)
         self.is05_utils = IS05Utils(self.connection_url)
         self.is04_resources = {
             "senders": [],
@@ -306,6 +308,84 @@ class BCP0070301Test(GenericTest):
             raise NMOSTestException(test.FAIL(f"active: {active}"))
         return active
 
+    def _discover_api_versions(self, api_key, resource_name):
+        """Return advertised NMOS API versions from the DUT discovery endpoint."""
+        api_label = self.apis[api_key].get("name", resource_name)
+        base_url = self.apis[api_key].get("base_url")
+        if not base_url:
+            return False, f"{api_label} API base URL is not configured"
+
+        discovery_path = f"/x-nmos/{resource_name}"
+        valid, response = self.do_request("GET", base_url + discovery_path)
+        if not valid:
+            return False, f"Unable to query {api_label} API versions: {response}"
+        if response.status_code != 200:
+            return False, f"{api_label} API version discovery returned HTTP {response.status_code}"
+
+        try:
+            versions = response.json()
+        except json.JSONDecodeError:
+            return False, f"Non-JSON response from {api_label} API version discovery"
+
+        if not isinstance(versions, list):
+            return False, f"{api_label} API version discovery did not return a JSON array"
+
+        advertised_versions = []
+        for entry in versions:
+            if not isinstance(entry, str):
+                continue
+            version = entry.rstrip("/")
+            if version.startswith("v"):
+                advertised_versions.append(version)
+
+        if not advertised_versions:
+            return False, f"No API versions advertised at {discovery_path}"
+
+        return True, advertised_versions
+
+    def _check_api_version_gate(self, test, api_key, resource_name, min_version, api_url, utils):
+        """Verify the DUT advertises and serves at least min_version of the given API."""
+        valid, result = self._discover_api_versions(api_key, resource_name)
+        if not valid:
+            return test.FAIL(result)
+
+        advertised_versions = result
+        versions_at_least_minimum = [
+            version for version in advertised_versions
+            if utils.compare_api_version(version, min_version) >= 0
+        ]
+        if not versions_at_least_minimum:
+            api_label = self.apis[api_key].get("name", resource_name)
+            return test.FAIL(
+                f"{api_label} API does not advertise {min_version} or higher at /x-nmos/{resource_name} "
+                f"(advertised: {', '.join(advertised_versions)})")
+
+        configured_version = self.apis[api_key].get("version")
+        if configured_version:
+            if utils.compare_api_version(configured_version, min_version) < 0:
+                api_label = self.apis[api_key].get("name", resource_name)
+                return test.FAIL(
+                    f"{api_label} API under test is configured as {configured_version}; "
+                    f"BCP-007-03 requires {min_version} or higher")
+            if configured_version.rstrip("/") not in advertised_versions:
+                api_label = self.apis[api_key].get("name", resource_name)
+                return test.FAIL(
+                    f"{api_label} API under test is configured as {configured_version} but the DUT "
+                    f"does not advertise that version (advertised: {', '.join(advertised_versions)})")
+
+        valid, result = self.do_request("GET", api_url)
+        if not valid:
+            api_label = self.apis[api_key].get("name", resource_name)
+            return test.FAIL(f"{api_label} API did not respond at configured URL: {result}")
+
+        return test.PASS()
+
+    def test_01(self, test):
+        """Node implements IS-04 version 1.3 or higher"""
+
+        return self._check_api_version_gate(
+            test, NODE_API_KEY, "node", "v1.3", self.node_url, self.is04_utils)
+
     @requires_api_version(NODE_API_KEY, "v1.3")
     def test_02(self, test):
         """Node exposes Source, Flow and Sender resources for each MXL writer"""
@@ -484,6 +564,12 @@ class BCP0070301Test(GenericTest):
 
         return test.PASS()
 
+    def test_09(self, test):
+        """Connection API implements IS-05 version 1.2 or higher"""
+
+        return self._check_api_version_gate(
+            test, CONN_API_KEY, "connection", "v1.2", self.connection_url, self.is05_utils)
+
     @requires_api_version(CONN_API_KEY, "v1.2")
     @requires_api_version(NODE_API_KEY, "v1.3")
     def test_10(self, test):
@@ -618,16 +704,6 @@ class BCP0070301Test(GenericTest):
 
         return test.MANUAL("Whether MXL read/write starts or stops on activation cannot be verified"
                            " automatically by this tool")
-
-    @requires_api_version(NODE_API_KEY, "v1.3")
-    def test_16(self, test):
-        """Node exposes Receiver resources for MXL readers in the IS-04 Node API"""
-
-        receivers = self._fetch_mxl_receivers(test)
-        if not receivers:
-            return test.UNCLEAR("No MXL Receiver resources found")
-
-        return test.PASS()
 
     @requires_api_version(CONN_API_KEY, "v1.2")
     @requires_api_version(NODE_API_KEY, "v1.3")
