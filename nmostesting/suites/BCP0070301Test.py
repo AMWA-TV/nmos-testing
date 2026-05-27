@@ -22,7 +22,6 @@ from jsonschema import ValidationError
 
 from .. import Config as CONFIG
 from ..GenericTest import GenericTest, requires_api_version
-from ..IS04Utils import IS04Utils
 from ..IS05Utils import IS05Utils
 from ..TestHelper import load_resolved_schema
 
@@ -51,7 +50,6 @@ class BCP0070301Test(GenericTest):
         GenericTest.__init__(self, apis, omit_paths, **kwargs)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.connection_url = self.apis[CONN_API_KEY]["url"]
-        self.is04_utils = IS04Utils(self.node_url)
         self.is05_utils = IS05Utils(self.connection_url)
         self.is04_resources = {
             "senders": [],
@@ -141,15 +139,6 @@ class BCP0070301Test(GenericTest):
                 if isinstance(leg.get(param), dict)
                 and "enum" in leg[param]
                 and "auto" in leg[param]["enum"]]
-
-    @staticmethod
-    def _leg_values_contain_auto(legs):
-        if not isinstance(legs, list):
-            return False
-        for leg in legs:
-            if isinstance(leg, dict) and "auto" in leg.values():
-                return True
-        return False
 
     @staticmethod
     def _mxl_param_value_valid(value):
@@ -317,10 +306,7 @@ class BCP0070301Test(GenericTest):
             return test.UNCLEAR("No MXL Sender resources found")
 
         for sender in self._apply_max_test_iteration_cap(mxl_senders):
-            if sender.get("transport") != MXL_TRANSPORT:
-                return test.FAIL(f"Sender {sender['id']} must use transport {MXL_TRANSPORT}")
-            ib = sender.get("interface_bindings")
-            if not isinstance(ib, list) or ib != []:
+            if sender.get("interface_bindings") != []:
                 return test.FAIL(f"Sender {sender['id']} must have interface_bindings []")
             if "manifest_href" not in sender:
                 return test.FAIL(f"Sender {sender['id']} missing manifest_href")
@@ -371,10 +357,7 @@ class BCP0070301Test(GenericTest):
             return test.UNCLEAR("No MXL Receiver resources found")
 
         for receiver in self._apply_max_test_iteration_cap(receivers):
-            if receiver.get("transport") != MXL_TRANSPORT:
-                return test.FAIL(f"Receiver {receiver['id']} must use transport {MXL_TRANSPORT}")
-            ib = receiver.get("interface_bindings")
-            if not isinstance(ib, list) or ib != []:
+            if receiver.get("interface_bindings") != []:
                 return test.FAIL(f"Receiver {receiver['id']} must have interface_bindings []")
             try:
                 self.validate_schema(receiver.get("format"), format_schema)
@@ -449,10 +432,13 @@ class BCP0070301Test(GenericTest):
             if not valid:
                 return test.FAIL(result)
 
-        checked = False
-        for kind, resources in (("sender", self._mxl_senders()), ("receiver", self._mxl_receivers())):
+        mxl_senders = self._mxl_senders()
+        mxl_receivers = self._mxl_receivers()
+        if not mxl_senders and not mxl_receivers:
+            return test.UNCLEAR("No MXL Senders or Receivers found")
+
+        for kind, resources in (("sender", mxl_senders), ("receiver", mxl_receivers)):
             for resource in self._apply_max_test_iteration_cap(resources):
-                checked = True
                 base = f"single/{kind}s/{resource['id']}/"
 
                 valid_c, constraints = self.is05_utils.checkCleanRequestJSON("GET", base + "constraints/")
@@ -481,8 +467,6 @@ class BCP0070301Test(GenericTest):
                 if not self._leg_has_mxl_keys(atp[0]):
                     return test.FAIL(f"{kind} {resource['id']} active leg missing mxl_domain_id or mxl_flow_id")
 
-        if not checked:
-            return test.UNCLEAR("No MXL Senders or Receivers found")
         return test.PASS()
 
     @requires_api_version(CONN_API_KEY, "v1.2")
@@ -499,13 +483,16 @@ class BCP0070301Test(GenericTest):
             if not valid:
                 return test.FAIL(result)
 
-        checked = False
+        mxl_senders = self._mxl_senders()
+        mxl_receivers = self._mxl_receivers()
+        if not mxl_senders and not mxl_receivers:
+            return test.UNCLEAR("No MXL Senders or Receivers found")
+
         for kind, resources, schema in (
-                ("sender", self._mxl_senders(), sender_schema),
-                ("receiver", self._mxl_receivers(), receiver_schema),
+                ("sender", mxl_senders, sender_schema),
+                ("receiver", mxl_receivers, receiver_schema),
         ):
             for resource in self._apply_max_test_iteration_cap(resources):
-                checked = True
                 base = f"single/{kind}s/{resource['id']}/"
                 for endpoint in ("staged", "active"):
                     valid_j, data = self.is05_utils.checkCleanRequestJSON("GET", base + endpoint + "/")
@@ -517,8 +504,6 @@ class BCP0070301Test(GenericTest):
                         except ValidationError as e:
                             return test.FAIL(f"{kind} {resource['id']} {endpoint} transport_params schema: {e}")
 
-        if not checked:
-            return test.UNCLEAR("No MXL Senders or Receivers found")
         return test.PASS()
 
     @requires_api_version(CONN_API_KEY, "v1.2")
@@ -531,17 +516,20 @@ class BCP0070301Test(GenericTest):
             if not valid:
                 return test.FAIL(result)
 
-        checked = False
+        mxl_senders = self._mxl_senders()
+        mxl_receivers = self._mxl_receivers()
+        if not mxl_senders and not mxl_receivers:
+            return test.UNCLEAR("No MXL Senders or Receivers found")
+
         for kind, resources, schema in (
-                ("sender", self._mxl_senders(),
+                ("sender", mxl_senders,
                  load_resolved_schema(self.apis[MXL_SCHEMA_KEY]["spec_path"],
                                       "sender_transport_params_mxl.json")),
-                ("receiver", self._mxl_receivers(),
+                ("receiver", mxl_receivers,
                  load_resolved_schema(self.apis[MXL_SCHEMA_KEY]["spec_path"],
                                       "receiver_transport_params_mxl.json")),
         ):
             for resource in self._apply_max_test_iteration_cap(resources):
-                checked = True
 
                 valid_c, constraints = self.is05_utils.checkCleanRequestJSON(
                     "GET", f"single/{kind}s/{resource['id']}/constraints/")
@@ -570,8 +558,6 @@ class BCP0070301Test(GenericTest):
                         return test.FAIL(f"{kind} {resource['id']} staged {param} value "
                                          f"{staged['transport_params'][0].get(param)!r} does not satisfy constraints")
 
-        if not checked:
-            return test.UNCLEAR("No MXL Senders or Receivers found")
         return test.PASS()
 
     @requires_api_version(CONN_API_KEY, "v1.2")
@@ -584,10 +570,13 @@ class BCP0070301Test(GenericTest):
             if not valid:
                 return test.FAIL(result)
 
-        checked = False
-        for kind, resources in (("sender", self._mxl_senders()), ("receiver", self._mxl_receivers())):
+        mxl_senders = self._mxl_senders()
+        mxl_receivers = self._mxl_receivers()
+        if not mxl_senders and not mxl_receivers:
+            return test.UNCLEAR("No MXL Senders or Receivers found")
+
+        for kind, resources in (("sender", mxl_senders), ("receiver", mxl_receivers)):
             for resource in self._apply_max_test_iteration_cap(resources):
-                checked = True
                 base = f"single/{kind}s/{resource['id']}/"
                 valid_c, constraints = self.is05_utils.checkCleanRequestJSON("GET", base + "constraints/")
                 if not valid_c:
@@ -599,8 +588,6 @@ class BCP0070301Test(GenericTest):
                     return test.FAIL(f"{kind} {resource['id']} constraints must not list auto for: "
                                      f"{', '.join(auto_params)}")
 
-        if not checked:
-            return test.UNCLEAR("No MXL Senders or Receivers found")
         return test.PASS()
 
     @requires_api_version(CONN_API_KEY, "v1.2")
@@ -625,7 +612,7 @@ class BCP0070301Test(GenericTest):
             valid_p, resp = self.do_request("PATCH", self.connection_url + base + "staged/", json=body)
             if not valid_p:
                 return test.FAIL(f"PATCH failed: {resp}")
-            if resp.status_code not in (200, 202):
+            if resp.status_code not in _PATCH_OK:
                 return test.FAIL(f"PATCH staged without transport_file expected 200/202, got "
                                  f"{resp.status_code}")
 
@@ -662,10 +649,13 @@ class BCP0070301Test(GenericTest):
             if not valid:
                 return test.FAIL(result)
 
-        checked = False
-        for kind, resources in (("sender", self._mxl_senders()), ("receiver", self._mxl_receivers())):
+        mxl_senders = self._mxl_senders()
+        mxl_receivers = self._mxl_receivers()
+        if not mxl_senders and not mxl_receivers:
+            return test.UNCLEAR("No MXL Senders or Receivers found")
+
+        for kind, resources in (("sender", mxl_senders), ("receiver", mxl_receivers)):
             for resource in self._apply_max_test_iteration_cap(resources):
-                checked = True
                 rid = resource["id"]
                 for endpoint in ("staged", "active"):
                     valid_j, data = self.is05_utils.checkCleanRequestJSON(
@@ -673,22 +663,16 @@ class BCP0070301Test(GenericTest):
                     if not valid_j:
                         return test.FAIL(str(data))
                     tp = data.get("transport_params", [])
-                    if endpoint == "active" and self._leg_values_contain_auto(tp):
-                        return test.FAIL(f"{kind} {rid} active transport_params must not contain auto")
                     if not isinstance(tp, list) or len(tp) != 1 or not isinstance(tp[0], dict):
                         return test.FAIL(f"{kind} {rid} {endpoint} transport_params must have one leg")
                     for param in _MXL_TP_PARAMS:
                         val = tp[0].get(param)
                         if param not in tp[0]:
                             return test.FAIL(f"{kind} {rid} {endpoint} missing {param}")
-                        if endpoint == "active" and val == "auto":
-                            return test.FAIL(f"{kind} {rid} active {param} must not be auto")
                         if endpoint == "active" and not self._mxl_param_value_valid(val):
                             return test.FAIL(f"{kind} {rid} active {param} must be null or a concrete value, "
                                              f"got {val!r}")
 
-        if not checked:
-            return test.UNCLEAR("No MXL Senders or Receivers found")
         return test.PASS()
 
     @requires_api_version(CONN_API_KEY, "v1.2")
