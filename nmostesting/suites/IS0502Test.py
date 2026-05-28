@@ -547,7 +547,9 @@ class IS0502Test(GenericTest):
         try:
             for resource_type in ["senders", "receivers"]:
                 for resource in self.is04_resources[resource_type]:
-                    valid_transports = self.is05_utils.get_valid_transports(self.apis[CONN_API_KEY]["version"])
+                    valid_transports = self.is05_utils.get_valid_transports(
+                        self.apis[CONN_API_KEY]["version"],
+                        include_transports_without_transport_file=False)
                     if resource["transport"] not in valid_transports:
                         continue
 
