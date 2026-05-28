@@ -1192,7 +1192,7 @@ class IS0401Test(GenericTest):
                 return test.FAIL("Unexpected response from the Node API: {}".format(response))
             try:
                 for binder in response.json():
-                    if binder["transport"].startswith("urn:x-nmos:transport:mxl"):
+                    if not IS04Utils.transport_uses_interface_bindings(binder["transport"]):
                         continue
                     interface_bindings = binder["interface_bindings"]
                     if len(interface_bindings) == 0:
