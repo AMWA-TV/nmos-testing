@@ -707,7 +707,7 @@ class BCP0070301Test(GenericTest):
 
     @requires_api_version(CONN_API_KEY, "v1.2")
     @requires_api_version(NODE_API_KEY, "v1.3")
-    def test_17(self, test):
+    def test_16(self, test):
         """MXL transport parameters use null when undetermined; active MUST NOT contain auto"""
 
         mxl_senders = self._fetch_mxl_senders(test)
@@ -732,7 +732,7 @@ class BCP0070301Test(GenericTest):
 
     @requires_api_version(CONN_API_KEY, "v1.2")
     @requires_api_version(NODE_API_KEY, "v1.3")
-    def test_18(self, test):
+    def test_17(self, test):
         """MXL Sender accepts null and resolvable auto for mxl_domain_id and mxl_flow_id"""
 
         senders = self._fetch_mxl_senders(test)
@@ -764,7 +764,7 @@ class BCP0070301Test(GenericTest):
 
     @requires_api_version(CONN_API_KEY, "v1.2")
     @requires_api_version(NODE_API_KEY, "v1.3")
-    def test_19(self, test):
+    def test_18(self, test):
         """MXL Receiver null and auto semantics for mxl_domain_id and mxl_flow_id"""
 
         receivers = self._fetch_mxl_receivers(test)
