@@ -72,6 +72,14 @@ class IS04Utils(NMOSUtils):
         return toReturn
 
     @staticmethod
+    def transport_uses_interface_bindings(transport):
+        """Determine whether a transport expects populated interface_bindings."""
+        return not any(
+            transport.startswith(transport_prefix)
+            for transport_prefix in ("urn:x-nmos:transport:mxl",)
+        )
+
+    @staticmethod
     def comparable_parameter_constraint_value(value):
         if isinstance(value, dict):
             return Fraction(value["numerator"], value.get("denominator", 1))
