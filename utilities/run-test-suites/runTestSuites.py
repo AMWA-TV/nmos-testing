@@ -64,7 +64,7 @@ def parse_nmos_url(url):
 
 
 def _split_version(version):
-    major, minor = re.search(r'(\d+)\.(\d+)', version).groups()
+    major, minor = re.search('(\d+)\.(\d+)', version).groups() # noqa W605
     return int(major), int(minor)
 
 

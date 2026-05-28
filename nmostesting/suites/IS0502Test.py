@@ -553,10 +553,6 @@ class IS0502Test(GenericTest):
                     if resource["transport"] not in valid_transports:
                         continue
 
-                    # BCP-007-03: MXL resources use empty interface_bindings; skip leg alignment check
-                    if resource["transport"] == "urn:x-nmos:transport:mxl":
-                        continue
-
                     bindings_length = len(resource["interface_bindings"])
                     url_path = self.connection_url + "single/" + resource_type + "/" + resource["id"] + "/active"
                     valid, result = self.do_request("GET", url_path)
