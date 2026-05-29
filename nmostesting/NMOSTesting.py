@@ -461,6 +461,33 @@ TEST_DEFINITIONS = {
         }],
         "class": BCP0060102Test.BCP0060102Test
     },
+    "BCP-007-03-01": {
+        "name": "BCP-007-03 NMOS With MXL",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
+        }],
+        "extra_specs": [{
+            "spec_key": "bcp-004-01",
+            "api_key": "receiver-caps"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "caps-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "formats-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "media-types-register"
+        }, {
+            "spec_key": "bcp-007-03",
+            "api_key": "mxl-schemas"
+        }],
+        "class": BCP0070301Test.BCP0070301Test
+    },
     "BCP-008-01-01": {
         "name": "BCP-008-01 Receiver Status Monitoring",
         "specs": [{
@@ -535,34 +562,6 @@ TEST_DEFINITIONS = {
             "api_key": "sender-register"
         }],
         "class": BCP00604Test.BCP00604Test
-    },
-    "BCP-007-03-01": {
-        "name": "BCP-007-03 NMOS With MXL",
-        "specs": [{
-            "spec_key": "is-04",
-            "api_key": "node"
-        }, {
-            "spec_key": "is-05",
-            "api_key": "connection",
-            "default_version": "v1.2"
-        }],
-        "extra_specs": [{
-            "spec_key": "bcp-004-01",
-            "api_key": "receiver-caps"
-        }, {
-            "spec_key": "nmos-parameter-registers",
-            "api_key": "caps-register"
-        }, {
-            "spec_key": "nmos-parameter-registers",
-            "api_key": "formats-register"
-        }, {
-            "spec_key": "nmos-parameter-registers",
-            "api_key": "media-types-register"
-        }, {
-            "spec_key": "bcp-007-03",
-            "api_key": "mxl-schemas"
-        }],
-        "class": BCP0070301Test.BCP0070301Test
     }
 }
 
