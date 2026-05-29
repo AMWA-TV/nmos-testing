@@ -36,6 +36,7 @@ REG_API_KEY = "registration"
 RTP_RESOURCE_DATA_DIR = "test_data/controller"
 MXL_RESOURCE_DATA_DIR = "test_data/controller/mxl"
 MXL_TRANSPORT = "urn:x-nmos:transport:mxl"
+MXL_CONNECTION_API_VERSION = "v1.2"
 
 
 class ControllerTest(GenericTest):
@@ -152,6 +153,18 @@ class ControllerTest(GenericTest):
     def _uses_mxl_transport(self, transport):
         return transport == MXL_TRANSPORT
 
+    def _connection_api_version_for_transport(self, transport):
+        if self._uses_mxl_transport(transport):
+            return MXL_CONNECTION_API_VERSION
+        return self.connection_api_version
+
+    def _device_controls(self, transport):
+        connection_api_version = self._connection_api_version_for_transport(transport)
+        return {
+            "href": self.mock_node_base_url + "x-nmos/connection/" + connection_api_version + "/",
+            "type": "urn:x-nmos:control:sr-ctrl/" + connection_api_version
+        }
+
     def _sender_uses_rtp_transport(self, sender):
         return self._sender_transport(sender).startswith("urn:x-nmos:transport:rtp")
 
@@ -180,6 +193,7 @@ class ControllerTest(GenericTest):
         if self.primary_registry:
             self.primary_registry.common.reset()  # Ensure any previously registered senders and receivers are removed
         sender_ip_final_octet = 159
+        mxl_domain_id = str(uuid.uuid4())
 
         # Register node
         self._register_node(test, self.node.id, "AMWA Test Suite Node", "AMWA Test Suite Node")
@@ -211,6 +225,8 @@ class ControllerTest(GenericTest):
                     self.node.add_sender(sender_json, sender_ip_address, sender.get("sdp_params", {}))
                     self.sender_ip_addresses[sender["id"]] = sender_ip_address
                     sender_ip_final_octet += 1
+                elif self._sender_uses_mxl_transport(sender):
+                    self.node.add_mxl_sender(self._create_sender_json(sender), mxl_domain_id)
 
         # self.receivers should be initialized in the set_up_tests() override of derived test
         # each mock receiver defined as: {'label': <unique label>, 'description': '',
@@ -219,9 +235,9 @@ class ControllerTest(GenericTest):
         for receiver in self.receivers:
             receiver["id"] = str(uuid.uuid4())
             receiver["device_id"] = str(uuid.uuid4())
-            receiver["controls_href"] = self.mock_node_base_url + "x-nmos/connection/" \
-                + self.connection_api_version + "/"
-            receiver["controls_type"] = "urn:x-nmos:control:sr-ctrl/" + self.connection_api_version
+            receiver_controls = self._device_controls(self._receiver_transport(receiver))
+            receiver["controls_href"] = receiver_controls["href"]
+            receiver["controls_type"] = receiver_controls["type"]
             receiver["version"] = NMOSUtils.get_TAI_time()
             receiver["display_answer"] = self._format_device_metadata(
                     receiver['label'], receiver['description'], receiver['id'])
@@ -236,6 +252,8 @@ class ControllerTest(GenericTest):
                 if receiver["connectable"] and self._receiver_uses_rtp_transport(receiver):
                     receiver_json = self._create_receiver_json(receiver)
                     self.node.add_receiver(receiver_json)
+                elif receiver["connectable"] and self._receiver_uses_mxl_transport(receiver):
+                    self.node.add_mxl_receiver(self._create_receiver_json(receiver), mxl_domain_id)
 
     def _load_resource_templates(self, directory):
         """Loads IS-04 resource templates from a controller test data directory."""
@@ -347,9 +365,9 @@ class ControllerTest(GenericTest):
         device_data["label"] = "AMWA Test Device"
         device_data["description"] = "AMWA Test Device"
         device_data["node_id"] = self.node.id
-        device_data["controls"][0]["href"] = self.mock_node_base_url + "x-nmos/connection/" \
-            + self.connection_api_version + "/"
-        device_data["controls"][0]["type"] = "urn:x-nmos:control:sr-ctrl/" + self.connection_api_version
+        sender_controls = self._device_controls(self._sender_transport(sender))
+        device_data["controls"][0]["href"] = sender_controls["href"]
+        device_data["controls"][0]["type"] = sender_controls["type"]
         device_data["senders"] = [sender["id"]]
         device_data["receivers"] = []
         device_data["version"] = sender["version"]

@@ -27,6 +27,30 @@ from ..IS04Utils import IS04Utils
 from ..IS10Utils import IS10Utils
 from .Auth import PRIMARY_AUTH
 
+MXL_TRANSPORT = "urn:x-nmos:transport:mxl"
+MXL_TRANSPORT_PARAM_KEYS = ("mxl_domain_id", "mxl_flow_id")
+
+
+def _resource_transport(resource, resource_id):
+    if resource == 'senders':
+        return NODE.senders[resource_id]['sender'].get('transport', 'urn:x-nmos:transport:rtp')
+    return NODE.receivers[resource_id]['receiver'].get('transport', 'urn:x-nmos:transport:rtp')
+
+
+def _mxl_activation_block():
+    return {
+        "activation_time": None,
+        "mode": None,
+        "requested_time": None
+    }
+
+
+def _initial_mxl_transport_params():
+    return [{
+        "mxl_domain_id": None,
+        "mxl_flow_id": None
+    }]
+
 
 class Node(object):
     def __init__(self, port_increment):
@@ -174,6 +198,150 @@ class Node(object):
             'receiver': receiver
         }
 
+    def add_mxl_sender(self, sender, mxl_domain_id):
+        """
+        Adds IS-05 Connection API state for an MXL Sender registered in the mock Registry.
+        """
+        transport_params = _initial_mxl_transport_params()
+        connection_state = {
+            'transport_params': deepcopy(transport_params),
+            'staged': {
+                "activation": _mxl_activation_block(),
+                "master_enable": True,
+                "receiver_id": None,
+                'transport_params': deepcopy(transport_params)
+            },
+            'active': {
+                "activation": _mxl_activation_block(),
+                "master_enable": True,
+                "receiver_id": None,
+                'transport_params': deepcopy(transport_params)
+            }
+        }
+
+        self.senders[sender['id']] = {
+            'sender': sender,
+            'activations': connection_state,
+            'mxl_domain_id': mxl_domain_id
+        }
+
+    def add_mxl_receiver(self, receiver, mxl_domain_id):
+        """
+        Adds IS-05 Connection API state for an MXL Receiver registered in the mock Registry.
+        """
+        transport_params = _initial_mxl_transport_params()
+        activations = {
+            'transport_params': deepcopy(transport_params),
+            'staged': {
+                "activation": _mxl_activation_block(),
+                "master_enable": False,
+                "sender_id": None,
+                'transport_params': deepcopy(transport_params)
+            },
+            'active': {
+                "activation": _mxl_activation_block(),
+                "master_enable": False,
+                "sender_id": None,
+                'transport_params': deepcopy(transport_params)
+            }
+        }
+
+        self.receivers[receiver['id']] = {
+            'activations': activations,
+            'receiver': receiver,
+            'mxl_domain_id': mxl_domain_id
+        }
+
+    def _resolve_mxl_flow_id(self, resource, resource_data, response_data):
+        transport_params = response_data['transport_params'][0]
+        flow_id = transport_params.get('mxl_flow_id')
+
+        if flow_id != 'auto':
+            return flow_id
+
+        if resource == 'senders':
+            return resource_data['sender']['flow_id']
+
+        sender_id = response_data.get('sender_id')
+        if sender_id and sender_id in self.senders:
+            return self.senders[sender_id]['sender']['flow_id']
+
+        return resource_data.get('mxl_flow_id')
+
+    def _resolve_mxl_transport_params(self, resource, resource_data, response_data):
+        transport_params = response_data['transport_params'][0]
+        resolved_params = {}
+
+        for param_name in MXL_TRANSPORT_PARAM_KEYS:
+            param_value = transport_params.get(param_name)
+
+            if param_value == 'auto':
+                if param_name == 'mxl_domain_id':
+                    resolved_params[param_name] = resource_data['mxl_domain_id']
+                else:
+                    resolved_params[param_name] = self._resolve_mxl_flow_id(resource, resource_data, response_data)
+            else:
+                resolved_params[param_name] = param_value
+
+        return resolved_params
+
+    def _patch_staged_mxl(self, resource, resource_id, request_json):
+        resource_data = self.senders[resource_id] if resource == 'senders' else self.receivers[resource_id]
+        activations = resource_data['activations']
+        response_data = deepcopy(activations['staged'])
+        response_code = 200
+
+        if resource == 'senders':
+            resource_type = 'sender'
+            connected_resource_id = 'receiver_id'
+        else:
+            resource_type = 'receiver'
+            connected_resource_id = 'sender_id'
+
+        if 'transport_params' in request_json:
+            for key, value in request_json['transport_params'][0].items():
+                response_data['transport_params'][0][key] = value
+
+        for item in (connected_resource_id, 'activation', 'master_enable'):
+            if item in request_json:
+                response_data[item] = request_json[item]
+
+        if resource == 'receivers' and response_data['transport_params'][0].get('mxl_flow_id') == 'auto':
+            return {'code': 400, 'debug': None,
+                    'error': 'Transport param mxl_flow_id does not satisfy constraints.'}, 400
+
+        if request_json.get('activation'):
+            response_data['transport_params'][0].update(
+                self._resolve_mxl_transport_params(resource, resource_data, response_data))
+
+            response_data['activation']['activation_time'] = IS04Utils.get_TAI_time()
+
+            if response_data['activation']['mode'] == 'activate_immediate':
+                response_data['activation']['requested_time'] = None
+            else:
+                response_code = 202
+
+            subscription_update = resource_data[resource_type]
+            subscription_update['subscription']['active'] = response_data['master_enable']
+            subscription_update['version'] = IS04Utils.get_TAI_time()
+
+            if subscription_update['subscription']['active'] is True:
+                subscription_update['subscription'][connected_resource_id] = response_data[connected_resource_id]
+            else:
+                subscription_update['subscription'][connected_resource_id] = None
+
+            do_request('POST', self.registry_url + 'x-nmos/registration/' + self.registry_version +
+                       '/resource', json={'type': resource_type, 'data': subscription_update})
+
+            activations['active'] = response_data
+            activations['transport_params'] = response_data['transport_params']
+
+        staged_data = deepcopy(response_data)
+        staged_data['activation'] = _mxl_activation_block()
+        activations['staged'] = staged_data
+
+        return response_data, response_code
+
     def clear_staged_requests(self):
         self.staged_requests = []
 
@@ -247,6 +415,9 @@ class Node(object):
         Updates mock Registry subscription in cases of activation/deactivation
         """
         # Get current staged and active details for resource
+        if _resource_transport(resource, resource_id) == MXL_TRANSPORT:
+            return self._patch_staged_mxl(resource, resource_id, request_json)
+
         resource_data = self.senders[resource_id] if resource == 'senders' else self.receivers[resource_id]
         activations = resource_data['activations']
         response_data = deepcopy(activations['staged'])
@@ -283,7 +454,7 @@ class Node(object):
                 response_data['transport_params'][0][key] = transport_params[key]
 
         # Check response transport params against constraints
-        constraints = _get_constraints(resource)
+        constraints = _get_constraints(resource, resource_id)
 
         for key, value in constraints.items():
             if key in response_data['transport_params'][0]:
@@ -416,7 +587,7 @@ def x_nmos_root():
 @NODE_API.route('/x-nmos/connection', methods=['GET'], strict_slashes=False)
 @check_authorization
 def connection_root():
-    base_data = ['v1.0/', 'v1.1/']
+    base_data = ['v1.0/', 'v1.1/', 'v1.2/']
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
@@ -465,10 +636,13 @@ def connection(version, resource, resource_id):
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
 
-def _get_constraints(resource):
+def _get_constraints(resource, resource_id):
     """
     Returns basic constraint set for senders or receivers
     """
+    if _resource_transport(resource, resource_id) == MXL_TRANSPORT:
+        return {"mxl_domain_id": {}, "mxl_flow_id": {}}
+
     constraints = {"destination_port": {}, "rtp_enabled": {}}
 
     if resource == 'receivers':
@@ -488,7 +662,7 @@ def _get_constraints(resource):
                 methods=["GET"], strict_slashes=False)
 @check_authorization
 def constraints(version, resource, resource_id):
-    base_data = [_get_constraints(resource)]
+    base_data = [_get_constraints(resource, resource_id)]
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
@@ -580,8 +754,10 @@ def active(version, resource, resource_id):
                 methods=["GET"], strict_slashes=False)
 @check_authorization
 def transport_type(version, resource, resource_id):
-    # TODO fetch from resource info
-    base_data = "urn:x-nmos:transport:rtp"
+    try:
+        base_data = _resource_transport(resource, resource_id)
+    except KeyError:
+        abort(404)
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
@@ -638,6 +814,9 @@ def transport_file(version, resource, resource_id):
     # GET should either redirect to the location of the transport file or return it directly
     try:
         if resource == 'senders':
+            if _resource_transport(resource, resource_id) == MXL_TRANSPORT:
+                abort(404)
+
             sender = NODE.senders[resource_id]
             sdp_params = {**CONFIG.SDP_PREFERENCES, **sender.get('sdp_params', {})}
 
