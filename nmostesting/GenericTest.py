@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import functools
 from requests.compat import json
 import git
 import jsonschema
@@ -45,6 +46,35 @@ def test_depends(func):
     invalid.__name__ = func.__name__
     invalid.__doc__ = func.__doc__
     return invalid
+
+
+def _api_version_guard(self, test, api_key, min_version):
+    """Raise NMOSTestException(test.NA) when the configured API version is too low."""
+    if api_key not in self.apis:
+        raise NMOSTestException(test.NA(
+            f"This test requires the '{api_key}' API but it was not configured for this test suite."))
+    if self.apis[api_key].get("version") is None:
+        raise NMOSTestException(test.NA(
+            f"This test cannot be run without a configured version for the '{api_key}' API."))
+    if NMOSUtils.compare_api_version(self.apis[api_key]["version"], min_version) < 0:
+        raise NMOSTestException(test.NA(
+            f"This test cannot be run against {self.apis[api_key].get('name', api_key)} below version "
+            f"{min_version} (configured: {self.apis[api_key]['version']})."))
+
+
+def requires_api_version(api_key, min_version):
+    """Decorator requiring a minimum API version before a test runs.
+
+    Raises NMOSTestException with test.NA when the configured version is too low.
+    """
+
+    def wrap(func):
+        @functools.wraps(func)
+        def wrapped(self, test):
+            _api_version_guard(self, test, api_key, min_version)
+            return func(self, test)
+        return wrapped
+    return wrap
 
 
 class NMOSTestException(Exception):
