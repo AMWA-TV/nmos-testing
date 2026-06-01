@@ -202,7 +202,10 @@ class Node(object):
         """
         Adds IS-05 Connection API state for an MXL Sender registered in the mock Registry.
         """
-        transport_params = _initial_mxl_transport_params()
+        transport_params = [{
+            "mxl_domain_id": mxl_domain_id,
+            "mxl_flow_id": sender['flow_id']
+        }]
         connection_state = {
             'transport_params': deepcopy(transport_params),
             'staged': {
@@ -275,7 +278,12 @@ class Node(object):
         for param_name in MXL_TRANSPORT_PARAM_KEYS:
             param_value = transport_params.get(param_name)
 
-            if param_value == 'auto':
+            if resource == 'senders' and param_value in (None, 'auto'):
+                if param_name == 'mxl_domain_id':
+                    resolved_params[param_name] = resource_data['mxl_domain_id']
+                else:
+                    resolved_params[param_name] = resource_data['sender']['flow_id']
+            elif param_value == 'auto':
                 if param_name == 'mxl_domain_id':
                     resolved_params[param_name] = resource_data['mxl_domain_id']
                 else:
