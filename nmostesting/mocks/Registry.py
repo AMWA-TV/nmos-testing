@@ -18,6 +18,7 @@ import json
 import uuid
 import functools
 
+from urllib.parse import quote
 from flask import request, jsonify, abort, Blueprint, Response
 from threading import Event, Lock
 
@@ -474,12 +475,14 @@ def query_resource(version, resource):
     registry.requested_query_api_version = version
 
     # NOTE: Advanced Query Syntax (RQL) is not currently supported
-    # Only paging and id parameters have been implemented in the Basic Query Syntax
+    # Basic Query Syntax: paging, id, and transport (senders/receivers only, prefix match) are implemented.
     # All other Basic Query Syntax parameters will be ignored, such that this endpoint will currently either:
     # * return all resources of a specified type subject to paging constraints
     # * e.g. http://<host>:<port>/x-nmos/query/<version>/nodes will return all registered nodes
     # * or return a specific resource according to the resource id
     # * e.g. http://<host>:<port>/x-nmos/query/<version>/nodes?id=<resource_id> will return a single registered node
+    # * or return senders/receivers whose transport attribute starts with the transport query value
+    # * e.g. http://<host>:<port>/x-nmos/query/<version>/senders?transport=urn:x-nmos:transport:mxl
 
     MIN_SINCE = "0:0"
     MAX_UNTIL = IS04Utils.get_TAI_time()
@@ -514,14 +517,27 @@ def query_resource(version, resource):
         if param.startswith('query.rql'):
             abort(501)
 
+    transport_filter = request.args.get('transport')
+    transport_query = ""
+    if transport_filter is not None and resource_type in ('sender', 'receiver'):
+        transport_query = "&transport=" + quote(transport_filter, safe='')
+
+    def resource_matches_transport_filter(resource):
+        if transport_filter is None or resource_type not in ('sender', 'receiver'):
+            return True
+        return resource.get('transport', '').startswith(transport_filter)
+
     # Check to see if resource is being requested as a query
     if request.args.get('id'):
         resource_id = request.args.get('id')
-        base_data.append(IS04Utils.downgrade_resource(resource_type,
-                                                      registry.get_resources()[resource_type][resource_id],
-                                                      version))
+        resource_data = registry.get_resources()[resource_type][resource_id]
+        if resource_matches_transport_filter(resource_data):
+            base_data.append(IS04Utils.downgrade_resource(resource_type, resource_data, version))
     else:
         data = registry.get_resources()[resource_type]
+        if transport_filter is not None and resource_type in ('sender', 'receiver'):
+            data = {resource_id: resource for resource_id, resource in data.items()
+                    if resource_matches_transport_filter(resource)}
 
         # only paginate for version v1.1 and up
         if IS04Utils.compare_api_version("v1.1", version) > 0:
@@ -569,15 +585,15 @@ def query_resource(version, resource):
 
         link = "<" + protocol + "://" + host + ":" + port \
             + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=" + until \
-            + "&paging.limit=" + str(limit) + ">; rel=\"next\""
+            + "&paging.limit=" + str(limit) + transport_query + ">; rel=\"next\""
 
         link += ",<" + protocol + "://" + host + ":" + port \
             + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.until=" + since \
-            + "&paging.limit=" + str(limit) + ">; rel=\"prev\""
+            + "&paging.limit=" + str(limit) + transport_query + ">; rel=\"prev\""
 
         link += ",<" + protocol + "://" + host + ":" + port \
             + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=0:0&paging.limit=" \
-            + str(limit) + ">; rel=\"first\""
+            + str(limit) + transport_query + ">; rel=\"first\""
 
         response.headers["Link"] = link
         response.headers["X-Paging-Limit"] = limit
