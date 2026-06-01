@@ -68,6 +68,9 @@ MS05_INVASIVE_TESTING = False
 # When True invasive MS-05 tests will use the TestingFacade to allow user interaction
 MS05_INTERACTIVE_TESTING = False
 
+# When True all functions on all Blocks are tested 
+MS05_EXHAUSTIVE_TESTING = False
+
 # Set a Query API hostname/IP and port for use when operating without DNS-SD
 QUERY_API_HOST = "127.0.0.1"
 QUERY_API_PORT = 80

@@ -688,21 +688,23 @@ class NcClassManager(NcManager):
 
 
 class MS05PropertyMetadata():
-    def __init__(self, oid, role_path, name, constraints, datatype_type, descriptor):
+    def __init__(self, oid, role_path, name, constraints, datatype_type, descriptor, class_id):
         self.oid = oid
         self.role_path = role_path
         self.name = name
         self.constraints = constraints
         self.datatype_type = datatype_type
         self.descriptor = descriptor
+        self.class_id = class_id
 
 
 class MS05MethodMetadata():
-    def __init__(self, oid, role_path, name, descriptor):
+    def __init__(self, oid, role_path, name, descriptor, class_id):
         self.oid = oid
         self.role_path = role_path
         self.name = name
         self.descriptor = descriptor
+        self.class_id = class_id
 
 
 class MS05Utils(NMOSUtils):
@@ -1472,6 +1474,26 @@ class MS05Utils(NMOSUtils):
 
         return runtime_constraints or property_constraints or datatype_constraints
 
+    @staticmethod
+    def deduplicate_properties_by_class(properties: List[MS05PropertyMetadata]) -> List[MS05PropertyMetadata]:
+        """Return one representative property holder per (class id, property id) pair."""
+        unique_properties = {}
+        for property_metadata in properties:
+            key = (tuple(property_metadata.class_id), property_metadata.descriptor.id)
+            if key not in unique_properties:
+                unique_properties[key] = property_metadata
+        return list(unique_properties.values())
+
+    @staticmethod
+    def deduplicate_methods_by_class(methods: List[MS05MethodMetadata]) -> List[MS05MethodMetadata]:
+        """Return one representative method holder per (class id, method id) pair."""
+        unique_methods = {}
+        for method_metadata in methods:
+            key = (tuple(method_metadata.class_id), method_metadata.descriptor.id)
+            if key not in unique_methods:
+                unique_methods[key] = method_metadata
+        return list(unique_methods.values())
+
     def get_properties(self,
                        test: GenericTest,
                        block: NcBlock,
@@ -1517,7 +1539,8 @@ class MS05Utils(NMOSUtils):
                         f"property name={property_descriptor.name}",
                         constraints,
                         datatype.type,
-                        property_descriptor))
+                        property_descriptor,
+                        child.class_id))
             if type(child) is NcBlock:
                 results += (self.get_properties(test, child, get_constraints, get_sequences, get_readonly))
 
@@ -1556,6 +1579,7 @@ class MS05Utils(NMOSUtils):
                         f"role path={self.create_role_path_string(role_path)}: "
                         f"class name={class_descriptor.name}: "
                         f"method name={method_descriptor.name}",
-                        method_descriptor))
+                        method_descriptor,
+                        child.class_id))
 
         return results
