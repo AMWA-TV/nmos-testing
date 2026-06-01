@@ -14,10 +14,57 @@
 
 from operator import itemgetter
 
+from .. import Config as CONFIG
 from ..ControllerTest import ControllerTest, MXL_TRANSPORT, TestingFacadeException
+from ..GenericTest import NMOSInitException
 from ..NMOSUtils import NMOSUtils
 
-MXL_RECEIVER_CAPS = {'media_types': ['video/v210'], 'constraint_sets': []}
+MINIMUM_MXL_ENDPOINTS = 2
+
+
+def _mxl_components(frame_width, frame_height, bit_depth=10):
+    return [
+        {'name': 'Y', 'width': frame_width, 'height': frame_height, 'bit_depth': bit_depth},
+        {'name': 'Cb', 'width': frame_width // 2, 'height': frame_height, 'bit_depth': bit_depth},
+        {'name': 'Cr', 'width': frame_width // 2, 'height': frame_height, 'bit_depth': bit_depth},
+    ]
+
+
+MXL_FLOW_PROFILE_1080P25 = {
+    'profile_id': '1080p25',
+    'media_type': 'video/v210',
+    'frame_width': 1920,
+    'frame_height': 1080,
+    'grain_rate': {'numerator': 25, 'denominator': 1},
+    'interlace_mode': 'progressive',
+    'colorspace': 'BT709',
+    'transfer_characteristic': 'SDR',
+    'components': _mxl_components(1920, 1080),
+}
+
+MXL_FLOW_PROFILE_720P50 = {
+    'profile_id': '720p50',
+    'media_type': 'video/v210',
+    'frame_width': 1280,
+    'frame_height': 720,
+    'grain_rate': {'numerator': 50, 'denominator': 1},
+    'interlace_mode': 'progressive',
+    'colorspace': 'BT709',
+    'transfer_characteristic': 'SDR',
+    'components': _mxl_components(1280, 720),
+}
+
+MXL_FLOW_PROFILES = [MXL_FLOW_PROFILE_1080P25, MXL_FLOW_PROFILE_720P50]
+
+CAP_URI_TO_FLOW_FIELD = {
+    'urn:x-nmos:cap:format:media_type': 'media_type',
+    'urn:x-nmos:cap:format:frame_width': 'frame_width',
+    'urn:x-nmos:cap:format:frame_height': 'frame_height',
+    'urn:x-nmos:cap:format:grain_rate': 'grain_rate',
+    'urn:x-nmos:cap:format:interlace_mode': 'interlace_mode',
+    'urn:x-nmos:cap:format:colorspace': 'colorspace',
+    'urn:x-nmos:cap:format:transfer_characteristic': 'transfer_characteristic',
+}
 
 
 class BCP0070302Test(ControllerTest):
@@ -28,7 +75,124 @@ class BCP0070302Test(ControllerTest):
     def __init__(self, apis, registries, node, dns_server, **kwargs):
         ControllerTest.__init__(self, apis, registries, node, dns_server, **kwargs)
 
+    def _profile_to_flow_params(self, profile):
+        return {key: value for key, value in profile.items() if key != 'profile_id'}
+
+    def _apply_flow_profile_to_sender(self, sender, profile):
+        sender['profile_id'] = profile['profile_id']
+        sender['flow_params'] = self._profile_to_flow_params(profile)
+
+    def _generate_constraint_set(self, profile):
+        return {
+            'urn:x-nmos:cap:format:media_type': {
+                'enum': [profile['media_type']]
+            },
+            'urn:x-nmos:cap:format:frame_width': {
+                'enum': [profile['frame_width']]
+            },
+            'urn:x-nmos:cap:format:frame_height': {
+                'enum': [profile['frame_height']]
+            },
+            'urn:x-nmos:cap:format:grain_rate': {
+                'enum': [profile['grain_rate']]
+            },
+            'urn:x-nmos:cap:format:interlace_mode': {
+                'enum': [profile['interlace_mode']]
+            },
+            'urn:x-nmos:cap:format:colorspace': {
+                'enum': [profile['colorspace']]
+            },
+            'urn:x-nmos:cap:format:transfer_characteristic': {
+                'enum': [profile['transfer_characteristic']]
+            },
+            'urn:x-nmos:cap:format:component_depth': {
+                'enum': [max(component['bit_depth'] for component in profile['components'])]
+            },
+        }
+
+    def _generate_caps(self, accepted_profiles):
+        caps = {
+            'media_types': [],
+            'constraint_sets': [],
+        }
+
+        for profile in accepted_profiles:
+            media_type = profile['media_type']
+            if media_type not in caps['media_types']:
+                caps['media_types'].append(media_type)
+            caps['constraint_sets'].append(self._generate_constraint_set(profile))
+
+        return caps
+
+    def _flow_value_for_cap(self, flow_params, cap_uri):
+        if cap_uri == 'urn:x-nmos:cap:format:component_depth':
+            return max(component['bit_depth'] for component in flow_params['components'])
+
+        flow_field = CAP_URI_TO_FLOW_FIELD[cap_uri]
+        return flow_params[flow_field]
+
+    def _constraint_satisfied(self, flow_value, constraint):
+        for constraint_key, constraint_value in constraint.items():
+            if constraint_key == 'enum' and flow_value not in constraint_value:
+                return False
+            if constraint_key == 'minimum' and flow_value < constraint_value:
+                return False
+            if constraint_key == 'maximum' and flow_value > constraint_value:
+                return False
+        return True
+
+    def _flow_matches_constraint_set(self, flow_params, constraint_set):
+        for cap_uri, constraint in constraint_set.items():
+            if cap_uri not in CAP_URI_TO_FLOW_FIELD and cap_uri != 'urn:x-nmos:cap:format:component_depth':
+                continue
+            flow_value = self._flow_value_for_cap(flow_params, cap_uri)
+            if not self._constraint_satisfied(flow_value, constraint):
+                return False
+        return True
+
+    def _is_compatible(self, sender, receiver):
+        if not self._sender_uses_mxl_transport(sender) or not self._receiver_uses_mxl_transport(receiver):
+            return False
+
+        flow_params = sender.get('flow_params', {})
+        receiver_caps = receiver.get('caps', {})
+        media_type = flow_params.get('media_type')
+
+        if media_type not in receiver_caps.get('media_types', []):
+            return False
+
+        constraint_sets = receiver_caps.get('constraint_sets', [])
+        if not constraint_sets:
+            return False
+
+        return any(self._flow_matches_constraint_set(flow_params, constraint_set)
+                   for constraint_set in constraint_sets)
+
+    def _select_mxl_indices(self, endpoint_count):
+        if endpoint_count < MINIMUM_MXL_ENDPOINTS:
+            raise NMOSInitException(
+                "Fixture setup: need at least {} endpoints".format(MINIMUM_MXL_ENDPOINTS))
+
+        mxl_count = NMOSUtils.RANDOM.randint(MINIMUM_MXL_ENDPOINTS, endpoint_count)
+        return NMOSUtils.RANDOM.sample(range(endpoint_count), mxl_count)
+
+    def _assign_mxl_sender_profiles(self, mxl_sender_indices):
+        for position, sender_index in enumerate(mxl_sender_indices):
+            profile = MXL_FLOW_PROFILES[position % len(MXL_FLOW_PROFILES)]
+            self._apply_flow_profile_to_sender(self.senders[sender_index], profile)
+
+    def _assign_mxl_receiver_caps(self, mxl_receiver_indices):
+        for position, receiver_index in enumerate(mxl_receiver_indices):
+            profile = MXL_FLOW_PROFILES[position % len(MXL_FLOW_PROFILES)]
+            self.receivers[receiver_index]['caps'] = self._generate_caps([profile])
+
+    def _ensure_transport_registered(self, register_indices, endpoint_indices):
+        if not any(index in register_indices for index in endpoint_indices):
+            register_indices.add(NMOSUtils.RANDOM.choice(endpoint_indices))
+
     def set_up_tests(self):
+        NMOSUtils.RANDOM.seed(a=CONFIG.RANDOM_SEED)
+
         self.senders = [
             {'label': 's1/connery', 'description': 'Mock sender 1', 'registered': False},
             {'label': 's2/moore', 'description': 'Mock sender 2', 'registered': False},
@@ -37,27 +201,18 @@ class BCP0070302Test(ControllerTest):
             {'label': 's5/craig', 'description': 'Mock sender 5', 'registered': False},
         ]
 
-        sender_indices = list(range(len(self.senders)))
-        mxl_sender_index = NMOSUtils.RANDOM.choice(sender_indices)
-        rtp_sender_indices = [index for index in sender_indices if index != mxl_sender_index]
-        rtp_sender_index = NMOSUtils.RANDOM.choice(rtp_sender_indices)
-
+        mxl_sender_indices = self._select_mxl_indices(len(self.senders))
         for index, sender in enumerate(self.senders):
-            use_mxl_transport = index == mxl_sender_index
-            if not use_mxl_transport and index != rtp_sender_index:
-                use_mxl_transport = NMOSUtils.RANDOM.choice([True, False])
-            if use_mxl_transport:
+            if index in mxl_sender_indices:
                 sender['transport'] = MXL_TRANSPORT
 
-        register_senders = self.generate_random_indices(len(self.senders), min_index_count=3)
-        mxl_sender_indices = [index for index, sender in enumerate(self.senders)
-                              if self._sender_uses_mxl_transport(sender)]
+        self._assign_mxl_sender_profiles(mxl_sender_indices)
+
+        register_senders = set(self.generate_random_indices(len(self.senders), min_index_count=3))
         rtp_sender_indices = [index for index, sender in enumerate(self.senders)
                               if self._sender_uses_rtp_transport(sender)]
-
-        for transport_indices in (mxl_sender_indices, rtp_sender_indices):
-            if not any(index in register_senders for index in transport_indices):
-                register_senders.append(NMOSUtils.RANDOM.choice(transport_indices))
+        self._ensure_transport_registered(register_senders, mxl_sender_indices)
+        self._ensure_transport_registered(register_senders, rtp_sender_indices)
 
         for index in register_senders:
             self.senders[index]['registered'] = True
@@ -75,28 +230,18 @@ class BCP0070302Test(ControllerTest):
              'connectable': True, 'registered': False},
         ]
 
-        receiver_indices = list(range(len(self.receivers)))
-        mxl_receiver_index = NMOSUtils.RANDOM.choice(receiver_indices)
-        rtp_receiver_indices = [index for index in receiver_indices if index != mxl_receiver_index]
-        rtp_receiver_index = NMOSUtils.RANDOM.choice(rtp_receiver_indices)
-
+        mxl_receiver_indices = self._select_mxl_indices(len(self.receivers))
         for index, receiver in enumerate(self.receivers):
-            use_mxl_transport = index == mxl_receiver_index
-            if not use_mxl_transport and index != rtp_receiver_index:
-                use_mxl_transport = NMOSUtils.RANDOM.choice([True, False])
-            if use_mxl_transport:
+            if index in mxl_receiver_indices:
                 receiver['transport'] = MXL_TRANSPORT
-                receiver['caps'] = MXL_RECEIVER_CAPS
 
-        register_receivers = self.generate_random_indices(len(self.receivers), min_index_count=3)
-        mxl_receiver_indices = [index for index, receiver in enumerate(self.receivers)
-                                if self._receiver_uses_mxl_transport(receiver)]
+        self._assign_mxl_receiver_caps(mxl_receiver_indices)
+
+        register_receivers = set(self.generate_random_indices(len(self.receivers), min_index_count=3))
         rtp_receiver_indices = [index for index, receiver in enumerate(self.receivers)
                                 if self._receiver_uses_rtp_transport(receiver)]
-
-        for transport_indices in (mxl_receiver_indices, rtp_receiver_indices):
-            if not any(index in register_receivers for index in transport_indices):
-                register_receivers.append(NMOSUtils.RANDOM.choice(transport_indices))
+        self._ensure_transport_registered(register_receivers, mxl_receiver_indices)
+        self._ensure_transport_registered(register_receivers, rtp_receiver_indices)
 
         for index in register_receivers:
             self.receivers[index]['registered'] = True
