@@ -68,7 +68,7 @@ MS05_INVASIVE_TESTING = False
 # When True invasive MS-05 tests will use the TestingFacade to allow user interaction
 MS05_INTERACTIVE_TESTING = False
 
-# When True all functions on all Blocks are tested
+# When True, MS-05 tests exercise all blocks and every class instance rather than sampling or deduplicating by class
 MS05_EXHAUSTIVE_TESTING = False
 
 # Set a Query API hostname/IP and port for use when operating without DNS-SD
