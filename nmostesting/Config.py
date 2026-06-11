@@ -236,7 +236,7 @@ SPECIFICATIONS = {
     },
     "is-05": {
         "repo": "is-05",
-        "versions": ["v1.0", "v1.1"],
+        "versions": ["v1.0", "v1.1", "v1.2"],
         "default_version": "v1.1",
         "apis": {
             "connection": {

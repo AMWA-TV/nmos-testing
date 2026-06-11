@@ -15,29 +15,86 @@
 # limitations under the License.
 
 
+import functools
 import uuid
 import subprocess
 import tempfile
 import os
 from jsonschema import ValidationError, SchemaError
 
-from ..GenericTest import GenericTest
+from ..GenericTest import GenericTest, NMOSTestException
 from ..IS05Utils import IS05Utils
 from ..TestHelper import load_resolved_schema, check_content_type
 
 CONN_API_KEY = "connection"
 
-VALID_TRANSPORTS = {
-    "v1.0": ["urn:x-nmos:transport:rtp"],
-    "v1.1": ["urn:x-nmos:transport:rtp",
-             "urn:x-nmos:transport:mqtt",
-             "urn:x-nmos:transport:websocket"]
-}
+
+def _is_mxl_transport(transport_type):
+    """Check for MXL transport type."""
+    return transport_type == "urn:x-nmos:transport:mxl"
+
+
+def _assert_compatible_resources(test_suite, test, resources):
+    """Abort when no resources exist, or when only MXL transports are present."""
+    if len(resources) == 0:
+        raise NMOSTestException(test.UNCLEAR("Not tested. No resources found."))
+    compatible_resources = test_suite._compatible_resources(resources)
+    if len(compatible_resources) == 0:
+        raise NMOSTestException(test.UNCLEAR(
+            "Not tested. MXL senders/receivers are covered by the BCP-007-03-01 test suite."
+        ))
+
+
+def requires_compatible_resources(resource_attr):
+    """Declare that a test requires RTP/MQTT/WebSocket transport parameter resources to run."""
+
+    def decorator(test_method):
+        @functools.wraps(test_method)
+        def wrapper(self, test):
+            resources = getattr(self, resource_attr)
+            _assert_compatible_resources(self, test, resources)
+            return test_method(self, test)
+
+        return wrapper
+
+    return decorator
+
+
+def requires_resources(resource_attr):
+    """Declare that a test requires at least one sender or receiver to exist."""
+
+    def decorator(test_method):
+        @functools.wraps(test_method)
+        def wrapper(self, test):
+            resources = getattr(self, resource_attr)
+            if len(resources) == 0:
+                raise NMOSTestException(test.UNCLEAR("Not tested. No resources found."))
+            return test_method(self, test)
+
+        return wrapper
+
+    return decorator
+
+
+def requires_connection_resources(test_method):
+    """Declare that a test requires at least one sender or receiver to exist."""
+
+    @functools.wraps(test_method)
+    def wrapper(self, test):
+        if not self.senders and not self.receivers:
+            raise NMOSTestException(test.UNCLEAR("Not tested. No resources found."))
+        return test_method(self, test)
+
+    return wrapper
 
 
 class IS0501Test(GenericTest):
     """
     Runs IS-05-01-Test
+
+    Generic IS-05 checks run against all senders and receivers. Tests that apply only to
+    RTP/MQTT/WebSocket transport parameters (not MXL transports) are marked
+    with requires_compatible_resources.
     """
     def __init__(self, apis, **kwargs):
         # Don't auto-test /transportfile as it is permitted to generate a 404 when master_enable is false
@@ -62,6 +119,10 @@ class IS0501Test(GenericTest):
                 self.transport_types[receiver] = self.is05_utils.get_transporttype(receiver, "receiver")
             else:
                 self.transport_types[receiver] = "urn:x-nmos:transport:rtp"
+
+    def _compatible_resources(self, resources):
+        return [resource_id for resource_id in resources
+                if not _is_mxl_transport(self.transport_types.get(resource_id))]
 
     def test_01(self, test):
         """API root matches the spec"""
@@ -103,56 +164,49 @@ class IS0501Test(GenericTest):
 
         return test.NA("Replaced by 'auto' test")
 
+    @requires_resources("senders")
     def test_09(self, test):
         """All params listed in /single/senders/{senderId}/constraints/ matches /staged/ and /active/"""
 
-        if len(self.senders) > 0:
-            valid, response = self.is05_utils.check_params_match("senders", self.senders)
-            if valid:
-                return test.PASS()
-            else:
-                if "Not tested. No resources found." in response:
-                    return test.UNCLEAR(response)
-                else:
-                    return test.FAIL(response)
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        valid, response = self.is05_utils.check_params_match("senders", self.senders)
+        if valid:
+            return test.PASS()
+        if "Not tested. No resources found." in response:
+            return test.UNCLEAR(response)
+        return test.FAIL(response)
 
+    @requires_compatible_resources("senders")
     def test_09_01(self, test):
         """All params listed in /single/senders/{senderId}/active/ match their corresponding SDP files"""
 
-        if len(self.senders) > 0:
-            access_error = False
-            for sender in self.senders:
-                if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
-                    valid, response = self.is05_utils.check_sdp_matches_params(sender)
-                    if not valid:
-                        return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
-                                         .format(sender, response))
-                    elif response.status_code != 200:
-                        access_error = True
-            if access_error:
-                return test.UNCLEAR("One or more of the tested transport files returned a 404 HTTP code. Please "
-                                    "ensure 'master_enable' is set to true for all Senders and re-test.")
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        access_error = False
+        for sender in self.senders:
+            if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                valid, response = self.is05_utils.check_sdp_matches_params(sender)
+                if not valid:
+                    return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
+                                     .format(sender, response))
+                elif response.status_code != 200:
+                    access_error = True
+        if access_error:
+            return test.UNCLEAR("One or more of the tested transport files returned a 404 HTTP code. Please "
+                                "ensure 'master_enable' is set to true for all Senders and re-test.")
+        if not any(self.transport_types[sender] == "urn:x-nmos:transport:rtp" for sender in self.senders):
+            return test.UNCLEAR("Not tested. No RTP senders found.")
+        return test.PASS()
 
+    @requires_resources("receivers")
     def test_10(self, test):
         """All params listed in /single/receivers/{receiverId}/constraints/ matches /staged/ and /active/"""
 
-        if len(self.receivers) > 0:
-            valid, response = self.is05_utils.check_params_match("receivers", self.receivers)
-            if valid:
-                return test.PASS()
-            else:
-                if "Not tested. No resources found." in response:
-                    return test.UNCLEAR(response)
-                else:
-                    return test.FAIL(response)
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        valid, response = self.is05_utils.check_params_match("receivers", self.receivers)
+        if valid:
+            return test.PASS()
+        if "Not tested. No resources found." in response:
+            return test.UNCLEAR(response)
+        return test.FAIL(response)
 
+    @requires_compatible_resources("senders")
     def test_11(self, test):
         """Senders are using valid combination of parameters"""
 
@@ -172,56 +226,53 @@ class IS0501Test(GenericTest):
         mqttParams = {'destination_host', 'destination_port', 'broker_topic', 'broker_protocol', 'broker_authorization',
                       'connection_status_broker_topic'}
 
-        if len(self.senders) > 0:
-            for sender in self.senders:
-                dest = "single/senders/" + sender + "/constraints/"
-                try:
-                    valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
-                    if valid:
-                        if len(response) > 0 and isinstance(response[0], dict):
-                            all_params = response[0].keys()
-                            params = {param for param in all_params if not param.startswith("ext_")}
-                            valid_params = False
-                            if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
-                                if params in rtpParams:
-                                    valid_params = True
-                            elif self.transport_types[sender] == "urn:x-nmos:transport:websocket":
-                                if params == websocketParams:
-                                    valid_params = True
-                            elif self.transport_types[sender] == "urn:x-nmos:transport:mqtt":
-                                if params == mqttParams:
-                                    valid_params = True
-                            if not valid_params:
-                                return test.FAIL("Invalid combination of parameters on constraints endpoint.")
-                        else:
-                            return test.FAIL("Invalid response: {}".format(response))
-                    else:
-                        return test.FAIL(response)
-                except IndexError:
-                    return test.FAIL("Expected an array from {}, got {}".format(dest, response))
-                except AttributeError:
-                    return test.FAIL("Expected constraints array at {} to contain dicts, got {}".format(dest, response))
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
-
-    def test_11_01(self, test):
-        """Sender /active parameters do not use the keyword 'auto'"""
-        if len(self.senders) > 0:
-            for sender in self.senders:
-                dest = "single/senders/" + sender + "/active/"
+        senders = self._compatible_resources(self.senders)
+        for sender in senders:
+            dest = "single/senders/" + sender + "/constraints/"
+            try:
                 valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
                 if valid:
-                    for leg in response["transport_params"]:
-                        if "auto" in leg.values():
-                            return test.FAIL("Found keyword 'auto' in one or more 'active' parameters for Sender {}"
-                                             .format(sender))
+                    if len(response) > 0 and isinstance(response[0], dict):
+                        all_params = response[0].keys()
+                        params = {param for param in all_params if not param.startswith("ext_")}
+                        valid_params = False
+                        if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                            if params in rtpParams:
+                                valid_params = True
+                        elif self.transport_types[sender] == "urn:x-nmos:transport:websocket":
+                            if params == websocketParams:
+                                valid_params = True
+                        elif self.transport_types[sender] == "urn:x-nmos:transport:mqtt":
+                            if params == mqttParams:
+                                valid_params = True
+                        if not valid_params:
+                            return test.FAIL("Invalid combination of parameters on constraints endpoint.")
+                    else:
+                        return test.FAIL("Invalid response: {}".format(response))
                 else:
                     return test.FAIL(response)
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+            except IndexError:
+                return test.FAIL("Expected an array from {}, got {}".format(dest, response))
+            except AttributeError:
+                return test.FAIL("Expected constraints array at {} to contain dicts, got {}".format(dest, response))
+        return test.PASS()
 
+    @requires_resources("senders")
+    def test_11_01(self, test):
+        """Sender /active parameters do not use the keyword 'auto'"""
+        for sender in self.senders:
+            dest = "single/senders/" + sender + "/active/"
+            valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
+            if valid:
+                for leg in response["transport_params"]:
+                    if "auto" in leg.values():
+                        return test.FAIL("Found keyword 'auto' in one or more 'active' parameters for Sender {}"
+                                         .format(sender))
+            else:
+                return test.FAIL(response)
+        return test.PASS()
+
+    @requires_compatible_resources("senders")
     def test_11_02(self, test):
         """Patched 'auto' values are translated on '/active' endpoint for all senders"""
         rtpGeneralAutoParams = [
@@ -254,8 +305,9 @@ class IS0501Test(GenericTest):
             'broker_authorization'
         ]
         autoParams = rtpAutoParams + websocketAutoParams + mqttAutoParams
-        return self.patch_auto_params(test, self.senders, "senders", autoParams)
+        return self.patch_auto_params(test, self._compatible_resources(self.senders), "senders", autoParams)
 
+    @requires_compatible_resources("receivers")
     def test_12(self, test):
         """Receivers are using valid combination of parameters"""
 
@@ -278,57 +330,54 @@ class IS0501Test(GenericTest):
         mqttParams = {'source_host', 'source_port', 'broker_topic', 'broker_protocol', 'broker_authorization',
                       'connection_status_broker_topic'}
 
-        if len(self.receivers) > 0:
-            for receiver in self.receivers:
-                dest = "single/receivers/" + receiver + "/constraints/"
-                try:
-                    valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
-                    if valid:
-                        if len(response) > 0 and isinstance(response[0], dict):
-                            all_params = response[0].keys()
-                            params = {param for param in all_params if not param.startswith("ext_")}
-                            valid_params = False
-                            if self.transport_types[receiver] == "urn:x-nmos:transport:rtp":
-                                if params in rtpParams:
-                                    valid_params = True
-                            elif self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
-                                if params == websocketParams:
-                                    valid_params = True
-                            elif self.transport_types[receiver] == "urn:x-nmos:transport:mqtt":
-                                if params == mqttParams:
-                                    valid_params = True
-                            if not valid_params:
-                                return test.FAIL("Invalid combination of parameters on constraints endpoint.")
-                        else:
-                            return test.FAIL("Invalid response: {}".format(response))
-                    else:
-                        return test.FAIL(response)
-                except IndexError:
-                    return test.FAIL("Expected an array from {}, got {}".format(dest, response))
-                except AttributeError:
-                    return test.FAIL("Expected constraints array at {} to contain dicts, got {}"
-                                     .format(dest, response))
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
-
-    def test_12_01(self, test):
-        """Receiver /active parameters do not use the keyword 'auto'"""
-        if len(self.receivers) > 0:
-            for receiver in self.receivers:
-                dest = "single/receivers/" + receiver + "/active/"
+        receivers = self._compatible_resources(self.receivers)
+        for receiver in receivers:
+            dest = "single/receivers/" + receiver + "/constraints/"
+            try:
                 valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
                 if valid:
-                    for leg in response["transport_params"]:
-                        if "auto" in leg.values():
-                            return test.FAIL("Found keyword 'auto' in one or more 'active' parameters for Receiver {}"
-                                             .format(receiver))
+                    if len(response) > 0 and isinstance(response[0], dict):
+                        all_params = response[0].keys()
+                        params = {param for param in all_params if not param.startswith("ext_")}
+                        valid_params = False
+                        if self.transport_types[receiver] == "urn:x-nmos:transport:rtp":
+                            if params in rtpParams:
+                                valid_params = True
+                        elif self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
+                            if params == websocketParams:
+                                valid_params = True
+                        elif self.transport_types[receiver] == "urn:x-nmos:transport:mqtt":
+                            if params == mqttParams:
+                                valid_params = True
+                        if not valid_params:
+                            return test.FAIL("Invalid combination of parameters on constraints endpoint.")
+                    else:
+                        return test.FAIL("Invalid response: {}".format(response))
                 else:
                     return test.FAIL(response)
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+            except IndexError:
+                return test.FAIL("Expected an array from {}, got {}".format(dest, response))
+            except AttributeError:
+                return test.FAIL("Expected constraints array at {} to contain dicts, got {}"
+                                 .format(dest, response))
+        return test.PASS()
 
+    @requires_resources("receivers")
+    def test_12_01(self, test):
+        """Receiver /active parameters do not use the keyword 'auto'"""
+        for receiver in self.receivers:
+            dest = "single/receivers/" + receiver + "/active/"
+            valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
+            if valid:
+                for leg in response["transport_params"]:
+                    if "auto" in leg.values():
+                        return test.FAIL("Found keyword 'auto' in one or more 'active' parameters for Receiver {}"
+                                         .format(receiver))
+            else:
+                return test.FAIL(response)
+        return test.PASS()
+
+    @requires_compatible_resources("receivers")
     def test_12_02(self, test):
         """Patched 'auto' values are translated on '/active' endpoint for all receivers"""
         rtpGeneralAutoParams = [
@@ -356,433 +405,375 @@ class IS0501Test(GenericTest):
             'broker_authorization'
         ]
         autoParams = rtpAutoParams + websocketAutoParams + mqttAutoParams
-        return self.patch_auto_params(test, self.receivers, "receivers", autoParams)
+        return self.patch_auto_params(test, self._compatible_resources(self.receivers), "receivers", autoParams)
 
+    @requires_resources("senders")
     def test_13(self, test):
         """Return of /single/senders/{senderId}/staged/ meets the schema"""
 
-        if len(self.senders) > 0:
-            warn = ""
-            for sender in self.senders:
-                dest = "single/senders/" + sender + "/staged/"
-                schema = self.get_schema(CONN_API_KEY, "GET", "/single/senders/{senderId}/staged", 200)
-                valid, msg = self.compare_to_schema(schema, dest)
-                if valid:
-                    if msg and not warn:
-                        warn = msg
-                else:
-                    return test.FAIL(msg)
-            if warn:
-                return test.WARNING(warn)
+        warn = ""
+        for sender in self.senders:
+            dest = "single/senders/" + sender + "/staged/"
+            schema = self.get_schema(CONN_API_KEY, "GET", "/single/senders/{senderId}/staged", 200)
+            valid, msg = self.compare_to_schema(schema, dest)
+            if valid:
+                if msg and not warn:
+                    warn = msg
             else:
-                return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+                return test.FAIL(msg)
+        if warn:
+            return test.WARNING(warn)
+        return test.PASS()
 
+    @requires_resources("receivers")
     def test_14(self, test):
         """Return of /single/receivers/{receiverId}/staged/ meets the schema"""
 
-        if len(self.receivers) > 0:
-            warn = ""
-            for receiver in self.receivers:
-                dest = "single/receivers/" + receiver + "/staged/"
-                schema = self.get_schema(CONN_API_KEY, "GET", "/single/receivers/{receiverId}/staged", 200)
-                valid, msg = self.compare_to_schema(schema, dest)
-                if valid:
-                    if msg and not warn:
-                        warn = msg
-                else:
-                    return test.FAIL(msg)
-            if warn:
-                return test.WARNING(warn)
+        warn = ""
+        for receiver in self.receivers:
+            dest = "single/receivers/" + receiver + "/staged/"
+            schema = self.get_schema(CONN_API_KEY, "GET", "/single/receivers/{receiverId}/staged", 200)
+            valid, msg = self.compare_to_schema(schema, dest)
+            if valid:
+                if msg and not warn:
+                    warn = msg
             else:
-                return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+                return test.FAIL(msg)
+        if warn:
+            return test.WARNING(warn)
+        return test.PASS()
 
+    @requires_compatible_resources("senders")
     def test_15(self, test):
         """Staged parameters for senders comply with constraints"""
 
-        if len(self.senders) > 0:
-            valid, response = self.check_staged_complies_with_constraints("sender", self.senders)
-            if valid:
-                return test.PASS()
-            else:
-                return test.FAIL(response)
+        valid, response = self.check_staged_complies_with_constraints("sender",
+                                                                      self._compatible_resources(self.senders))
+        if valid:
+            return test.PASS()
         else:
-            return test.UNCLEAR("Not tested. No resources found.")
+            return test.FAIL(response)
 
+    @requires_compatible_resources("receivers")
     def test_16(self, test):
         """Staged parameters for receivers comply with constraints"""
 
-        if len(self.receivers) > 0:
-            valid, response = self.check_staged_complies_with_constraints("receiver", self.receivers)
-            if valid:
-                return test.PASS()
-            else:
-                return test.FAIL(response)
+        valid, response = self.check_staged_complies_with_constraints("receiver",
+                                                                      self._compatible_resources(self.receivers))
+        if valid:
+            return test.PASS()
         else:
-            return test.UNCLEAR("Not tested. No resources found.")
+            return test.FAIL(response)
 
+    @requires_resources("senders")
     def test_17(self, test):
         """Sender patch response meets the schema"""
 
-        if len(self.senders) > 0:
-            valid, response = self.check_patch_response_valid("sender", self.senders)
-            if valid:
-                return test.PASS()
-            else:
-                return test.FAIL(response)
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        valid, response = self.check_patch_response_valid("sender", self.senders)
+        if valid:
+            return test.PASS()
+        return test.FAIL(response)
 
+    @requires_resources("receivers")
     def test_18(self, test):
         """Receiver patch response meets the schema"""
 
-        if len(self.receivers) > 0:
-            valid, response = self.check_patch_response_valid("receiver", self.receivers)
-            if valid:
-                return test.PASS()
-            else:
-                return test.FAIL(response)
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        valid, response = self.check_patch_response_valid("receiver", self.receivers)
+        if valid:
+            return test.PASS()
+        return test.FAIL(response)
 
+    @requires_resources("senders")
     def test_19(self, test):
         """Sender invalid patch is refused"""
 
-        if len(self.senders) > 0:
-            valid, response = self.is05_utils.check_refuses_invalid_patch("sender", self.senders)
-            if valid:
-                return test.PASS()
-            else:
-                return test.FAIL(response)
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        valid, response = self.is05_utils.check_refuses_invalid_patch("sender", self.senders)
+        if valid:
+            return test.PASS()
+        return test.FAIL(response)
 
+    @requires_resources("receivers")
     def test_20(self, test):
         """Receiver invalid patch is refused"""
 
-        if len(self.receivers) > 0:
-            valid, response = self.is05_utils.check_refuses_invalid_patch("receiver", self.receivers)
-            if valid:
-                return test.PASS()
-            else:
-                return test.FAIL(response)
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        valid, response = self.is05_utils.check_refuses_invalid_patch("receiver", self.receivers)
+        if valid:
+            return test.PASS()
+        return test.FAIL(response)
 
+    @requires_resources("receivers")
     def test_21(self, test):
         """Sender id on staged receiver is changeable"""
 
-        if len(self.receivers) > 0:
-            for receiver in self.receivers:
-                url = "single/receivers/" + receiver + "/staged"
-                for id in [str(uuid.uuid4()), None]:
-                    data = {"sender_id": id}
-                    valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data=data)
-                    if valid:
-                        valid2, response2 = self.is05_utils.checkCleanRequestJSON("GET", url + "/")
-                        if valid2:
-                            try:
-                                senderId = response['sender_id']
-                                msg = "Failed to change sender_id at {}, expected {}, got {}".format(url, id, senderId)
-                                if senderId == id:
-                                    pass
-                                else:
-                                    return test.FAIL(msg)
-                            except KeyError:
-                                return test.FAIL("Did not find sender_id in response from {}".format(url))
-                        else:
-                            return test.FAIL(response2)
+        for receiver in self.receivers:
+            url = "single/receivers/" + receiver + "/staged"
+            for id in [str(uuid.uuid4()), None]:
+                data = {"sender_id": id}
+                valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data=data)
+                if valid:
+                    valid2, response2 = self.is05_utils.checkCleanRequestJSON("GET", url + "/")
+                    if valid2:
+                        try:
+                            senderId = response['sender_id']
+                            msg = "Failed to change sender_id at {}, expected {}, got {}".format(url, id, senderId)
+                            if senderId == id:
+                                pass
+                            else:
+                                return test.FAIL(msg)
+                        except KeyError:
+                            return test.FAIL("Did not find sender_id in response from {}".format(url))
                     else:
-                        return test.FAIL(response)
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+                        return test.FAIL(response2)
+                else:
+                    return test.FAIL(response)
+        return test.PASS()
 
+    @requires_resources("senders")
     def test_22(self, test):
         """Receiver id on staged sender is changeable"""
 
-        if len(self.senders) > 0:
-            for sender in self.senders:
-                url = "single/senders/" + sender + "/staged"
-                for id in [str(uuid.uuid4()), None]:
-                    data = {"receiver_id": id}
-                    valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data=data)
-                    if valid:
-                        valid2, response2 = self.is05_utils.checkCleanRequestJSON("GET", url + "/")
-                        if valid2:
-                            try:
-                                receiverId = response['receiver_id']
-                                msg = "Failed to change receiver_id at {}, expected {}, got {}".format(url,
-                                                                                                       id,
-                                                                                                       receiverId)
-                                if receiverId == id:
-                                    pass
-                                else:
-                                    return test.FAIL(msg)
-                            except KeyError:
-                                return test.FAIL("Did not find receiver_id in response from {}".format(url))
-                        else:
-                            return test.FAIL(response2)
+        for sender in self.senders:
+            url = "single/senders/" + sender + "/staged"
+            for id in [str(uuid.uuid4()), None]:
+                data = {"receiver_id": id}
+                valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data=data)
+                if valid:
+                    valid2, response2 = self.is05_utils.checkCleanRequestJSON("GET", url + "/")
+                    if valid2:
+                        try:
+                            receiverId = response['receiver_id']
+                            msg = "Failed to change receiver_id at {}, expected {}, got {}".format(url,
+                                                                                                   id,
+                                                                                                   receiverId)
+                            if receiverId == id:
+                                pass
+                            else:
+                                return test.FAIL(msg)
+                        except KeyError:
+                            return test.FAIL("Did not find receiver_id in response from {}".format(url))
                     else:
-                        return test.FAIL(response)
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+                        return test.FAIL(response2)
+                else:
+                    return test.FAIL(response)
+        return test.PASS()
 
+    @requires_resources("senders")
     def test_23(self, test):
         """Sender transport parameters are changeable"""
 
-        if len(self.senders) > 0:
-            for sender in self.senders:
-                valid, values = self.is05_utils.generate_changeable_param("sender", sender,
-                                                                          self.transport_types[sender])
-                paramName = self.is05_utils.changeable_param_name(self.transport_types[sender])
-                if valid:
-                    valid2, response2 = self.is05_utils.check_change_transport_param("sender", self.senders,
-                                                                                     paramName, values, sender)
-                    if valid2:
-                        pass
-                    else:
-                        return test.FAIL(response2)
+        for sender in self.senders:
+            valid, values = self.is05_utils.generate_changeable_param("sender", sender,
+                                                                      self.transport_types[sender])
+            paramName = self.is05_utils.changeable_param_name(self.transport_types[sender])
+            if valid:
+                valid2, response2 = self.is05_utils.check_change_transport_param("sender", self.senders,
+                                                                                 paramName, values, sender)
+                if valid2:
+                    pass
                 else:
-                    return test.FAIL(values)
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+                    return test.FAIL(response2)
+            else:
+                return test.FAIL(values)
+        return test.PASS()
 
+    @requires_resources("senders")
     def test_23_01(self, test):
         """Senders accept a patch request with empty leg(s) in transport parameters"""
 
-        if len(self.senders) > 0:
-            valid, response = self.check_patch_empty_transport_params("sender", self.senders)
-            if valid:
-                return test.PASS()
-            else:
-                return test.FAIL(response)
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        valid, response = self.check_patch_empty_transport_params("sender", self.senders)
+        if valid:
+            return test.PASS()
+        return test.FAIL(response)
 
+    @requires_resources("receivers")
     def test_24(self, test):
         """Receiver transport parameters are changeable"""
 
-        if len(self.receivers) > 0:
-            for receiver in self.receivers:
-                valid, values = self.is05_utils.generate_changeable_param("receiver", receiver,
-                                                                          self.transport_types[receiver])
-                paramName = self.is05_utils.changeable_param_name(self.transport_types[receiver])
-                if valid:
-                    valid2, response2 = self.is05_utils.check_change_transport_param("receiver", self.receivers,
-                                                                                     paramName, values, receiver)
-                    if valid2:
-                        pass
-                    else:
-                        return test.FAIL(response2)
+        for receiver in self.receivers:
+            valid, values = self.is05_utils.generate_changeable_param("receiver", receiver,
+                                                                      self.transport_types[receiver])
+            paramName = self.is05_utils.changeable_param_name(self.transport_types[receiver])
+            if valid:
+                valid2, response2 = self.is05_utils.check_change_transport_param("receiver", self.receivers,
+                                                                                 paramName, values, receiver)
+                if valid2:
+                    pass
                 else:
-                    return test.FAIL(values)
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+                    return test.FAIL(response2)
+            else:
+                return test.FAIL(values)
+        return test.PASS()
 
+    @requires_resources("receivers")
     def test_24_01(self, test):
         """Receivers accept a patch request with empty leg(s) in transport parameters"""
 
-        if len(self.receivers) > 0:
-            valid, response = self.check_patch_empty_transport_params("receiver", self.receivers)
-            if valid:
-                return test.PASS()
-            else:
-                return test.FAIL(response)
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        valid, response = self.check_patch_empty_transport_params("receiver", self.receivers)
+        if valid:
+            return test.PASS()
+        return test.FAIL(response)
 
+    @requires_resources("senders")
     def test_25(self, test):
         """Immediate activation of a sender is possible"""
 
-        if len(self.senders) > 0:
-            warn = ""
-            for sender in self.is05_utils.sampled_list(self.senders):
-                valid, response = self.is05_utils.check_activation("sender", sender,
-                                                                   self.is05_utils.check_perform_immediate_activation,
-                                                                   self.transport_types[sender],
-                                                                   True)
-                if valid:
-                    if response and not warn:
-                        warn = response
-                    if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
-                        valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
-                        if not valid2 or response2.status_code != 200:
-                            return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
-                                             .format(sender, response2))
-                else:
-                    return test.FAIL(response)
-            if warn:
-                return test.WARNING(warn)
+        warn = ""
+        for sender in self.is05_utils.sampled_list(self.senders):
+            valid, response = self.is05_utils.check_activation("sender", sender,
+                                                               self.is05_utils.check_perform_immediate_activation,
+                                                               self.transport_types[sender],
+                                                               True)
+            if valid:
+                if response and not warn:
+                    warn = response
+                if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                    valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
+                    if not valid2 or response2.status_code != 200:
+                        return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
+                                         .format(sender, response2))
             else:
-                return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+                return test.FAIL(response)
+        if warn:
+            return test.WARNING(warn)
+        return test.PASS()
 
+    @requires_resources("receivers")
     def test_26(self, test):
         """Immediate activation of a receiver is possible"""
 
-        if len(self.receivers) > 0:
-            warn = ""
-            for receiver in self.is05_utils.sampled_list(self.receivers):
-                valid, response = self.is05_utils.check_activation("receiver", receiver,
-                                                                   self.is05_utils.check_perform_immediate_activation,
-                                                                   self.transport_types[receiver])
-                if valid:
-                    if response and not warn:
-                        warn = response
-                else:
-                    return test.FAIL(response)
-            if warn:
-                return test.WARNING(warn)
+        warn = ""
+        for receiver in self.is05_utils.sampled_list(self.receivers):
+            valid, response = self.is05_utils.check_activation("receiver", receiver,
+                                                               self.is05_utils.check_perform_immediate_activation,
+                                                               self.transport_types[receiver])
+            if valid:
+                if response and not warn:
+                    warn = response
             else:
-                return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+                return test.FAIL(response)
+        if warn:
+            return test.WARNING(warn)
+        return test.PASS()
 
+    @requires_resources("senders")
     def test_27(self, test):
         """Relative activation of a sender is possible"""
 
-        if len(self.senders) > 0:
-            warn = ""
-            for sender in self.is05_utils.sampled_list(self.senders):
-                valid, response = self.is05_utils.check_activation("sender", sender,
-                                                                   self.is05_utils.check_perform_relative_activation,
-                                                                   self.transport_types[sender],
-                                                                   True)
-                if valid:
-                    if response and not warn:
-                        warn = response
-                    if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
-                        valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
-                        if not valid2 or response2.status_code != 200:
-                            return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
-                                             .format(sender, response2))
-                else:
-                    return test.FAIL(response)
-            if warn:
-                return test.WARNING(warn)
+        warn = ""
+        for sender in self.is05_utils.sampled_list(self.senders):
+            valid, response = self.is05_utils.check_activation("sender", sender,
+                                                               self.is05_utils.check_perform_relative_activation,
+                                                               self.transport_types[sender],
+                                                               True)
+            if valid:
+                if response and not warn:
+                    warn = response
+                if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                    valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
+                    if not valid2 or response2.status_code != 200:
+                        return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
+                                         .format(sender, response2))
             else:
-                return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+                return test.FAIL(response)
+        if warn:
+            return test.WARNING(warn)
+        return test.PASS()
 
+    @requires_resources("receivers")
     def test_28(self, test):
         """Relative activation of a receiver is possible"""
 
-        if len(self.receivers) > 0:
-            warn = ""
-            for receiver in self.is05_utils.sampled_list(self.receivers):
-                valid, response = self.is05_utils.check_activation("receiver", receiver,
-                                                                   self.is05_utils.check_perform_relative_activation,
-                                                                   self.transport_types[receiver])
-                if valid:
-                    if response and not warn:
-                        warn = response
-                else:
-                    return test.FAIL(response)
-            if warn:
-                return test.WARNING(warn)
+        warn = ""
+        for receiver in self.is05_utils.sampled_list(self.receivers):
+            valid, response = self.is05_utils.check_activation("receiver", receiver,
+                                                               self.is05_utils.check_perform_relative_activation,
+                                                               self.transport_types[receiver])
+            if valid:
+                if response and not warn:
+                    warn = response
             else:
-                return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+                return test.FAIL(response)
+        if warn:
+            return test.WARNING(warn)
+        return test.PASS()
 
+    @requires_resources("senders")
     def test_29(self, test):
         """Absolute activation of a sender is possible"""
 
-        if len(self.senders) > 0:
-            warn = ""
-            for sender in self.is05_utils.sampled_list(self.senders):
-                valid, response = self.is05_utils.check_activation("sender", sender,
-                                                                   self.is05_utils.check_perform_absolute_activation,
-                                                                   self.transport_types[sender],
-                                                                   True)
-                if valid:
-                    if response and not warn:
-                        warn = response
-                    if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
-                        valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
-                        if not valid2 or response2.status_code != 200:
-                            return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
-                                             .format(sender, response2))
-                else:
-                    return test.FAIL(response)
-            if warn:
-                return test.WARNING(warn)
+        warn = ""
+        for sender in self.is05_utils.sampled_list(self.senders):
+            valid, response = self.is05_utils.check_activation("sender", sender,
+                                                               self.is05_utils.check_perform_absolute_activation,
+                                                               self.transport_types[sender],
+                                                               True)
+            if valid:
+                if response and not warn:
+                    warn = response
+                if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                    valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
+                    if not valid2 or response2.status_code != 200:
+                        return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
+                                         .format(sender, response2))
             else:
-                return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+                return test.FAIL(response)
+        if warn:
+            return test.WARNING(warn)
+        return test.PASS()
 
+    @requires_resources("receivers")
     def test_30(self, test):
         """Absolute activation of a receiver is possible"""
 
-        if len(self.receivers) > 0:
-            warn = ""
-            for receiver in self.is05_utils.sampled_list(self.receivers):
-                valid, response = self.is05_utils.check_activation("receiver", receiver,
-                                                                   self.is05_utils.check_perform_absolute_activation,
-                                                                   self.transport_types[receiver])
-                if valid:
-                    if response and not warn:
-                        warn = response
-                else:
-                    return test.FAIL(response)
-            if warn:
-                return test.WARNING(warn)
+        warn = ""
+        for receiver in self.is05_utils.sampled_list(self.receivers):
+            valid, response = self.is05_utils.check_activation("receiver", receiver,
+                                                               self.is05_utils.check_perform_absolute_activation,
+                                                               self.transport_types[receiver])
+            if valid:
+                if response and not warn:
+                    warn = response
             else:
-                return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+                return test.FAIL(response)
+        if warn:
+            return test.WARNING(warn)
+        return test.PASS()
 
+    @requires_resources("senders")
     def test_31(self, test):
         """Return of /single/senders/{senderId}/active/ meets the schema"""
 
-        if len(self.senders):
-            warn = ""
-            for sender in self.senders:
-                activeUrl = "single/senders/" + sender + "/active"
-                schema = self.get_schema(CONN_API_KEY, "GET", "/single/senders/{senderId}/active", 200)
-                valid, msg = self.compare_to_schema(schema, activeUrl)
-                if valid:
-                    if msg and not warn:
-                        warn = msg
-                else:
-                    return test.FAIL(msg)
-            if warn:
-                return test.WARNING(warn)
+        warn = ""
+        for sender in self.senders:
+            activeUrl = "single/senders/" + sender + "/active"
+            schema = self.get_schema(CONN_API_KEY, "GET", "/single/senders/{senderId}/active", 200)
+            valid, msg = self.compare_to_schema(schema, activeUrl)
+            if valid:
+                if msg and not warn:
+                    warn = msg
             else:
-                return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+                return test.FAIL(msg)
+        if warn:
+            return test.WARNING(warn)
+        return test.PASS()
 
+    @requires_resources("receivers")
     def test_32(self, test):
         """Return of /single/receivers/{receiverId}/active/ meets the schema"""
 
-        if len(self.receivers):
-            warn = ""
-            for receiver in self.receivers:
-                activeUrl = "single/receivers/" + receiver + "/active"
-                schema = self.get_schema(CONN_API_KEY, "GET", "/single/receivers/{receiverId}/active", 200)
-                valid, msg = self.compare_to_schema(schema, activeUrl)
-                if valid:
-                    if msg and not warn:
-                        warn = msg
-                else:
-                    return test.FAIL(msg)
-            if warn:
-                return test.WARNING(warn)
+        warn = ""
+        for receiver in self.receivers:
+            activeUrl = "single/receivers/" + receiver + "/active"
+            schema = self.get_schema(CONN_API_KEY, "GET", "/single/receivers/{receiverId}/active", 200)
+            valid, msg = self.compare_to_schema(schema, activeUrl)
+            if valid:
+                if msg and not warn:
+                    warn = msg
             else:
-                return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+                return test.FAIL(msg)
+        if warn:
+            return test.WARNING(warn)
+        return test.PASS()
 
     def test_33(self, test):
         """/bulk/ endpoint returns correct JSON"""
@@ -819,100 +810,83 @@ class IS0501Test(GenericTest):
         else:
             return test.FAIL(response)
 
+    @requires_resources("senders")
     def test_36(self, test):
         """Bulk interface can be used to change destination port on all senders"""
 
-        if len(self.senders) > 0:
-            valid, response = self.check_bulk_stage("sender", self.senders)
-            if valid:
-                return test.PASS()
-            else:
-                return test.FAIL(response)
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        valid, response = self.check_bulk_stage("sender", self.senders)
+        if valid:
+            return test.PASS()
+        return test.FAIL(response)
 
+    @requires_resources("receivers")
     def test_37(self, test):
         """Bulk interface can be used to change destination port on all receivers"""
 
-        if len(self.receivers) > 0:
-            valid, response = self.check_bulk_stage("receiver", self.receivers)
-            if valid:
-                return test.PASS()
-            else:
-                return test.FAIL(response)
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        valid, response = self.check_bulk_stage("receiver", self.receivers)
+        if valid:
+            return test.PASS()
+        return test.FAIL(response)
 
+    @requires_resources("senders")
     def test_38(self, test):
         """Number of legs matches on constraints, staged and active endpoint for senders"""
 
-        if len(self.senders) > 0:
-            for sender in self.senders:
-                url = "single/senders/{}/".format(sender)
-                valid, response = self.is05_utils.check_num_legs(url, "sender", sender)
-                if valid:
-                    pass
-                else:
-                    return test.FAIL(response)
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        for sender in self.senders:
+            url = "single/senders/{}/".format(sender)
+            valid, response = self.is05_utils.check_num_legs(url, "sender", sender)
+            if not valid:
+                return test.FAIL(response)
+        return test.PASS()
 
+    @requires_resources("receivers")
     def test_39(self, test):
         """Number of legs matches on constraints, staged and active endpoint for receivers"""
 
-        if len(self.receivers) > 0:
-            for receiver in self.receivers:
-                url = "single/receivers/{}/".format(receiver)
-                valid, response = self.is05_utils.check_num_legs(url, "receiver", receiver)
-                if valid:
-                    pass
-                else:
-                    return test.FAIL(response)
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        for receiver in self.receivers:
+            url = "single/receivers/{}/".format(receiver)
+            valid, response = self.is05_utils.check_num_legs(url, "receiver", receiver)
+            if not valid:
+                return test.FAIL(response)
+        return test.PASS()
 
+    @requires_connection_resources
     def test_40(self, test):
         """Only valid transport types for a given API version are advertised"""
 
         api = self.apis[CONN_API_KEY]
         if self.is05_utils.compare_api_version(api["version"], "v1.0") == 0:
             # Ensure rtp_enabled in present in each transport_params entry to confirm it's RTP
-            if len(self.senders) or len(self.receivers):
-                for sender in self.senders:
-                    url = "single/senders/{}/active".format(sender)
-                    valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
-                    if valid:
-                        if "rtp_enabled" not in response["transport_params"][0]:
-                            return test.FAIL("Sender {} does not appear to use the RTP transport".format(sender))
-                    else:
-                        return test.FAIL("Unexpected response from active resource for Sender {}".format(sender))
-                for receiver in self.receivers:
-                    url = "single/receivers/{}/active".format(receiver)
-                    valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
-                    if valid:
-                        if "rtp_enabled" not in response["transport_params"][0]:
-                            return test.FAIL("Receiver {} does not appear to use the RTP transport".format(receiver))
-                    else:
-                        return test.FAIL("Unexpected response from active resource for Receiver {}".format(receiver))
-                return test.PASS()
-            else:
-                return test.UNCLEAR("Not tested. No resources found.")
-        else:
-            if len(self.senders) or len(self.receivers):
-                for sender in self.senders:
-                    if self.transport_types[sender] not in VALID_TRANSPORTS[api["version"]]:
-                        return test.FAIL("Sender {} indicates an invalid transport type of {}"
-                                         .format(sender, self.transport_types[sender]))
-                for receiver in self.receivers:
-                    if self.transport_types[receiver] not in VALID_TRANSPORTS[api["version"]]:
-                        return test.FAIL("Receiver {} indicates an invalid transport type of {}"
-                                         .format(receiver, self.transport_types[receiver]))
-                return test.PASS()
-            else:
-                return test.UNCLEAR("Not tested. No resources found.")
+            for sender in self.senders:
+                url = "single/senders/{}/active".format(sender)
+                valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
+                if valid:
+                    if "rtp_enabled" not in response["transport_params"][0]:
+                        return test.FAIL("Sender {} does not appear to use the RTP transport".format(sender))
+                else:
+                    return test.FAIL("Unexpected response from active resource for Sender {}".format(sender))
+            for receiver in self.receivers:
+                url = "single/receivers/{}/active".format(receiver)
+                valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
+                if valid:
+                    if "rtp_enabled" not in response["transport_params"][0]:
+                        return test.FAIL("Receiver {} does not appear to use the RTP transport".format(receiver))
+                else:
+                    return test.FAIL("Unexpected response from active resource for Receiver {}".format(receiver))
+            return test.PASS()
 
+        valid_transports = self.is05_utils.get_valid_transports(api["version"])
+        for sender in self.senders:
+            if self.transport_types[sender] not in valid_transports:
+                return test.FAIL("Sender {} indicates an invalid transport type of {}"
+                                 .format(sender, self.transport_types[sender]))
+        for receiver in self.receivers:
+            if self.transport_types[receiver] not in valid_transports:
+                return test.FAIL("Receiver {} indicates an invalid transport type of {}"
+                                 .format(receiver, self.transport_types[receiver]))
+        return test.PASS()
+
+    @requires_compatible_resources("senders")
     def test_41(self, test):
         """SDP transport files pass SDPoker tests"""
 
@@ -936,7 +910,7 @@ class IS0501Test(GenericTest):
                                      .format(sender))
 
         if len(rtp_senders) == 0:
-            return test.UNCLEAR("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No RTP senders found.")
 
         # Check SDPoker version
         sdpoker_min_version = "0.3.0"
@@ -1022,12 +996,15 @@ class IS0501Test(GenericTest):
 
         return test.PASS()
 
+    @requires_compatible_resources("senders")
     def test_42(self, test):
         """Transport files use the expected Content-Type"""
 
         access_error = False
+        tested_rtp_sender = False
         for sender in self.senders:
             if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                tested_rtp_sender = True
                 url = self.url + "single/senders/{}/transportfile".format(sender)
                 valid, response = self.do_request("GET", url)
                 if valid and response.status_code == 200:
@@ -1041,8 +1018,8 @@ class IS0501Test(GenericTest):
                 else:
                     return test.FAIL("Unexpected response from Connection API")
 
-        if len(self.senders) == 0:
-            return test.UNCLEAR("Not tested. No resources found.")
+        if not tested_rtp_sender:
+            return test.UNCLEAR("Not tested. No RTP senders found.")
 
         if access_error:
             return test.UNCLEAR("One or more of the tested transport files returned a 404 HTTP code. Please "
@@ -1148,6 +1125,8 @@ class IS0501Test(GenericTest):
         """Check that the staged endpoint is using parameters that meet
         the contents of the /constraints endpoint"""
         for myPort in portList:
+            if _is_mxl_transport(self.transport_types.get(myPort)):
+                continue
             dest = "single/" + port + "s/" + myPort + "/staged/"
             valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
             file_suffix = None
@@ -1157,6 +1136,9 @@ class IS0501Test(GenericTest):
                 file_suffix = "_transport_params_mqtt.json"
             elif self.transport_types[myPort] == "urn:x-nmos:transport:websocket":
                 file_suffix = "_transport_params_websocket.json"
+            else:
+                return False, "Unsupported transport type {} for staged/constraints validation".format(
+                    self.transport_types[myPort])
             if valid:
                 try:
                     schema_items = load_resolved_schema(self.apis[CONN_API_KEY]["spec_path"],
