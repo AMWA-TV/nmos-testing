@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import textwrap
 from operator import itemgetter
 
 from .. import Config as CONFIG
@@ -248,6 +249,38 @@ class BCP0070302Test(ControllerTest):
 
         ControllerTest.set_up_tests(self)
 
+    def _reset_mxl_receivers(self):
+        for receiver in self._registered_connectable_mxl_receivers():
+            deactivate_json = {
+                'master_enable': False,
+                'sender_id': None,
+                'activation': {'mode': 'activate_immediate'},
+            }
+            self.node.patch_staged('receivers', receiver['id'], deactivate_json)
+
+    def _registered_mxl_senders(self):
+        return [
+            sender for sender in self.senders
+            if sender['registered'] and self._sender_uses_mxl_transport(sender)
+        ]
+
+    def _registered_connectable_mxl_receivers(self):
+        return [
+            receiver for receiver in self.receivers
+            if receiver['registered'] and receiver['connectable']
+            and self._receiver_uses_mxl_transport(receiver)
+        ]
+
+    def _transport_file_acceptable(self, patch_data):
+        if 'transport_file' not in patch_data:
+            return True
+
+        transport_file = patch_data['transport_file']
+        if transport_file is None:
+            return True
+
+        return transport_file.get('data') is None and transport_file.get('type') is None
+
     def test_01(self, test):
         """
         Ensure NCuT can discover MXL Senders via the IS-04 Query API
@@ -358,6 +391,300 @@ class BCP0070302Test(ControllerTest):
                 return test.FAIL('Receivers incorrectly identified as MXL')
 
             return test.PASS('All MXL Receivers correctly identified')
+
+        except TestingFacadeException as exception:
+            return test.UNCLEAR(exception.args[0])
+
+    def test_03(self, test):
+        """
+        Connect an MXL Receiver to an MXL Sender via the IS-05 Connection API
+        """
+        try:
+            sender_iterations = CONFIG.MAX_TEST_ITERATIONS if CONFIG.MAX_TEST_ITERATIONS \
+                else len(self._registered_mxl_senders())
+            mxl_senders = self._registered_mxl_senders()[:sender_iterations]
+
+            if not mxl_senders:
+                return test.FAIL('No registered MXL Senders available for connection test')
+
+            tested_connection = False
+
+            for sender in mxl_senders:
+                self.node.clear_staged_requests()
+
+                compatible_receivers = [
+                    receiver for receiver in self._registered_connectable_mxl_receivers()
+                    if self._is_compatible(sender, receiver)
+                ]
+                if not compatible_receivers:
+                    continue
+
+                receiver = NMOSUtils.RANDOM.choice(compatible_receivers)
+                tested_connection = True
+
+                question = textwrap.dedent(f"""\
+                           It should be possible to connect available MXL Senders to compatible MXL Receivers \
+                           using the IS-05 Connection API.
+
+                           Use the NCuT to perform an 'immediate' activation between sender:
+
+                           {sender['display_answer']}
+
+                           and receiver:
+
+                           {receiver['display_answer']}
+
+                           Click the 'Next' button once the connection is active.
+                           """)
+
+                metadata = {
+                    'sender': {
+                        'id': sender['id'],
+                        'label': sender['label'],
+                        'description': sender['description'],
+                    },
+                    'receiver': {
+                        'id': receiver['id'],
+                        'label': receiver['label'],
+                        'description': receiver['description'],
+                    },
+                }
+
+                self.testing_facade_utils.invoke_testing_facade(
+                    question, [], test_type='action', metadata=metadata)
+
+                patch_requests = [
+                    request for request in self.node.staged_requests
+                    if request['method'] == 'PATCH' and request['resource'] == 'receivers'
+                ]
+                if len(patch_requests) < 1:
+                    return test.FAIL('No PATCH request was received by the node')
+                if len(patch_requests) > 1:
+                    return test.FAIL('Multiple PATCH requests were found')
+
+                patch_request = patch_requests[0]
+                patch_data = patch_request['data']
+
+                if patch_request['resource_id'] != receiver['id']:
+                    return test.FAIL('Connection request sent to incorrect receiver')
+
+                if 'master_enable' not in patch_data:
+                    return test.FAIL('Master enable not found in PATCH request')
+                if not patch_data['master_enable']:
+                    return test.FAIL('Master_enable not set to True in PATCH request')
+
+                if patch_data.get('sender_id') and patch_data['sender_id'] != sender['id']:
+                    return test.FAIL('Incorrect sender found in PATCH request')
+
+                if 'activation' not in patch_data:
+                    return test.FAIL('No activation details in PATCH request')
+                if patch_data['activation'].get('mode') != 'activate_immediate':
+                    return test.FAIL('Immediate activation not requested in PATCH request')
+
+                if receiver['id'] in self.primary_registry.get_resources()['receiver']:
+                    receiver_details = self.primary_registry.get_resources()['receiver'][receiver['id']]
+
+                    if not receiver_details['subscription']['active']:
+                        return test.FAIL('Receiver does not have active subscription')
+
+                    subscription_sender_id = receiver_details['subscription'].get('sender_id')
+                    if subscription_sender_id and subscription_sender_id != sender['id']:
+                        return test.FAIL('Receiver did not connect to correct sender')
+
+                if 'sender_id' not in patch_data or not patch_data['sender_id']:
+                    return test.WARNING('Sender id SHOULD be set in patch request')
+
+                if 'transport_params' in patch_data:
+                    transport_params = patch_data['transport_params'][0]
+                    mxl_flow_id = transport_params.get('mxl_flow_id')
+                    if mxl_flow_id and mxl_flow_id not in (None, 'auto') and mxl_flow_id != sender['flow_id']:
+                        return test.FAIL('Incorrect mxl_flow_id found in PATCH request')
+
+            if not tested_connection:
+                return test.FAIL('No compatible MXL Sender and Receiver pairs available for connection test')
+
+            return test.PASS('Connections successfully established')
+
+        except TestingFacadeException as exception:
+            return test.UNCLEAR(exception.args[0])
+        finally:
+            self._reset_mxl_receivers()
+
+    def test_04(self, test):
+        """
+        Ensure NCuT does not provide a transport_file when staging an MXL Receiver connection
+        """
+        try:
+            sender_iterations = CONFIG.MAX_TEST_ITERATIONS if CONFIG.MAX_TEST_ITERATIONS \
+                else len(self._registered_mxl_senders())
+            mxl_senders = self._registered_mxl_senders()[:sender_iterations]
+
+            if not mxl_senders:
+                return test.FAIL('No registered MXL Senders available for connection test')
+
+            tested_connection = False
+
+            for sender in mxl_senders:
+                self.node.clear_staged_requests()
+
+                compatible_receivers = [
+                    receiver for receiver in self._registered_connectable_mxl_receivers()
+                    if self._is_compatible(sender, receiver)
+                ]
+                if not compatible_receivers:
+                    continue
+
+                receiver = NMOSUtils.RANDOM.choice(compatible_receivers)
+                tested_connection = True
+
+                question = textwrap.dedent(f"""\
+                           When connecting an MXL Receiver using the IS-05 Connection API, the NCuT MUST NOT \
+                           provide a transport file in the PATCH request to the Receiver /staged endpoint.
+
+                           Use the NCuT to perform an 'immediate' activation between sender:
+
+                           {sender['display_answer']}
+
+                           and receiver:
+
+                           {receiver['display_answer']}
+
+                           Click the 'Next' button once the connection is active.
+                           """)
+
+                metadata = {
+                    'sender': {
+                        'id': sender['id'],
+                        'label': sender['label'],
+                        'description': sender['description'],
+                    },
+                    'receiver': {
+                        'id': receiver['id'],
+                        'label': receiver['label'],
+                        'description': receiver['description'],
+                    },
+                }
+
+                self.testing_facade_utils.invoke_testing_facade(
+                    question, [], test_type='action', metadata=metadata)
+
+                patch_requests = [
+                    request for request in self.node.staged_requests
+                    if request['method'] == 'PATCH' and request['resource'] == 'receivers'
+                ]
+                if len(patch_requests) < 1:
+                    return test.FAIL('No PATCH request was received by the node')
+
+                for patch_request in patch_requests:
+                    if not self._transport_file_acceptable(patch_request['data']):
+                        return test.FAIL(
+                            'transport_file attribute was provided with non-null data or type in PATCH request')
+
+            if not tested_connection:
+                return test.FAIL('No compatible MXL Sender and Receiver pairs available for connection test')
+
+            return test.PASS('transport_file attribute not provided in PATCH requests')
+
+        except TestingFacadeException as exception:
+            return test.UNCLEAR(exception.args[0])
+        finally:
+            self._reset_mxl_receivers()
+
+    def test_05(self, test):
+        """
+        Ensure NCuT can evaluate MXL Flow compatibility using BCP-004-01 Receiver Capabilities
+        """
+        MAX_COMPATIBLE_RECEIVER_COUNT = 4
+        CANDIDATE_RECEIVER_COUNT = 6
+
+        try:
+            sender_iterations = CONFIG.MAX_TEST_ITERATIONS if CONFIG.MAX_TEST_ITERATIONS \
+                else len(self._registered_mxl_senders())
+            mxl_senders = self._registered_mxl_senders()[:sender_iterations]
+
+            if not mxl_senders:
+                return test.FAIL('No registered MXL Senders available for compatibility test')
+
+            NMOSUtils.RANDOM.shuffle(mxl_senders)
+
+            tested_compatibility = False
+
+            for iteration, sender in enumerate(mxl_senders):
+                compatible_receivers = [
+                    receiver for receiver in self._registered_connectable_mxl_receivers()
+                    if self._is_compatible(sender, receiver)
+                ]
+                if not compatible_receivers:
+                    continue
+
+                tested_compatibility = True
+
+                question = textwrap.dedent(f"""\
+                           The NCuT should be able to evaluate MXL Flow compatibility between MXL Senders and \
+                           MXL Receivers using the BCP-004-01 Receiver Capabilities mechanism.
+
+                           Refresh the NCuT's view of the Registry and carefully select the Receivers \
+                           that are compatible with the following MXL Sender:
+
+                           {sender['display_answer']}
+
+                           Once compatible Receivers have been identified press 'Submit'. If unable \
+                           to identify compatible Receivers, press 'Submit' without making a selection.
+                           """)
+
+                other_receivers = [
+                    receiver for receiver in self._registered_connectable_mxl_receivers()
+                    if not self._is_compatible(sender, receiver)
+                ]
+
+                compatible_receiver_count = NMOSUtils.RANDOM.randint(
+                    1, min(MAX_COMPATIBLE_RECEIVER_COUNT, len(compatible_receivers)))
+                candidate_receivers = NMOSUtils.RANDOM.sample(compatible_receivers, compatible_receiver_count)
+
+                if len(candidate_receivers) < CANDIDATE_RECEIVER_COUNT:
+                    incompatible_receiver_count = min(
+                        CANDIDATE_RECEIVER_COUNT - len(candidate_receivers), len(other_receivers))
+                    candidate_receivers.extend(
+                        NMOSUtils.RANDOM.sample(other_receivers, incompatible_receiver_count))
+
+                candidate_receivers.sort(key=itemgetter('label'))
+
+                possible_answers = [
+                    {
+                        'answer_id': 'answer_' + str(index),
+                        'display_answer': receiver['display_answer'],
+                        'resource': {
+                            'id': receiver['id'],
+                            'label': receiver['label'],
+                            'description': receiver['description'],
+                        },
+                    }
+                    for index, receiver in enumerate(candidate_receivers)
+                ]
+                expected_answers = [
+                    'answer_' + str(index) for index, receiver in enumerate(candidate_receivers)
+                    if self._is_compatible(sender, receiver)
+                ]
+
+                actual_answers = self.testing_facade_utils.invoke_testing_facade(
+                    question, possible_answers, test_type='multi_choice',
+                    multipart_test=iteration)['answer_response']
+
+                actual = set(actual_answers)
+                expected = set(expected_answers)
+
+                if expected - actual:
+                    return test.FAIL(
+                        'Not all compatible Receivers identified for Sender {}'.format(sender['display_answer']))
+                if actual - expected:
+                    return test.FAIL(
+                        'Receivers incorrectly identified as compatible for Sender {}'
+                        .format(sender['display_answer']))
+
+            if not tested_compatibility:
+                return test.FAIL('No compatible MXL Sender and Receiver pairs available for compatibility test')
+
+            return test.PASS('All compatible Receivers correctly identified')
 
         except TestingFacadeException as exception:
             return test.UNCLEAR(exception.args[0])
