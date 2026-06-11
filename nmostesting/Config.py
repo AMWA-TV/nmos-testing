@@ -236,8 +236,8 @@ SPECIFICATIONS = {
     },
     "is-05": {
         "repo": "is-05",
-        "versions": ["v1.0", "v1.1"],
-        "default_version": "v1.1",
+        "versions": ["v1.0", "v1.1", "v1.2"],
+        "default_version": "v1.2",
         "apis": {
             "connection": {
                 "name": "Connection API",
@@ -415,6 +415,16 @@ SPECIFICATIONS = {
         "default_version": "v1.0",
         "apis": {}
     },
+    "bcp-007-03": {
+        "repo": "bcp-007-03",
+        "versions": ["v1.0-dev"],
+        "default_version": "v1.0-dev",
+        "apis": {
+            "mxl-schemas": {
+                "name": "BCP-007-03 MXL JSON Schemas"
+            }
+        }
+    },
     "nmos-parameter-registers": {
         "repo": "nmos-parameter-registers",
         "versions": ["main"],
@@ -428,6 +438,12 @@ SPECIFICATIONS = {
             },
             "sender-register": {
                 "name": "Sender Attributes Register"
+            },
+            "formats-register": {
+                "name": "Formats Register"
+            },
+            "media-types-register": {
+                "name": "Media Types Register"
             }
         }
     },
