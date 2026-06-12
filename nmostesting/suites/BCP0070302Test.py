@@ -411,6 +411,7 @@ class BCP0070302Test(ControllerTest):
 
             for sender in mxl_senders:
                 self.node.clear_staged_requests()
+                self._reset_mxl_receivers()
 
                 compatible_receivers = [
                     receiver for receiver in self._registered_connectable_mxl_receivers()
@@ -500,6 +501,13 @@ class BCP0070302Test(ControllerTest):
                     if mxl_flow_id and mxl_flow_id not in (None, 'auto') and mxl_flow_id != sender['flow_id']:
                         return test.FAIL('Incorrect mxl_flow_id found in PATCH request')
 
+                deactivate_json = {
+                    'master_enable': False,
+                    'sender_id': None,
+                    'activation': {'mode': 'activate_immediate'},
+                }
+                self.node.patch_staged('receivers', receiver['id'], deactivate_json)
+
             if not tested_connection:
                 return test.FAIL('No compatible MXL Sender and Receiver pairs available for connection test')
 
@@ -526,6 +534,7 @@ class BCP0070302Test(ControllerTest):
 
             for sender in mxl_senders:
                 self.node.clear_staged_requests()
+                self._reset_mxl_receivers()
 
                 compatible_receivers = [
                     receiver for receiver in self._registered_connectable_mxl_receivers()
@@ -579,6 +588,13 @@ class BCP0070302Test(ControllerTest):
                     if not self._transport_file_acceptable(patch_request['data']):
                         return test.FAIL(
                             'transport_file attribute was provided with non-null data or type in PATCH request')
+
+                deactivate_json = {
+                    'master_enable': False,
+                    'sender_id': None,
+                    'activation': {'mode': 'activate_immediate'},
+                }
+                self.node.patch_staged('receivers', receiver['id'], deactivate_json)
 
             if not tested_connection:
                 return test.FAIL('No compatible MXL Sender and Receiver pairs available for connection test')
