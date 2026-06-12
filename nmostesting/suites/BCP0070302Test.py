@@ -20,7 +20,8 @@ from ..ControllerTest import ControllerTest, MXL_TRANSPORT, TestingFacadeExcepti
 from ..GenericTest import NMOSInitException
 from ..NMOSUtils import NMOSUtils
 
-MINIMUM_MXL_ENDPOINTS = 2
+MINIMUM_MXL_ENDPOINTS = 3
+TEST_EXAMPLE_COUNT = 3
 
 
 def _mxl_components(frame_width, frame_height, bit_depth=10):
@@ -170,11 +171,13 @@ class BCP0070302Test(ControllerTest):
                    for constraint_set in constraint_sets)
 
     def _select_mxl_indices(self, endpoint_count):
-        if endpoint_count < MINIMUM_MXL_ENDPOINTS:
+        # Need at least MINIMUM_MXL_ENDPOINTS MXL and one RTP transport
+        if endpoint_count < MINIMUM_MXL_ENDPOINTS + 1:
             raise NMOSInitException(
-                "Fixture setup: need at least {} endpoints".format(MINIMUM_MXL_ENDPOINTS))
+                "Fixture setup: need at least {} endpoints to support both MXL and RTP transports".format(
+                    MINIMUM_MXL_ENDPOINTS + 1))
 
-        mxl_count = NMOSUtils.RANDOM.randint(MINIMUM_MXL_ENDPOINTS, endpoint_count)
+        mxl_count = NMOSUtils.RANDOM.randint(MINIMUM_MXL_ENDPOINTS, endpoint_count - 1)
         return NMOSUtils.RANDOM.sample(range(endpoint_count), mxl_count)
 
     def _assign_mxl_sender_profiles(self, mxl_sender_indices):
@@ -187,47 +190,58 @@ class BCP0070302Test(ControllerTest):
             profile = MXL_FLOW_PROFILES[position % len(MXL_FLOW_PROFILES)]
             self.receivers[receiver_index]['caps'] = self._generate_caps([profile])
 
-    def _ensure_transport_registered(self, register_indices, endpoint_indices):
-        if not any(index in register_indices for index in endpoint_indices):
-            register_indices.add(NMOSUtils.RANDOM.choice(endpoint_indices))
+    def _select_test_mxl_senders(self):
+        connectable_mxl_receivers = self._registered_connectable_mxl_receivers()
+        testable_senders = [
+            sender for sender in self._registered_mxl_senders()
+            if any(self._is_compatible(sender, receiver) for receiver in connectable_mxl_receivers)
+        ]
+
+        if CONFIG.MAX_TEST_ITERATIONS:
+            example_count = min(CONFIG.MAX_TEST_ITERATIONS, len(testable_senders))
+        else:
+            example_count = min(TEST_EXAMPLE_COUNT, len(testable_senders))
+
+        if example_count == 0:
+            return []
+
+        return NMOSUtils.RANDOM.sample(testable_senders, example_count)
 
     def set_up_tests(self):
         NMOSUtils.RANDOM.seed(a=CONFIG.RANDOM_SEED)
 
         self.senders = [
             {'label': 's1/connery', 'description': 'Mock sender 1', 'registered': False},
-            {'label': 's2/moore', 'description': 'Mock sender 2', 'registered': False},
-            {'label': 's3/dalton', 'description': 'Mock sender 3', 'registered': False},
-            {'label': 's4/brosnan', 'description': 'Mock sender 4', 'registered': False},
-            {'label': 's5/craig', 'description': 'Mock sender 5', 'registered': False},
+            {'label': 's2/niven', 'description': 'Mock sender 2', 'registered': False},
+            {'label': 's3/lazenby', 'description': 'Mock sender 3', 'registered': False},
+            {'label': 's4/moore', 'description': 'Mock sender 4', 'registered': False},
+            {'label': 's5/dalton', 'description': 'Mock sender 5', 'registered': False},
+            {'label': 's6/brosnan', 'description': 'Mock sender 6', 'registered': False},
+            {'label': 's7/craig', 'description': 'Mock sender 7', 'registered': False},
         ]
 
         mxl_sender_indices = self._select_mxl_indices(len(self.senders))
         for index, sender in enumerate(self.senders):
             if index in mxl_sender_indices:
                 sender['transport'] = MXL_TRANSPORT
+            sender['registered'] = True
 
         self._assign_mxl_sender_profiles(mxl_sender_indices)
 
-        register_senders = set(self.generate_random_indices(len(self.senders), min_index_count=3))
-        rtp_sender_indices = [index for index, sender in enumerate(self.senders)
-                              if self._sender_uses_rtp_transport(sender)]
-        self._ensure_transport_registered(register_senders, mxl_sender_indices)
-        self._ensure_transport_registered(register_senders, rtp_sender_indices)
-
-        for index in register_senders:
-            self.senders[index]['registered'] = True
-
         self.receivers = [
-            {'label': 'r1/blofeld', 'description': 'Mock receiver 1',
+            {'label': 'r1/dr_no', 'description': 'Mock receiver 1',
              'connectable': True, 'registered': False},
-            {'label': 'r2/goldfinger', 'description': 'Mock receiver 2',
+            {'label': 'r2/blofeld', 'description': 'Mock receiver 2',
              'connectable': True, 'registered': False},
-            {'label': 'r3/le_chiffre', 'description': 'Mock receiver 3',
+            {'label': 'r3/goldfinger', 'description': 'Mock receiver 3',
              'connectable': True, 'registered': False},
-            {'label': 'r4/oberhauser', 'description': 'Mock receiver 4',
+            {'label': 'r4/scaramanga', 'description': 'Mock receiver 4',
              'connectable': True, 'registered': False},
-            {'label': 'r5/silva', 'description': 'Mock receiver 5',
+            {'label': 'r5/le_chiffre', 'description': 'Mock receiver 5',
+             'connectable': True, 'registered': False},
+            {'label': 'r6/silva', 'description': 'Mock receiver 6',
+             'connectable': True, 'registered': False},
+            {'label': 'r7/oberhauser', 'description': 'Mock receiver 7',
              'connectable': True, 'registered': False},
         ]
 
@@ -235,17 +249,9 @@ class BCP0070302Test(ControllerTest):
         for index, receiver in enumerate(self.receivers):
             if index in mxl_receiver_indices:
                 receiver['transport'] = MXL_TRANSPORT
+            receiver['registered'] = True
 
         self._assign_mxl_receiver_caps(mxl_receiver_indices)
-
-        register_receivers = set(self.generate_random_indices(len(self.receivers), min_index_count=3))
-        rtp_receiver_indices = [index for index, receiver in enumerate(self.receivers)
-                                if self._receiver_uses_rtp_transport(receiver)]
-        self._ensure_transport_registered(register_receivers, mxl_receiver_indices)
-        self._ensure_transport_registered(register_receivers, rtp_receiver_indices)
-
-        for index in register_receivers:
-            self.receivers[index]['registered'] = True
 
         ControllerTest.set_up_tests(self)
 
@@ -400,9 +406,7 @@ class BCP0070302Test(ControllerTest):
         Connect an MXL Receiver to an MXL Sender via the IS-05 Connection API
         """
         try:
-            sender_iterations = CONFIG.MAX_TEST_ITERATIONS if CONFIG.MAX_TEST_ITERATIONS \
-                else len(self._registered_mxl_senders())
-            mxl_senders = self._registered_mxl_senders()[:sender_iterations]
+            mxl_senders = self._select_test_mxl_senders()
 
             if not mxl_senders:
                 return test.FAIL('No registered MXL Senders available for connection test')
@@ -523,9 +527,7 @@ class BCP0070302Test(ControllerTest):
         Ensure NCuT does not provide a transport_file when staging an MXL Receiver connection
         """
         try:
-            sender_iterations = CONFIG.MAX_TEST_ITERATIONS if CONFIG.MAX_TEST_ITERATIONS \
-                else len(self._registered_mxl_senders())
-            mxl_senders = self._registered_mxl_senders()[:sender_iterations]
+            mxl_senders = self._select_test_mxl_senders()
 
             if not mxl_senders:
                 return test.FAIL('No registered MXL Senders available for connection test')
@@ -614,14 +616,10 @@ class BCP0070302Test(ControllerTest):
         CANDIDATE_RECEIVER_COUNT = 6
 
         try:
-            sender_iterations = CONFIG.MAX_TEST_ITERATIONS if CONFIG.MAX_TEST_ITERATIONS \
-                else len(self._registered_mxl_senders())
-            mxl_senders = self._registered_mxl_senders()[:sender_iterations]
+            mxl_senders = self._select_test_mxl_senders()
 
             if not mxl_senders:
                 return test.FAIL('No registered MXL Senders available for compatibility test')
-
-            NMOSUtils.RANDOM.shuffle(mxl_senders)
 
             tested_compatibility = False
 
