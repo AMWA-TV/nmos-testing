@@ -17,11 +17,17 @@ from operator import itemgetter
 
 from .. import Config as CONFIG
 from ..ControllerTest import ControllerTest, MXL_TRANSPORT, TestingFacadeException
-from ..GenericTest import NMOSInitException
 from ..NMOSUtils import NMOSUtils
 
-MINIMUM_MXL_ENDPOINTS = 3
+MXL_ENDPOINT_COUNT = 4
+MXL_PROFILE_COUNT_PER_TYPE = 2
 TEST_EXAMPLE_COUNT = 3
+
+MXL_RECEIVER_DEACTIVATE_JSON = {
+    'master_enable': False,
+    'sender_id': None,
+    'activation': {'mode': 'activate_immediate'},
+}
 
 
 def _mxl_components(frame_width, frame_height, bit_depth=10):
@@ -56,8 +62,6 @@ MXL_FLOW_PROFILE_720P50 = {
     'components': _mxl_components(1280, 720),
 }
 
-MXL_FLOW_PROFILES = [MXL_FLOW_PROFILE_1080P25, MXL_FLOW_PROFILE_720P50]
-
 CAP_URI_TO_FLOW_FIELD = {
     'urn:x-nmos:cap:format:media_type': 'media_type',
     'urn:x-nmos:cap:format:frame_width': 'frame_width',
@@ -77,12 +81,12 @@ class BCP0070302Test(ControllerTest):
     def __init__(self, apis, registries, node, dns_server, **kwargs):
         ControllerTest.__init__(self, apis, registries, node, dns_server, **kwargs)
 
-    def _profile_to_flow_params(self, profile):
-        return {key: value for key, value in profile.items() if key != 'profile_id'}
-
     def _apply_flow_profile_to_sender(self, sender, profile):
         sender['profile_id'] = profile['profile_id']
-        sender['flow_params'] = self._profile_to_flow_params(profile)
+        sender['flow_params'] = {key: value for key, value in profile.items() if key != 'profile_id'}
+
+    def _apply_caps_profile_to_receiver(self, receiver, profile):
+        receiver['caps'] = self._generate_caps([profile])
 
     def _generate_constraint_set(self, profile):
         return {
@@ -170,25 +174,17 @@ class BCP0070302Test(ControllerTest):
         return any(self._flow_matches_constraint_set(flow_params, constraint_set)
                    for constraint_set in constraint_sets)
 
-    def _select_mxl_indices(self, endpoint_count):
-        # Need at least MINIMUM_MXL_ENDPOINTS MXL and one RTP transport
-        if endpoint_count < MINIMUM_MXL_ENDPOINTS + 1:
-            raise NMOSInitException(
-                "Fixture setup: need at least {} endpoints to support both MXL and RTP transports".format(
-                    MINIMUM_MXL_ENDPOINTS + 1))
+    def _assign_mxl_transport_and_profiles(self, endpoints, apply_profile):
+        mxl_indices = NMOSUtils.RANDOM.sample(range(len(endpoints)), MXL_ENDPOINT_COUNT)
+        profiles = (
+            [MXL_FLOW_PROFILE_1080P25] * MXL_PROFILE_COUNT_PER_TYPE +
+            [MXL_FLOW_PROFILE_720P50] * MXL_PROFILE_COUNT_PER_TYPE
+        )
+        NMOSUtils.RANDOM.shuffle(profiles)
 
-        mxl_count = NMOSUtils.RANDOM.randint(MINIMUM_MXL_ENDPOINTS, endpoint_count - 1)
-        return NMOSUtils.RANDOM.sample(range(endpoint_count), mxl_count)
-
-    def _assign_mxl_sender_profiles(self, mxl_sender_indices):
-        for position, sender_index in enumerate(mxl_sender_indices):
-            profile = MXL_FLOW_PROFILES[position % len(MXL_FLOW_PROFILES)]
-            self._apply_flow_profile_to_sender(self.senders[sender_index], profile)
-
-    def _assign_mxl_receiver_caps(self, mxl_receiver_indices):
-        for position, receiver_index in enumerate(mxl_receiver_indices):
-            profile = MXL_FLOW_PROFILES[position % len(MXL_FLOW_PROFILES)]
-            self.receivers[receiver_index]['caps'] = self._generate_caps([profile])
+        for endpoint_index, profile in zip(mxl_indices, profiles):
+            endpoints[endpoint_index]['transport'] = MXL_TRANSPORT
+            apply_profile(endpoints[endpoint_index], profile)
 
     def _select_test_mxl_senders(self):
         connectable_mxl_receivers = self._registered_connectable_mxl_receivers()
@@ -197,72 +193,125 @@ class BCP0070302Test(ControllerTest):
             if any(self._is_compatible(sender, receiver) for receiver in connectable_mxl_receivers)
         ]
 
-        if CONFIG.MAX_TEST_ITERATIONS:
-            example_count = min(CONFIG.MAX_TEST_ITERATIONS, len(testable_senders))
-        else:
-            example_count = min(TEST_EXAMPLE_COUNT, len(testable_senders))
-
+        example_count = min(CONFIG.MAX_TEST_ITERATIONS or TEST_EXAMPLE_COUNT, len(testable_senders))
         if example_count == 0:
             return []
 
         return NMOSUtils.RANDOM.sample(testable_senders, example_count)
 
+    def _resource_facade_metadata(self, resource):
+        return {
+            'id': resource['id'],
+            'label': resource['label'],
+            'description': resource['description'],
+        }
+
+    def _build_possible_answers(self, candidates):
+        return [
+            {
+                'answer_id': 'answer_' + str(index),
+                'display_answer': candidate['display_answer'],
+                'resource': self._resource_facade_metadata(candidate),
+            }
+            for index, candidate in enumerate(candidates)
+        ]
+
+    def _multi_choice_mismatch(self, test, actual_answers, expected_answers,
+                               missing_fail_message, extra_fail_message):
+        actual = set(actual_answers)
+        expected = set(expected_answers)
+        if expected - actual:
+            return test.FAIL(missing_fail_message)
+        if actual - expected:
+            return test.FAIL(extra_fail_message)
+
+    def _select_candidate_resources(self, primary_resources, other_resources,
+                                    max_primary_count, candidate_count):
+        primary_sample_count = NMOSUtils.RANDOM.randint(1, min(max_primary_count, len(primary_resources)))
+        candidates = NMOSUtils.RANDOM.sample(primary_resources, primary_sample_count)
+
+        if len(candidates) < candidate_count:
+            other_sample_count = min(candidate_count - len(candidates), len(other_resources))
+            candidates.extend(NMOSUtils.RANDOM.sample(other_resources, other_sample_count))
+
+        candidates.sort(key=itemgetter('label'))
+        return candidates
+
+    def _run_mxl_discovery_test(self, test, question, resources, is_mxl, is_non_mxl,
+                                max_mxl_count, candidate_count,
+                                missing_fail_message, extra_fail_message, pass_message):
+        mxl_resources = [resource for resource in resources if is_mxl(resource)]
+        non_mxl_resources = [resource for resource in resources if is_non_mxl(resource)]
+        candidates = self._select_candidate_resources(
+            mxl_resources, non_mxl_resources, max_mxl_count, candidate_count)
+
+        possible_answers = self._build_possible_answers(candidates)
+        expected_answers = [
+            'answer_' + str(index) for index, resource in enumerate(candidates) if is_mxl(resource)
+        ]
+
+        actual_answers = self.testing_facade_utils.invoke_testing_facade(
+            question, possible_answers, test_type='multi_choice')['answer_response']
+
+        mismatch = self._multi_choice_mismatch(
+            test, actual_answers, expected_answers, missing_fail_message, extra_fail_message)
+        if mismatch:
+            return mismatch
+
+        return test.PASS(pass_message)
+
+    def _compatible_receivers_for_sender(self, sender):
+        return [
+            receiver for receiver in self._registered_connectable_mxl_receivers()
+            if self._is_compatible(sender, receiver)
+        ]
+
+    def _receiver_patch_requests(self):
+        return [
+            request for request in self.node.staged_requests
+            if request['method'] == 'PATCH' and request['resource'] == 'receivers'
+        ]
+
+    def _deactivate_mxl_receiver(self, receiver):
+        self.node.patch_staged('receivers', receiver['id'], MXL_RECEIVER_DEACTIVATE_JSON)
+
     def set_up_tests(self):
         NMOSUtils.RANDOM.seed(a=CONFIG.RANDOM_SEED)
 
         self.senders = [
-            {'label': 's1/connery', 'description': 'Mock sender 1', 'registered': False},
-            {'label': 's2/niven', 'description': 'Mock sender 2', 'registered': False},
-            {'label': 's3/lazenby', 'description': 'Mock sender 3', 'registered': False},
-            {'label': 's4/moore', 'description': 'Mock sender 4', 'registered': False},
-            {'label': 's5/dalton', 'description': 'Mock sender 5', 'registered': False},
-            {'label': 's6/brosnan', 'description': 'Mock sender 6', 'registered': False},
-            {'label': 's7/craig', 'description': 'Mock sender 7', 'registered': False},
+            {'label': 's1/connery', 'description': 'Mock sender 1', 'registered': True},
+            {'label': 's2/niven', 'description': 'Mock sender 2', 'registered': True},
+            {'label': 's3/lazenby', 'description': 'Mock sender 3', 'registered': True},
+            {'label': 's4/moore', 'description': 'Mock sender 4', 'registered': True},
+            {'label': 's5/dalton', 'description': 'Mock sender 5', 'registered': True},
+            {'label': 's6/brosnan', 'description': 'Mock sender 6', 'registered': True},
+            {'label': 's7/craig', 'description': 'Mock sender 7', 'registered': True},
         ]
-
-        mxl_sender_indices = self._select_mxl_indices(len(self.senders))
-        for index, sender in enumerate(self.senders):
-            if index in mxl_sender_indices:
-                sender['transport'] = MXL_TRANSPORT
-            sender['registered'] = True
-
-        self._assign_mxl_sender_profiles(mxl_sender_indices)
+        self._assign_mxl_transport_and_profiles(self.senders, self._apply_flow_profile_to_sender)
 
         self.receivers = [
             {'label': 'r1/dr_no', 'description': 'Mock receiver 1',
-             'connectable': True, 'registered': False},
+             'connectable': True, 'registered': True},
             {'label': 'r2/blofeld', 'description': 'Mock receiver 2',
-             'connectable': True, 'registered': False},
+             'connectable': True, 'registered': True},
             {'label': 'r3/goldfinger', 'description': 'Mock receiver 3',
-             'connectable': True, 'registered': False},
+             'connectable': True, 'registered': True},
             {'label': 'r4/scaramanga', 'description': 'Mock receiver 4',
-             'connectable': True, 'registered': False},
+             'connectable': True, 'registered': True},
             {'label': 'r5/le_chiffre', 'description': 'Mock receiver 5',
-             'connectable': True, 'registered': False},
+             'connectable': True, 'registered': True},
             {'label': 'r6/silva', 'description': 'Mock receiver 6',
-             'connectable': True, 'registered': False},
+             'connectable': True, 'registered': True},
             {'label': 'r7/oberhauser', 'description': 'Mock receiver 7',
-             'connectable': True, 'registered': False},
+             'connectable': True, 'registered': True},
         ]
-
-        mxl_receiver_indices = self._select_mxl_indices(len(self.receivers))
-        for index, receiver in enumerate(self.receivers):
-            if index in mxl_receiver_indices:
-                receiver['transport'] = MXL_TRANSPORT
-            receiver['registered'] = True
-
-        self._assign_mxl_receiver_caps(mxl_receiver_indices)
+        self._assign_mxl_transport_and_profiles(self.receivers, self._apply_caps_profile_to_receiver)
 
         ControllerTest.set_up_tests(self)
 
     def _reset_mxl_receivers(self):
         for receiver in self._registered_connectable_mxl_receivers():
-            deactivate_json = {
-                'master_enable': False,
-                'sender_id': None,
-                'activation': {'mode': 'activate_immediate'},
-            }
-            self.node.patch_staged('receivers', receiver['id'], deactivate_json)
+            self._deactivate_mxl_receiver(receiver)
 
     def _registered_mxl_senders(self):
         return [
@@ -306,39 +355,13 @@ class BCP0070302Test(ControllerTest):
                        to identify MXL Senders, press 'Submit' without making a selection.
                        """
 
-            registered_senders = [sender for sender in self.senders if sender["registered"]]
-            mxl_senders = [sender for sender in registered_senders if self._sender_uses_mxl_transport(sender)]
-            non_mxl_senders = [sender for sender in registered_senders if self._sender_uses_rtp_transport(sender)]
-
-            mxl_sender_count = NMOSUtils.RANDOM.randint(1, min(MAX_COMPATIBLE_SENDER_COUNT, len(mxl_senders)))
-            candidate_senders = NMOSUtils.RANDOM.sample(mxl_senders, mxl_sender_count)
-
-            if len(candidate_senders) < CANDIDATE_SENDER_COUNT:
-                other_sender_count = min(CANDIDATE_SENDER_COUNT - len(candidate_senders), len(non_mxl_senders))
-                candidate_senders.extend(NMOSUtils.RANDOM.sample(non_mxl_senders, other_sender_count))
-
-            candidate_senders.sort(key=itemgetter('label'))
-
-            possible_answers = [{'answer_id': 'answer_' + str(index),
-                                 'display_answer': sender['display_answer'],
-                                 'resource': {'id': sender['id'], 'label': sender['label'],
-                                              'description': sender['description']}}
-                                for index, sender in enumerate(candidate_senders)]
-            expected_answers = ['answer_' + str(index) for index, sender in enumerate(candidate_senders)
-                                if self._sender_uses_mxl_transport(sender)]
-
-            actual_answers = self.testing_facade_utils.invoke_testing_facade(
-                question, possible_answers, test_type='multi_choice')['answer_response']
-
-            actual = set(actual_answers)
-            expected = set(expected_answers)
-
-            if expected - actual:
-                return test.FAIL('Not all MXL Senders identified')
-            if actual - expected:
-                return test.FAIL('Senders incorrectly identified as MXL')
-
-            return test.PASS('All MXL Senders correctly identified')
+            return self._run_mxl_discovery_test(
+                test, question, self.senders,
+                self._sender_uses_mxl_transport, self._sender_uses_rtp_transport,
+                MAX_COMPATIBLE_SENDER_COUNT, CANDIDATE_SENDER_COUNT,
+                'Not all MXL Senders identified',
+                'Senders incorrectly identified as MXL',
+                'All MXL Senders correctly identified')
 
         except TestingFacadeException as exception:
             return test.UNCLEAR(exception.args[0])
@@ -362,48 +385,21 @@ class BCP0070302Test(ControllerTest):
                        to identify MXL Receivers, press 'Submit' without making a selection.
                        """
 
-            registered_receivers = [receiver for receiver in self.receivers if receiver["registered"]]
-            mxl_receivers = [receiver for receiver in registered_receivers
-                             if self._receiver_uses_mxl_transport(receiver)]
-            non_mxl_receivers = [receiver for receiver in registered_receivers
-                                 if self._receiver_uses_rtp_transport(receiver)]
-
-            mxl_receiver_count = NMOSUtils.RANDOM.randint(1, min(MAX_COMPATIBLE_RECEIVER_COUNT, len(mxl_receivers)))
-            candidate_receivers = NMOSUtils.RANDOM.sample(mxl_receivers, mxl_receiver_count)
-
-            if len(candidate_receivers) < CANDIDATE_RECEIVER_COUNT:
-                other_receiver_count = min(CANDIDATE_RECEIVER_COUNT - len(candidate_receivers), len(non_mxl_receivers))
-                candidate_receivers.extend(NMOSUtils.RANDOM.sample(non_mxl_receivers, other_receiver_count))
-
-            candidate_receivers.sort(key=itemgetter('label'))
-
-            possible_answers = [{'answer_id': 'answer_' + str(index),
-                                 'display_answer': receiver['display_answer'],
-                                 'resource': {'id': receiver['id'], 'label': receiver['label'],
-                                              'description': receiver['description']}}
-                                for index, receiver in enumerate(candidate_receivers)]
-            expected_answers = ['answer_' + str(index) for index, receiver in enumerate(candidate_receivers)
-                                if self._receiver_uses_mxl_transport(receiver)]
-
-            actual_answers = self.testing_facade_utils.invoke_testing_facade(
-                question, possible_answers, test_type='multi_choice')['answer_response']
-
-            actual = set(actual_answers)
-            expected = set(expected_answers)
-
-            if expected - actual:
-                return test.FAIL('Not all MXL Receivers identified')
-            if actual - expected:
-                return test.FAIL('Receivers incorrectly identified as MXL')
-
-            return test.PASS('All MXL Receivers correctly identified')
+            return self._run_mxl_discovery_test(
+                test, question, self.receivers,
+                self._receiver_uses_mxl_transport, self._receiver_uses_rtp_transport,
+                MAX_COMPATIBLE_RECEIVER_COUNT, CANDIDATE_RECEIVER_COUNT,
+                'Not all MXL Receivers identified',
+                'Receivers incorrectly identified as MXL',
+                'All MXL Receivers correctly identified')
 
         except TestingFacadeException as exception:
             return test.UNCLEAR(exception.args[0])
 
     def test_03(self, test):
         """
-        Connect an MXL Receiver to an MXL Sender via the IS-05 Connection API
+        Connect an MXL Receiver to an MXL Sender via the IS-05 Connection API and ensure
+        the NCuT does not provide a transport_file when staging the connection
         """
         try:
             mxl_senders = self._select_test_mxl_senders()
@@ -417,10 +413,7 @@ class BCP0070302Test(ControllerTest):
                 self.node.clear_staged_requests()
                 self._reset_mxl_receivers()
 
-                compatible_receivers = [
-                    receiver for receiver in self._registered_connectable_mxl_receivers()
-                    if self._is_compatible(sender, receiver)
-                ]
+                compatible_receivers = self._compatible_receivers_for_sender(sender)
                 if not compatible_receivers:
                     continue
 
@@ -429,7 +422,8 @@ class BCP0070302Test(ControllerTest):
 
                 question = textwrap.dedent(f"""\
                            It should be possible to connect available MXL Senders to compatible MXL Receivers \
-                           using the IS-05 Connection API.
+                           using the IS-05 Connection API. When staging the connection, the NCuT MUST NOT \
+                           provide a transport file in the PATCH request to the Receiver /staged endpoint.
 
                            Use the NCuT to perform an 'immediate' activation between sender:
 
@@ -443,25 +437,14 @@ class BCP0070302Test(ControllerTest):
                            """)
 
                 metadata = {
-                    'sender': {
-                        'id': sender['id'],
-                        'label': sender['label'],
-                        'description': sender['description'],
-                    },
-                    'receiver': {
-                        'id': receiver['id'],
-                        'label': receiver['label'],
-                        'description': receiver['description'],
-                    },
+                    'sender': self._resource_facade_metadata(sender),
+                    'receiver': self._resource_facade_metadata(receiver),
                 }
 
                 self.testing_facade_utils.invoke_testing_facade(
                     question, [], test_type='action', metadata=metadata)
 
-                patch_requests = [
-                    request for request in self.node.staged_requests
-                    if request['method'] == 'PATCH' and request['resource'] == 'receivers'
-                ]
+                patch_requests = self._receiver_patch_requests()
                 if len(patch_requests) < 1:
                     return test.FAIL('No PATCH request was received by the node')
                 if len(patch_requests) > 1:
@@ -505,17 +488,16 @@ class BCP0070302Test(ControllerTest):
                     if mxl_flow_id and mxl_flow_id not in (None, 'auto') and mxl_flow_id != sender['flow_id']:
                         return test.FAIL('Incorrect mxl_flow_id found in PATCH request')
 
-                deactivate_json = {
-                    'master_enable': False,
-                    'sender_id': None,
-                    'activation': {'mode': 'activate_immediate'},
-                }
-                self.node.patch_staged('receivers', receiver['id'], deactivate_json)
+                if not self._transport_file_acceptable(patch_data):
+                    return test.FAIL(
+                        'transport_file attribute was provided with non-null data or type in PATCH request')
+
+                self._deactivate_mxl_receiver(receiver)
 
             if not tested_connection:
                 return test.FAIL('No compatible MXL Sender and Receiver pairs available for connection test')
 
-            return test.PASS('Connections successfully established')
+            return test.PASS('Connections successfully established without transport_file in PATCH requests')
 
         except TestingFacadeException as exception:
             return test.UNCLEAR(exception.args[0])
@@ -523,92 +505,6 @@ class BCP0070302Test(ControllerTest):
             self._reset_mxl_receivers()
 
     def test_04(self, test):
-        """
-        Ensure NCuT does not provide a transport_file when staging an MXL Receiver connection
-        """
-        try:
-            mxl_senders = self._select_test_mxl_senders()
-
-            if not mxl_senders:
-                return test.FAIL('No registered MXL Senders available for connection test')
-
-            tested_connection = False
-
-            for sender in mxl_senders:
-                self.node.clear_staged_requests()
-                self._reset_mxl_receivers()
-
-                compatible_receivers = [
-                    receiver for receiver in self._registered_connectable_mxl_receivers()
-                    if self._is_compatible(sender, receiver)
-                ]
-                if not compatible_receivers:
-                    continue
-
-                receiver = NMOSUtils.RANDOM.choice(compatible_receivers)
-                tested_connection = True
-
-                question = textwrap.dedent(f"""\
-                           When connecting an MXL Receiver using the IS-05 Connection API, the NCuT MUST NOT \
-                           provide a transport file in the PATCH request to the Receiver /staged endpoint.
-
-                           Use the NCuT to perform an 'immediate' activation between sender:
-
-                           {sender['display_answer']}
-
-                           and receiver:
-
-                           {receiver['display_answer']}
-
-                           Click the 'Next' button once the connection is active.
-                           """)
-
-                metadata = {
-                    'sender': {
-                        'id': sender['id'],
-                        'label': sender['label'],
-                        'description': sender['description'],
-                    },
-                    'receiver': {
-                        'id': receiver['id'],
-                        'label': receiver['label'],
-                        'description': receiver['description'],
-                    },
-                }
-
-                self.testing_facade_utils.invoke_testing_facade(
-                    question, [], test_type='action', metadata=metadata)
-
-                patch_requests = [
-                    request for request in self.node.staged_requests
-                    if request['method'] == 'PATCH' and request['resource'] == 'receivers'
-                ]
-                if len(patch_requests) < 1:
-                    return test.FAIL('No PATCH request was received by the node')
-
-                for patch_request in patch_requests:
-                    if not self._transport_file_acceptable(patch_request['data']):
-                        return test.FAIL(
-                            'transport_file attribute was provided with non-null data or type in PATCH request')
-
-                deactivate_json = {
-                    'master_enable': False,
-                    'sender_id': None,
-                    'activation': {'mode': 'activate_immediate'},
-                }
-                self.node.patch_staged('receivers', receiver['id'], deactivate_json)
-
-            if not tested_connection:
-                return test.FAIL('No compatible MXL Sender and Receiver pairs available for connection test')
-
-            return test.PASS('transport_file attribute not provided in PATCH requests')
-
-        except TestingFacadeException as exception:
-            return test.UNCLEAR(exception.args[0])
-        finally:
-            self._reset_mxl_receivers()
-
-    def test_05(self, test):
         """
         Ensure NCuT can evaluate MXL Flow compatibility using BCP-004-01 Receiver Capabilities
         """
@@ -624,10 +520,7 @@ class BCP0070302Test(ControllerTest):
             tested_compatibility = False
 
             for iteration, sender in enumerate(mxl_senders):
-                compatible_receivers = [
-                    receiver for receiver in self._registered_connectable_mxl_receivers()
-                    if self._is_compatible(sender, receiver)
-                ]
+                compatible_receivers = self._compatible_receivers_for_sender(sender)
                 if not compatible_receivers:
                     continue
 
@@ -646,35 +539,16 @@ class BCP0070302Test(ControllerTest):
                            to identify compatible Receivers, press 'Submit' without making a selection.
                            """)
 
+                connectable_mxl_receivers = self._registered_connectable_mxl_receivers()
                 other_receivers = [
-                    receiver for receiver in self._registered_connectable_mxl_receivers()
-                    if not self._is_compatible(sender, receiver)
+                    receiver for receiver in connectable_mxl_receivers
+                    if receiver not in compatible_receivers
                 ]
+                candidate_receivers = self._select_candidate_resources(
+                    compatible_receivers, other_receivers,
+                    MAX_COMPATIBLE_RECEIVER_COUNT, CANDIDATE_RECEIVER_COUNT)
 
-                compatible_receiver_count = NMOSUtils.RANDOM.randint(
-                    1, min(MAX_COMPATIBLE_RECEIVER_COUNT, len(compatible_receivers)))
-                candidate_receivers = NMOSUtils.RANDOM.sample(compatible_receivers, compatible_receiver_count)
-
-                if len(candidate_receivers) < CANDIDATE_RECEIVER_COUNT:
-                    incompatible_receiver_count = min(
-                        CANDIDATE_RECEIVER_COUNT - len(candidate_receivers), len(other_receivers))
-                    candidate_receivers.extend(
-                        NMOSUtils.RANDOM.sample(other_receivers, incompatible_receiver_count))
-
-                candidate_receivers.sort(key=itemgetter('label'))
-
-                possible_answers = [
-                    {
-                        'answer_id': 'answer_' + str(index),
-                        'display_answer': receiver['display_answer'],
-                        'resource': {
-                            'id': receiver['id'],
-                            'label': receiver['label'],
-                            'description': receiver['description'],
-                        },
-                    }
-                    for index, receiver in enumerate(candidate_receivers)
-                ]
+                possible_answers = self._build_possible_answers(candidate_receivers)
                 expected_answers = [
                     'answer_' + str(index) for index, receiver in enumerate(candidate_receivers)
                     if self._is_compatible(sender, receiver)
@@ -684,16 +558,13 @@ class BCP0070302Test(ControllerTest):
                     question, possible_answers, test_type='multi_choice',
                     multipart_test=iteration)['answer_response']
 
-                actual = set(actual_answers)
-                expected = set(expected_answers)
-
-                if expected - actual:
-                    return test.FAIL(
-                        'Not all compatible Receivers identified for Sender {}'.format(sender['display_answer']))
-                if actual - expected:
-                    return test.FAIL(
-                        'Receivers incorrectly identified as compatible for Sender {}'
-                        .format(sender['display_answer']))
+                mismatch = self._multi_choice_mismatch(
+                    test, actual_answers, expected_answers,
+                    'Not all compatible Receivers identified for Sender {}'.format(sender['display_answer']),
+                    'Receivers incorrectly identified as compatible for Sender {}'
+                    .format(sender['display_answer']))
+                if mismatch:
+                    return mismatch
 
             if not tested_compatibility:
                 return test.FAIL('No compatible MXL Sender and Receiver pairs available for compatibility test')
