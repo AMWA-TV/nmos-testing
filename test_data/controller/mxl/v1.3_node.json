@@ -1,0 +1,35 @@
+{
+    "description": "",
+    "tags": {},
+    "label": "AMWA Test Suite Node",
+    "version": "1539094460:257325706",
+    "hostname": "127.0.0.1",
+    "href": "http://127.0.0.1:5200/",
+    "api": {
+        "endpoints": [
+            {
+                "authorization": false,
+                "protocol": "http",
+                "version": "v1.3",
+                "host": "127.0.0.1",
+                "port": 5200,
+                "href": "http://127.0.0.1:5200/x-nmos/node/v1.3/"
+            },
+            {
+                "authorization": false,
+                "protocol": "http",
+                "version": "v1.2",
+                "host": "127.0.0.1",
+                "port": 5200,
+                "href": "http://127.0.0.1:5200/x-nmos/connection/v1.2/"
+            }
+        ]
+    },
+    "id": "00000000-0000-0000-0000-000000000000",
+    "clocks": [
+        {
+            "name": "clk0",
+            "ref_type": "internal"
+        }
+    ]
+}
