@@ -763,7 +763,10 @@ def active(version, resource, resource_id):
 @check_authorization
 def transport_type(version, resource, resource_id):
     try:
-        base_data = _resource_transport(resource, resource_id)
+        if _resource_transport(resource, resource_id) == MXL_TRANSPORT:
+            base_data = MXL_TRANSPORT
+        else:
+            base_data = "urn:x-nmos:transport:rtp"
     except KeyError:
         abort(404)
 
