@@ -189,8 +189,9 @@ class BCP0070302Test(ControllerTest):
     def _select_test_mxl_senders(self):
         connectable_mxl_receivers = self._registered_connectable_mxl_receivers()
         testable_senders = [
-            sender for sender in self._registered_mxl_senders()
-            if any(self._is_compatible(sender, receiver) for receiver in connectable_mxl_receivers)
+            sender for sender in self.senders
+            if sender['registered'] and self._sender_uses_mxl_transport(sender)
+            and any(self._is_compatible(sender, receiver) for receiver in connectable_mxl_receivers)
         ]
 
         example_count = min(CONFIG.MAX_TEST_ITERATIONS or TEST_EXAMPLE_COUNT, len(testable_senders))
@@ -267,12 +268,6 @@ class BCP0070302Test(ControllerTest):
             if self._is_compatible(sender, receiver)
         ]
 
-    def _receiver_patch_requests(self):
-        return [
-            request for request in self.node.staged_requests
-            if request['method'] == 'PATCH' and request['resource'] == 'receivers'
-        ]
-
     def _deactivate_mxl_receiver(self, receiver):
         self.node.patch_staged('receivers', receiver['id'], MXL_RECEIVER_DEACTIVATE_JSON)
 
@@ -313,12 +308,6 @@ class BCP0070302Test(ControllerTest):
     def _reset_mxl_receivers(self):
         for receiver in self._registered_connectable_mxl_receivers():
             self._deactivate_mxl_receiver(receiver)
-
-    def _registered_mxl_senders(self):
-        return [
-            sender for sender in self.senders
-            if sender['registered'] and self._sender_uses_mxl_transport(sender)
-        ]
 
     def _registered_connectable_mxl_receivers(self):
         return [
@@ -445,7 +434,10 @@ class BCP0070302Test(ControllerTest):
                 self.testing_facade_utils.invoke_testing_facade(
                     question, [], test_type='action', metadata=metadata)
 
-                patch_requests = self._receiver_patch_requests()
+                patch_requests = [
+                    request for request in self.node.staged_requests
+                    if request['method'] == 'PATCH' and request['resource'] == 'receivers'
+                ]
                 if len(patch_requests) < 1:
                     return test.FAIL('No PATCH request was received by the node')
                 if len(patch_requests) > 1:
