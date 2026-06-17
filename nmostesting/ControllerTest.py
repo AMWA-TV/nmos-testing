@@ -43,6 +43,7 @@ class ControllerTest(GenericTest):
     """
     Testing initial set up of new test suite for controller testing
     """
+
     def __init__(self, apis, registries, node, dns_server, auths, disable_auto=True, **kwargs):
         # Remove the Testing Facade spec_path as there are no corresponding GitHub repos for the Testing Facade API
         apis[TESTING_FACADE_API_KEY].pop("spec_path", None)
@@ -509,7 +510,9 @@ class ControllerTest(GenericTest):
                    """)
 
         try:
-            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action")
+            metadata = {'test_class': self.__class__.__name__}
+            self.testing_facade_utils.invoke_testing_facade(
+                question, [], test_type="action", metadata=metadata)
 
         except TestingFacadeException:
             # pre_test_introducton timed out

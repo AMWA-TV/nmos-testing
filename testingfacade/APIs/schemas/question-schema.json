@@ -113,7 +113,7 @@
             "description": "URL of the test suite API endpoint to send the POST request with answers"
         },
         "metadata": {
-            "description": "Extra information to assist fully automated testing where an action is required on a specific resource",
+            "description": "Extra information to assist fully automated testing",
             "default": null,
             "anyOf": [
                 {
@@ -122,6 +122,10 @@
                 {
                     "type": "object",
                     "properties": {
+                        "test_class": {
+                            "type": "string",
+                            "description": "Python class name of the NMOS Testing controller suite, used to select automated test instructions"
+                        },
                         "sender": {
                             "$ref": "resource-details-schema.json"
                         },
