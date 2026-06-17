@@ -251,7 +251,8 @@ class BCP0070302Test(ControllerTest):
         ]
 
         actual_answers = self.testing_facade_utils.invoke_testing_facade(
-            question, possible_answers, test_type='multi_choice')['answer_response']
+            question, possible_answers, test_type='multi_choice',
+            test_method_name=test.name)['answer_response']
 
         mismatch = self._multi_choice_mismatch(
             test, actual_answers, expected_answers, missing_fail_message, extra_fail_message)
@@ -554,9 +555,13 @@ class BCP0070302Test(ControllerTest):
                     if self._is_compatible(sender, receiver)
                 ]
 
+                metadata = {
+                    'sender': self._resource_facade_metadata(sender),
+                }
+
                 actual_answers = self.testing_facade_utils.invoke_testing_facade(
                     question, possible_answers, test_type='multi_choice',
-                    multipart_test=iteration)['answer_response']
+                    multipart_test=iteration, metadata=metadata)['answer_response']
 
                 mismatch = self._multi_choice_mismatch(
                     test, actual_answers, expected_answers,
