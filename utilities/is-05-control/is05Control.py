@@ -78,25 +78,32 @@ def set_master_enable(url, state):
     """Set the master enable config to the state"""
     print('Setting master_enable: {}'.format(state))
 
-    body = {
+    body = create_master_enable_body(state)
+    send_request(url, body)
+
+def create_master_enable_body(state):
+    return {
         "master_enable": state,
         "activation": {
             "mode": "activate_immediate",
             "requested_time": None
         }
-    }
+    }    
 
-    send_request(url, body)
+def set_masters_enable(url, uuids, state):
+    """Set the master enable config to the state"""
+    print('Setting bulk master_enable: {}'.format(state))
 
+    single_body = create_master_enable_body(state)
+    body = [{ "id": uuid, "params": single_body } for uuid in uuids]
+
+    send_bulk_request(url, body)
 
 def configure_sender(url, config):
     print('Configuring Sender')
     send_request(url, config)
 
-
-def configure_receiver(url, sender_id, sdp_data):
-    print('Configuring Receiver')
-
+def create_receiver_body(sender_id, sdp_data):
     body = {
         "sender_id": sender_id,
         "master_enable": True,
@@ -111,8 +118,21 @@ def configure_receiver(url, sender_id, sdp_data):
         print("Using SDP file")
         body["transport_file"] = {"data": sdp_data, "type": "application/sdp"}
 
-    send_request(url, body)
+    return body
 
+# For simplicity configuring all receivers with the same sender_id
+def configure_receivers(url, receiver_ids, sender_id, sdp_datas):
+    if len(receiver_ids) != len(sdp_datas):
+        print(" * ERROR: Number of provided SDP files does not match numb er of provided receiver UUIDs")
+        return
+    body = [{ "id": receiver_id, "params": create_receiver_body(sender_id, sdp_datas[idx]) } for idx,receiver_id in enumerate(receiver_ids)]
+    send_bulk_request(url, body)
+
+def configure_receiver(url, sender_id, sdp_data):
+    print('Configuring Receiver')
+
+    body = create_receiver_body(sender_id, sdp_data)
+    send_request(url, body)
 
 def send_request(url, body):
     try:
@@ -128,16 +148,41 @@ def send_request(url, body):
         print(e)
 
 
+def send_bulk_request(url, body):
+    print("Sending bulk request to", url)
+    try:
+        response = requests.post(url, timeout=2, json=body)
+        if response.status_code in [200]:
+            parsed_response = response.json()
+            if type(parsed_response) is list:
+                for resource_post_result in parsed_response:
+                    if resource_post_result["code"] == 200:
+                        print("Successfully updated resource", resource_post_result["id"])
+                    else:
+                        print(" * ERROR: ", resource_post_result)
+            else:
+                print("Successful request")
+        else:
+            print("Request Failed")
+            print(response.status_code)
+            print(response.text)
+    except Exception as e:
+        print(" * ERROR: Unable to post data to {}".format(url))
+        print(e)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ip", required=True, help="IP address or Hostname of DuT")
     parser.add_argument("--port", type=int, default=80, help="Port number of IS-05 API of DuT")
     parser.add_argument("--version", default="v1.1", help="Version of IS-05 API of DuT")
     parser.add_argument("-s", "--sender", action="store_true", help="Configure NMOS Sender")
+    parser.add_argument("-ss", "--senders", action="store_true", help="Configure NMOS Senders by bulk operation")
     parser.add_argument("-r", "--receiver", action="store_true", help="Configure NMOS Receiver")
+    parser.add_argument("-rr", "--receivers", action="store_true", help="Configure NMOS Receivers by bulk operation")
     parser.add_argument("--request", help="JSON data to be sent in the request to configure sender")
-    parser.add_argument("--sdp", help="SDP file to be sent in the request to configure receiver")
-    parser.add_argument("-u", "--uuid", required=True, help="UUID of resource to be configured")
+    parser.add_argument("--sdp", action="append", help="SDP file to be sent in the request to configure receiver (parameter can be provided several times for multiple SDPs)")
+    parser.add_argument("-u", "--uuid",  action="append", required=True, help="UUID of resource to be configured (parameter can be provided several times for multiple UUIDs)")
     args = parser.parse_args()
 
     # Configure for Sender or Receiver
@@ -147,7 +192,14 @@ if __name__ == "__main__":
             args.ip,
             args.port,
             args.version,
-            args.uuid
+            args.uuid[0]
+        )
+    elif args.senders:
+        print("Configuring NMOS Senders using IS-05 bulk operation")
+        url = "http://{}:{}/x-nmos/connection/{}/bulk/senders".format(
+            args.ip,
+            args.port,
+            args.version,
         )
     elif args.receiver:
         print("Configuring NMOS Receiver using IS-05")
@@ -155,10 +207,17 @@ if __name__ == "__main__":
             args.ip,
             args.port,
             args.version,
-            args.uuid
+            args.uuid[0]
+        )
+    elif args.receivers:
+        print("Configuring NMOS Receivers using IS-05 bulk operation")
+        url = "http://{}:{}/x-nmos/connection/{}/bulk/receivers".format(
+            args.ip,
+            args.port,
+            args.version,
         )
     else:
-        print("Please select either Sender or Receiver mode")
+        print("Please select either Sender(s) or Receiver(s) mode")
         sys.exit()
 
     print(url)
@@ -173,13 +232,15 @@ if __name__ == "__main__":
             sys.exit()
 
     # Read SDP file
+    sdp_datas = []
     if args.sdp:
-        if os.path.exists(args.sdp):
-            with open(args.sdp, "r") as sdp_file:
-                sdp_payload = sdp_file.read()
-        else:
-            print("SDP file \"{}\" does not exist".format(args.sdp))
-            sys.exit()
+        for single_sdp in args.sdp:
+            if os.path.exists(single_sdp):
+                with open(single_sdp, "r") as sdp_file:
+                    sdp_datas.append(sdp_file.read())
+            else:
+                print("SDP file \"{}\" does not exist".format(single_sdp))
+                sys.exit()
 
     # Read dummy SDP file
     with open("dummy-sdp.sdp", "r") as sdp_file:
@@ -199,19 +260,29 @@ if __name__ == "__main__":
             break
 
         if ch == 'e':
-            set_master_enable(url, True)
-        elif ch == 'd':
-            set_master_enable(url, False)
-        elif ch == 'c':
-            if args.sender:
-                configure_sender(url, request_payload)
+            if args.senders or args.receivers:
+                set_masters_enable(url, args.uuid, True)
             else:
-                configure_receiver(url, "1e1c78ae-1dd2-11b2-8044-cc988b8696a2", sdp_payload)
+                set_master_enable(url, True)
+        elif ch == 'd':
+            if args.senders or args.receivers:
+                set_masters_enable(url, args.uuid, False)
+            else:
+                set_master_enable(url, False)
+        elif ch == 'c':
+            if args.sender or args.senders:
+                configure_sender(url, request_payload)
+            elif args.receiver:
+                configure_receiver(url, "1e1c78ae-1dd2-11b2-8044-cc988b8696a2", sdp_datas[0])
+            else:
+                configure_receivers(url, args.uuid, "1e1c78ae-1dd2-11b2-8044-cc988b8696a2", sdp_datas)
         elif ch == 'u':
             if args.sender:
                 configure_sender(url, dummy_data)
-            else:
+            elif args.receiver:
                 configure_receiver(url, "xxxxxxxx-1dd2-xxxx-8044-cc988b8696a2", dummy_sdp_payload)
+            else:
+                print("Bulk update to dummy config is not supported yet")
         elif ch == '7':
             if args.sender:
                 configure_sender(url, dummy_data_7)
