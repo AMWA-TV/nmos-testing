@@ -22,7 +22,7 @@ from itertools import product
 from math import floor
 from xeger import Xeger
 
-from ..Config import MS05_INVASIVE_TESTING, MS05_INTERACTIVE_TESTING
+from ..Config import MS05_INVASIVE_TESTING, MS05_INTERACTIVE_TESTING, MS05_EXHAUSTIVE_TESTING
 from ..GenericTest import GenericTest, NMOSTestException
 from ..TestingFacadeUtils import TestingFacadeUtils, TestingFacadeException
 from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, NcDatatypeDescriptor, \
@@ -112,6 +112,7 @@ class MS0501Test(GenericTest):
         self.parameter_constraints_metadata = MS0501Test.TestMetadata()
         # checked in _check_device_model(), reported in test_ms05_26
         self.constraint_hierarchy_metadata = MS0501Test.TestMetadata()
+        self.device_model_validated_class_ids = set()
 
         self.check_property_metadata = MS0501Test.TestMetadata()
         self.set_sequence_item_metadata = MS0501Test.TestMetadata()
@@ -743,6 +744,19 @@ class MS0501Test(GenericTest):
                                        f"field name={field_descriptor.name}, "
                                        f"field datatype={field_descriptor.typeName}: ")
 
+    def _iter_sampled_blocks(self, block_list):
+        if MS05_EXHAUSTIVE_TESTING:
+            return block_list
+        return MS05Utils.sampled_list(block_list)
+
+    def _should_validate_device_model_class(self, class_identifier):
+        if MS05_EXHAUSTIVE_TESTING:
+            return True
+        if class_identifier in self.device_model_validated_class_ids:
+            return False
+        self.device_model_validated_class_ids.add(class_identifier)
+        return True
+
     def _check_object_constraints(self, test, child_object, class_descriptor, datatype_descriptors):
         for property_descriptor in class_descriptor.properties:
             if property_descriptor.isReadOnly:
@@ -769,13 +783,12 @@ class MS0501Test(GenericTest):
                                                   context)
 
     def _check_block(self, test, block, class_descriptors, datatype_descriptors):
-        for child_object in block.child_objects:
-            # If this child object is a Block, recurse
-            if type(child_object) is NcBlock:
-                self._check_block(test,
-                                  child_object,
-                                  class_descriptors,
-                                  datatype_descriptors)
+        child_blocks = [child_object for child_object in block.child_objects if type(child_object) is NcBlock]
+        for child_block in self._iter_sampled_blocks(child_blocks):
+            self._check_block(test,
+                              child_block,
+                              class_descriptors,
+                              datatype_descriptors)
         role_cache = []
         manager_cache = []
         for child_object in block.child_objects:
@@ -795,14 +808,15 @@ class MS0501Test(GenericTest):
             class_identifier = self.ms05_utils.create_class_id_string(descriptor.classId)
             if class_identifier and class_identifier in class_descriptors:
                 class_descriptor = class_descriptors[class_identifier]
-                self._check_object_properties(test,
-                                              class_descriptor,
-                                              descriptor.oid,
-                                              role_path)
-                self._check_object_constraints(test,
-                                               child_object,
-                                               class_descriptor,
-                                               datatype_descriptors)
+                if self._should_validate_device_model_class(class_identifier):
+                    self._check_object_properties(test,
+                                                  class_descriptor,
+                                                  descriptor.oid,
+                                                  role_path)
+                    self._check_object_constraints(test,
+                                                   child_object,
+                                                   class_descriptor,
+                                                   datatype_descriptors)
             else:
                 self.device_model_metadata.error = True
                 self.device_model_metadata.error_msg += \
@@ -1368,9 +1382,9 @@ class MS0501Test(GenericTest):
 
     def _do_get_member_descriptors_test(self, test, block):
         # Recurse through the child blocks
-        for child_object in block.child_objects:
-            if type(child_object) is NcBlock:
-                self._do_get_member_descriptors_test(test, child_object)
+        block_list = [child_object for child_object in block.child_objects if type(child_object) is NcBlock]
+        for child_object in self._iter_sampled_blocks(block_list):
+            self._do_get_member_descriptors_test(test, child_object)
 
         search_conditions = [{"recurse": True}, {"recurse": False}]
 
@@ -1396,9 +1410,9 @@ class MS0501Test(GenericTest):
 
     def _do_find_member_by_path_test(self, test, block):
         # Recurse through the child blocks
-        for child_object in block.child_objects:
-            if type(child_object) is NcBlock:
-                self._do_find_member_by_path_test(test, child_object)
+        block_list = [child_object for child_object in block.child_objects if type(child_object) is NcBlock]
+        for child_object in self._iter_sampled_blocks(block_list):
+            self._do_find_member_by_path_test(test, child_object)
 
         # Get ground truth role paths
         role_paths = block.get_role_paths()
@@ -1429,9 +1443,9 @@ class MS0501Test(GenericTest):
 
     def _do_find_member_by_role_test(self, test, block):
         # Recurse through the child blocks
-        for child_object in block.child_objects:
-            if type(child_object) is NcBlock:
-                self._do_find_member_by_role_test(test, child_object)
+        block_list = [child_object for child_object in block.child_objects if type(child_object) is NcBlock]
+        for child_object in self._iter_sampled_blocks(block_list):
+            self._do_find_member_by_role_test(test, child_object)
 
         role_paths = MS05Utils.sampled_list(block.get_role_paths())
         # Generate every combination of case_sensitive, match_whole_string and recurse
@@ -1480,9 +1494,9 @@ class MS0501Test(GenericTest):
 
     def _do_find_members_by_class_id_test(self, test, block):
         # Recurse through the child blocks
-        for child_object in block.child_objects:
-            if type(child_object) is NcBlock:
-                self._do_find_members_by_class_id_test(test, child_object)
+        block_list = [child_object for child_object in block.child_objects if type(child_object) is NcBlock]
+        for child_object in self._iter_sampled_blocks(block_list):
+            self._do_find_members_by_class_id_test(test, child_object)
 
         class_ids = [e.value for e in StandardClassIds]
 
@@ -2081,6 +2095,8 @@ class MS0501Test(GenericTest):
 
             readonly_properties = self.ms05_utils.get_properties(test, device_model, get_constraints=False,
                                                                  get_sequences=get_sequences, get_readonly=True)
+            if not MS05_EXHAUSTIVE_TESTING:
+                readonly_properties = self.ms05_utils.deduplicate_properties_by_class(readonly_properties)
 
             possible_properties = [{"answer_id": f"answer_{str(i)}",
                                     "display_answer": p.name,
@@ -2100,16 +2116,19 @@ class MS0501Test(GenericTest):
 
                 if len(selected_properties) == 0:
                     return test.UNCLEAR("No properties selected for testing.")
-            else:
-                # If non-interactive then test all methods
+            elif MS05_EXHAUSTIVE_TESTING:
                 selected_properties = [p["resource"] for p in possible_properties]
+            else:
+                selected_properties = MS05Utils.sampled_list([p["resource"] for p in possible_properties])
 
             readonly_checked = False
 
             for readonly_property in selected_properties:
-                error_msg_base = f"role path={self.ms05_utils.create_role_path_string(readonly_property.role_path)}, " \
-                                 f"property id={readonly_property.descriptor.id}, " \
-                                 f"property name={readonly_property.descriptor.name}: "
+                error_msg_base = \
+                    f"class id={self.ms05_utils.create_class_id_string(readonly_property.class_id)}, " \
+                    f"role path={self.ms05_utils.create_role_path_string(readonly_property.role_path)}, " \
+                    f"property id={readonly_property.descriptor.id}, " \
+                    f"property name={readonly_property.descriptor.name}: "
 
                 # Cache original property value
                 method_result = self.ms05_utils.get_property(test,
@@ -2291,6 +2310,8 @@ class MS0501Test(GenericTest):
         device_model = self.ms05_utils.query_device_model(test)
 
         methods = self.ms05_utils.get_methods(test, device_model, get_constraints)
+        if not MS05_EXHAUSTIVE_TESTING:
+            methods = self.ms05_utils.deduplicate_methods_by_class(methods)
 
         possible_methods = [{"answer_id": f"answer_{str(i)}",
                              "display_answer": p.name,
@@ -2313,9 +2334,10 @@ class MS0501Test(GenericTest):
                     return test.UNCLEAR("No methods selected for testing.")
             except TestingFacadeException as e:
                 return test.UNCLEAR(f"Testing Facade error: {e.args[0]}")
-        else:
-            # If non-interactive then test all methods
+        elif MS05_EXHAUSTIVE_TESTING:
             selected_methods = [p["resource"] for p in possible_methods]
+        else:
+            selected_methods = MS05Utils.sampled_list([p["resource"] for p in possible_methods])
 
         self.invoke_methods_metadata.error = False
         self.invoke_methods_metadata.error_msg = ""
@@ -2324,8 +2346,10 @@ class MS0501Test(GenericTest):
             self.invoke_methods_metadata.checked = True
 
             parameters_list = self._create_parameters_list(test, method.descriptor.parameters)
-            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(method.role_path)}, " \
-                             f"method id={method.descriptor.id}, method name={method.name}"
+            error_msg_base = \
+                f"class id={self.ms05_utils.create_class_id_string(method.class_id)}, " \
+                f"role path={self.ms05_utils.create_role_path_string(method.role_path)}, " \
+                f"method id={method.descriptor.id}, method name={method.name}"
             method_error = False
             for parameters in parameters_list:
                 try:
