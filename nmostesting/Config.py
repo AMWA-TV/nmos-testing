@@ -68,6 +68,9 @@ MS05_INVASIVE_TESTING = False
 # When True invasive MS-05 tests will use the TestingFacade to allow user interaction
 MS05_INTERACTIVE_TESTING = False
 
+# When True, MS-05 tests exercise all blocks and every class instance rather than sampling or deduplicating by class
+MS05_EXHAUSTIVE_TESTING = False
+
 # Set a Query API hostname/IP and port for use when operating without DNS-SD
 QUERY_API_HOST = "127.0.0.1"
 QUERY_API_PORT = 80
@@ -234,7 +237,7 @@ SPECIFICATIONS = {
     "is-05": {
         "repo": "is-05",
         "versions": ["v1.0", "v1.1", "v1.2"],
-        "default_version": "v1.2",
+        "default_version": "v1.1",
         "apis": {
             "connection": {
                 "name": "Connection API",
