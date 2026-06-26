@@ -1,0 +1,17 @@
+{
+    "description": "",
+    "tags": {},
+    "label": "AMWA Test Device",
+    "version": "1539094460:257325706",
+    "senders": [],
+    "receivers": [],
+    "controls": [
+        {
+            "href": "http://127.0.0.1:5200/x-nmos/connection/v1.2/",
+            "type": "urn:x-nmos:control:sr-ctrl/v1.2"
+        }
+    ],
+    "type": "urn:x-nmos:device:generic",
+    "node_id": "00000000-0000-0000-0000-000000000000",
+    "id": "3f30d310-681f-4533-b919-18b000de7716"
+}
