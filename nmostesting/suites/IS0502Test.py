@@ -837,9 +837,10 @@ class IS0502Test(GenericTest):
                         for param in fmtp.group(1).split(";"):
                             name, _, value = param.strip().partition("=")
                             if name == "channel-order":  # ref: ST.2110-30
-                                if self.channel_order(source["channels"]) != value:
-                                    return test.FAIL("SDP '{}' for Sender {} does not match {} its Source {}"
-                                                     .format(name, sender["id"], "channels", source["id"]))
+                                res, msg = self.verify_channel_order(source["channels"], value)
+                                if not res:
+                                    return test.FAIL("SDP '{}' for Sender {} does not match {} its Source {}. Error: {}"
+                                                     .format(name, sender["id"], "channels", source["id"], msg))
                     elif fmtp and flow["media_type"] == "video/smpte291":
                         for param in fmtp.group(1).split(";"):
                             name, _, value = param.strip().partition("=")
@@ -1261,30 +1262,55 @@ class IS0502Test(GenericTest):
 
         return components == ""
 
-    def channel_order(self, channels):
-        """Create an ST.2110-30 'channel-order' format-specific parameter value from an NMOS audio source 'channels'"""
-        # first, straightforward comma-separated channel symbols (or "?" if omitted)
-        symbols = ",".join([_["symbol"] if "symbol" in _ else "?" for _ in channels])
+    def verify_channel_order(self, channels, channel_order):
+        # Extract symbols reported for source in IS04
+        source_channel_symbols = []
+        for c in channels:
+            if not "symbol" in c:
+                return (False, "channel object must include \"symbol\" attribute")
+            source_channel_symbols.append(c["symbol"])
 
-        # second, replace all ST.2110-30 defined groups with their grouping symbol
-        GROUPS = [
-            ["L,R,C,LFE,Lss,Rss,Lrs,Rrs", "71"],
-            ["L,R,C,LFE,Ls,Rs", "51"],
-            ["Lt,Rt", "LtRt"],
-            ["L,R", "ST"],
-            ["M1,M2", "DM"],
-            ["M1", "M"]
-        ]
-        for G in GROUPS:
-            symbols = symbols.replace(G[0], G[1])
+        group_to_symbols = {
+            "71": ["L", "R", "C", "LFE", "Lss", "Rss", "Lrs", "Rrs"],
+            "51": ["L", "R", "C", "LFE", "Ls", "Rs"],
+            "LtRt": ["Lt", "Rt"],
+            "ST": ["L", "R"],
+            "DM": ["M1","M2"],
+            "M": ["M1"]
+        }
 
-        # third, replace all other channel symbols with 'U'
-        groups = ",".join([_ if _ in [G[1] for G in GROUPS] else "U" for _ in symbols.split(",")])
+        # Verify that SDP's channel-order is in the correct format
+        match = re.search(r"(?<=^SMPTE2110\.\().*(?=\)$)", channel_order)
+        if not match:
+            return (False, f"SDP format for channel-order is invalid: {channel_order}")
 
-        # finally, replace all sequences of 'U' with the required undefined grouping symbol
-        # and format as per ST.2110-30
-        return "SMPTE2110.({})" \
-               .format(re.sub(r"U(,U)*", lambda us: "U{:02d}".format(int((len(us.group())+1)/2)), groups))
+        # Verify that each channel-group in the SDP is valid
+        sdp_channel_symbols = []
+        groups = [g for g in match.group(0).split(",")]
+        for group in groups:
+            if group in group_to_symbols:
+                sdp_channel_symbols += group_to_symbols[group]
+            elif len(group) == 3 and group[0] == 'U' and group[1:].isnumeric():
+                undefined_len = int(group[1:])
+                if 0 < undefined_len <= 64:
+                    sdp_channel_symbols += [None] * undefined_len
+                else:
+                    return (False, f"Undefined channel-orders must be U01..U64, was {group}")
+            else:
+                return (False, f"Channel-order symbol not in allowed channel-orders: {group}")
+
+        # Verify that the number of channels from the SDP corresponds with whats reported for source
+        if len(sdp_channel_symbols) != len(source_channel_symbols):
+            return (False, f"Number of channels from SDP: {len(sdp_channel_symbols)} did not match\
+                             number of channels reported from channels: {source_channel_symbols}")
+        
+        # Verify that each symbol matches between SDP and source.
+        for sdp_symbol, is04_symbol in zip(sdp_channel_symbols, source_channel_symbols):
+            if sdp_symbol and sdp_symbol != is04_symbol:
+                return (False, f"Symbols deduced from SDP({sdp_symbol}) and IS04({is04_symbol}) did not match")
+
+        return (True, "")
+
 
     def do_test_node_api_v1_2(self, test):
         """
