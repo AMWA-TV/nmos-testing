@@ -194,7 +194,7 @@ class BCP0070302Test(ControllerTest):
             and any(self._is_compatible(sender, receiver) for receiver in connectable_mxl_receivers)
         ]
 
-        example_count = min(CONFIG.MAX_TEST_ITERATIONS or TEST_EXAMPLE_COUNT, len(testable_senders))
+        example_count = min(TEST_EXAMPLE_COUNT, len(testable_senders))
         if example_count == 0:
             return []
 
