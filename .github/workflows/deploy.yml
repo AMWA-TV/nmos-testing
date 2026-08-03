@@ -11,10 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
       - name: Checkout Spec Repo 'is-04'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           repository: AMWA-TV/is-04
           path: cache/is-04
@@ -22,7 +22,7 @@ jobs:
         working-directory: cache/is-04
 
       - name: Checkout Spec Repo 'is-05'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           repository: AMWA-TV/is-05
           path: cache/is-05
@@ -30,7 +30,7 @@ jobs:
         working-directory: cache/is-05
 
       - name: Checkout Spec Repo 'is-06'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           repository: AMWA-TV/is-06
           path: cache/is-06
@@ -38,7 +38,7 @@ jobs:
         working-directory: cache/is-06
 
       - name: Checkout Spec Repo 'is-07'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           repository: AMWA-TV/is-07
           path: cache/is-07
@@ -46,7 +46,7 @@ jobs:
         working-directory: cache/is-07
 
       - name: Checkout Spec Repo 'is-08'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           repository: AMWA-TV/is-08
           path: cache/is-08
@@ -54,7 +54,7 @@ jobs:
         working-directory: cache/is-08
 
       - name: Checkout Spec Repo 'is-09'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           repository: AMWA-TV/is-09
           path: cache/is-09
@@ -62,7 +62,7 @@ jobs:
         working-directory: cache/is-09
 
       - name: Checkout Spec Repo 'is-10'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           repository: AMWA-TV/is-10
           path: cache/is-10
@@ -70,7 +70,7 @@ jobs:
         working-directory: cache/is-10
 
       - name: Checkout Spec Repo 'bcp-002-01'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           repository: AMWA-TV/bcp-002-01
           path: cache/bcp-002-01
@@ -78,7 +78,7 @@ jobs:
         working-directory: cache/bcp-002-01
 
       - name: Checkout Spec Repo 'bcp-002-02'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           repository: AMWA-TV/bcp-002-02
           path: cache/bcp-002-02
@@ -86,7 +86,7 @@ jobs:
         working-directory: cache/bcp-002-02
 
       - name: Checkout Spec Repo 'bcp-003-01'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           repository: AMWA-TV/bcp-003-01
           path: cache/bcp-003-01
@@ -94,7 +94,7 @@ jobs:
         working-directory: cache/bcp-003-01
 
       - name: Checkout Spec Repo 'bcp-004-01'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           repository: AMWA-TV/bcp-004-01
           path: cache/bcp-004-01
@@ -102,7 +102,7 @@ jobs:
         working-directory: cache/bcp-004-01
 
       - name: Checkout Spec Repo 'nmos-parameter-registers'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           repository: AMWA-TV/nmos-parameter-registers
           path: cache/nmos-parameter-registers
@@ -111,7 +111,7 @@ jobs:
 
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v6
         with:
           images: |
             ${{ secrets.DOCKER_USERNAME }}/nmos-testing
@@ -124,22 +124,22 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref_name == 'master' }}
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2.1.0
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: all
 
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v2.5.0
+        uses: docker/setup-buildx-action@v4
 
       - name: Login to DockerHub
-        uses: docker/login-action@v2.1.0
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build
-        uses: docker/build-push-action@v4.0.0
+        uses: docker/build-push-action@v7
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
