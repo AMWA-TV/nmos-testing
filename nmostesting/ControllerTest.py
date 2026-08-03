@@ -115,6 +115,18 @@ class ControllerTest(GenericTest):
 
         self.mock_registry_base_url = ''
 
+    def assert_valid_staged_patch_schema(self, test, patch_request):
+        """
+        Raise NMOSTestException if the mock Node recorded that a /staged PATCH
+        body does not comply with the IS-05 request schema.
+        """
+        if patch_request.get('schema_valid') is False:
+            schema_error = patch_request.get('schema_error') or 'unknown validation error'
+            raise NMOSTestException(test.FAIL(
+                "PATCH /staged request body does not comply with the IS-05 schema: {}"
+                .format(schema_error)
+            ))
+
     def execute_tests(self, test_names):
         """Perform tests defined within this class"""
 

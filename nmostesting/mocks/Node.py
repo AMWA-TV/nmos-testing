@@ -12,29 +12,145 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import uuid
 import json
 import ipaddress
 import re
 
+import jsonschema
 from flask import Blueprint, make_response, abort, Response, request
 from random import randint
 from copy import deepcopy
 from jinja2 import Template
 from .. import Config as CONFIG
-from ..TestHelper import get_default_ip, do_request
+from ..TestHelper import get_default_ip, do_request, load_resolved_schema
 from ..IS04Utils import IS04Utils
 from ..IS10Utils import IS10Utils
 from .Auth import PRIMARY_AUTH
 
 MXL_TRANSPORT = "urn:x-nmos:transport:mxl"
 MXL_TRANSPORT_PARAM_KEYS = ("mxl_domain_id", "mxl_flow_id")
+IS05_SPEC_PATH = os.path.join(CONFIG.CACHE_PATH, "is-05")
+BCP00703_SPEC_PATH = os.path.join(CONFIG.CACHE_PATH, "bcp-007-03")
 
 
 def _resource_transport(resource, resource_id):
     if resource == 'senders':
         return NODE.senders[resource_id]['sender'].get('transport', 'urn:x-nmos:transport:rtp')
     return NODE.receivers[resource_id]['receiver'].get('transport', 'urn:x-nmos:transport:rtp')
+
+
+def _validate_against_schema(payload, schema):
+    """Validate payload against schema. Returns an error message, or None if valid."""
+    try:
+        checker = jsonschema.FormatChecker(["ipv4", "ipv6", "uri"])
+        jsonschema.validate(payload, schema, format_checker=checker)
+    except jsonschema.ValidationError as validation_error:
+        error_path = ".".join(str(path_element) for path_element in validation_error.absolute_path)
+        if error_path:
+            return "{} at '{}'".format(validation_error.message, error_path)
+        return validation_error.message
+    return None
+
+
+def _get_transport_params_schema_file(resource_kind, transport, version):
+    """
+    Return (spec_path, file_name) for the transport_params array item schema.
+    Raises ValueError if the transport is not supported for the API version.
+    """
+    if transport.startswith("urn:x-nmos:transport:rtp"):
+        transport_suffix = "rtp"
+        spec_path = IS05_SPEC_PATH
+    elif transport == "urn:x-nmos:transport:mqtt":
+        if IS04Utils.compare_api_version(version, "v1.1") < 0:
+            raise ValueError("MQTT transport requires IS-05 v1.1 or later")
+        transport_suffix = "mqtt"
+        spec_path = IS05_SPEC_PATH
+    elif transport == "urn:x-nmos:transport:websocket":
+        if IS04Utils.compare_api_version(version, "v1.1") < 0:
+            raise ValueError("WebSocket transport requires IS-05 v1.1 or later")
+        transport_suffix = "websocket"
+        spec_path = IS05_SPEC_PATH
+    elif transport == MXL_TRANSPORT:
+        if IS04Utils.compare_api_version(version, "v1.2") < 0:
+            raise ValueError("MXL transport requires IS-05 v1.2 or later")
+        return BCP00703_SPEC_PATH, "{}_transport_params_mxl.json".format(resource_kind)
+    else:
+        raise ValueError("Unsupported transport type '{}'".format(transport))
+
+    if IS04Utils.compare_api_version(version, "v1.0") == 0:
+        file_name = "v1.0_{}_transport_params_{}.json".format(resource_kind, transport_suffix)
+    else:
+        file_name = "{}_transport_params_{}.json".format(resource_kind, transport_suffix)
+    return spec_path, file_name
+
+
+def _validate_staged_patch_schema(resource, resource_id, request_json, version):
+    """
+    Validate a /staged PATCH body against the IS-05 request schema (and transport
+    schemas where applicable) for the given Connection API version.
+    Returns (schema_valid, schema_error). Does not reject the request; callers
+    record the result so controller tests can report it.
+    """
+    if request_json is None:
+        return False, "Request body is missing or not valid JSON"
+
+    resource_kind = "sender" if resource == "senders" else "receiver"
+    if IS04Utils.compare_api_version(version, "v1.0") == 0:
+        stage_schema_file = "v1.0-{}-stage-schema.json".format(resource_kind)
+    else:
+        stage_schema_file = "{}-stage-schema.json".format(resource_kind)
+    try:
+        stage_schema = load_resolved_schema(IS05_SPEC_PATH, stage_schema_file)
+    except (OSError, IOError, FileNotFoundError) as exception:
+        return False, "Unable to load IS-05 {} stage schema '{}': {}".format(
+            version, stage_schema_file, exception)
+
+    # Validate activation / master_enable / ids the same way for every transport.
+    # transport_params are checked separately against the transport-specific schema.
+    stage_body = {
+        key: value for key, value in request_json.items() if key != "transport_params"
+    }
+    stage_only_schema = {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            key: value for key, value in stage_schema.get("properties", {}).items()
+            if key != "transport_params"
+        }
+    }
+    schema_error = _validate_against_schema(stage_body, stage_only_schema)
+    if schema_error:
+        return False, schema_error
+
+    if "transport_params" not in request_json:
+        return True, None
+
+    try:
+        spec_path, transport_schema_file = _get_transport_params_schema_file(
+            resource_kind, _resource_transport(resource, resource_id), version)
+    except ValueError as exception:
+        return False, str(exception)
+
+    try:
+        transport_leg_schema = load_resolved_schema(spec_path, transport_schema_file)
+    except (OSError, IOError, FileNotFoundError) as exception:
+        return False, "Unable to load {} transport params schema '{}': {}".format(
+            version, transport_schema_file, exception)
+
+    transport_params_schema = {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "array",
+        "items": transport_leg_schema
+    }
+    schema_error = _validate_against_schema(
+        request_json["transport_params"], transport_params_schema)
+    if schema_error:
+        return False, schema_error
+
+    return True, None
 
 
 def _mxl_activation_block():
@@ -709,9 +825,12 @@ def staged(version, resource, resource_id):
     activating a connection without staging or deactivating an active connection
     Updates data then POSTs updated resource to registry
     """
-    # Track requests
-    NODE.staged_requests.append({'method': request.method, 'resource': resource, 'resource_id': resource_id,
-                                 'data': request.get_json(silent=True)})
+    # Track requests. Schema validation outcome is attached for PATCH so controller
+    # tests can report invalid request bodies without the mock rejecting them.
+    request_json = request.get_json(silent=True)
+    request_record = {'method': request.method, 'resource': resource, 'resource_id': resource_id,
+                      'data': request_json}
+    NODE.staged_requests.append(request_record)
 
     try:
         if resource == 'senders':
@@ -729,12 +848,17 @@ def staged(version, resource, resource_id):
 
         elif request.method == 'PATCH':
             # Check JSON data only contains allowed values
-            for item in request.get_json():
+            for item in request_json:
                 if item not in allowed_json:
                     return {'code': 400, 'debug': None, 'error': 'Invalid JSON entry ' + item}, 400
 
+            schema_valid, schema_error = _validate_staged_patch_schema(
+                resource, resource_id, request_json, version)
+            request_record['schema_valid'] = schema_valid
+            request_record['schema_error'] = schema_error
+
             # Update details for resource
-            response_data, response_code = NODE.patch_staged(resource, resource_id, request.json)
+            response_data, response_code = NODE.patch_staged(resource, resource_id, request_json)
 
     except KeyError:
         abort(404)

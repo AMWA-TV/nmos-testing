@@ -444,6 +444,8 @@ class BCP0070302Test(ControllerTest):
                     return test.FAIL('Multiple PATCH requests were found')
 
                 patch_request = patch_requests[0]
+                self.assert_valid_staged_patch_schema(test, patch_request)
+
                 patch_data = patch_request['data']
 
                 if patch_request['resource_id'] != receiver['id']:

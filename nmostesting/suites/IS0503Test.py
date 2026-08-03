@@ -173,6 +173,8 @@ class IS0503Test(ControllerTest):
             if len(patch_requests) < 1:
                 return test.FAIL('No PATCH request was received by the node')
             elif len(patch_requests) == 1:
+                self.assert_valid_staged_patch_schema(test, patch_requests[0])
+
                 if patch_requests[0]['resource_id'] != receiver['id']:
                     return test.FAIL('Connection request sent to incorrect receiver')
 
@@ -279,6 +281,8 @@ class IS0503Test(ControllerTest):
             elif len(patch_requests) > 1:
                 return test.FAIL('Multiple PATCH requests were received by the node')
             else:
+                self.assert_valid_staged_patch_schema(test, patch_requests[0])
+
                 # Should be one PATCH request for disconnection
                 if patch_requests[0]['resource_id'] != receiver['id']:
                     return test.FAIL('Disconnection request sent to incorrect receiver')
