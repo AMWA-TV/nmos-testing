@@ -1266,7 +1266,7 @@ class IS0502Test(GenericTest):
         # Extract symbols reported for source in IS04
         source_channel_symbols = []
         for c in channels:
-            if not "symbol" in c:
+            if "symbol" not in c:
                 return (False, "channel object must include \"symbol\" attribute")
             source_channel_symbols.append(c["symbol"])
 
@@ -1275,7 +1275,7 @@ class IS0502Test(GenericTest):
             "51": ["L", "R", "C", "LFE", "Ls", "Rs"],
             "LtRt": ["Lt", "Rt"],
             "ST": ["L", "R"],
-            "DM": ["M1","M2"],
+            "DM": ["M1", "M2"],
             "M": ["M1"]
         }
 
@@ -1303,14 +1303,13 @@ class IS0502Test(GenericTest):
         if len(sdp_channel_symbols) != len(source_channel_symbols):
             return (False, f"Number of channels from SDP: {len(sdp_channel_symbols)} did not match\
                              number of channels reported from channels: {source_channel_symbols}")
-        
+
         # Verify that each symbol matches between SDP and source.
         for sdp_symbol, is04_symbol in zip(sdp_channel_symbols, source_channel_symbols):
             if sdp_symbol and sdp_symbol != is04_symbol:
                 return (False, f"Symbols deduced from SDP({sdp_symbol}) and IS04({is04_symbol}) did not match")
 
         return (True, "")
-
 
     def do_test_node_api_v1_2(self, test):
         """
