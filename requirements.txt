@@ -15,7 +15,7 @@ rfc3987
 cryptography>=42.0.0
 paho-mqtt
 authlib
-websockets
+websockets<14
 Flask-Cors
 flask-socketio
 pycryptodome
