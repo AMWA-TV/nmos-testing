@@ -417,8 +417,8 @@ SPECIFICATIONS = {
     },
     "bcp-007-03": {
         "repo": "bcp-007-03",
-        "versions": ["v1.0-dev"],
-        "default_version": "v1.0-dev",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
         "apis": {
             "mxl-schemas": {
                 "name": "BCP-007-03 MXL JSON Schemas"
