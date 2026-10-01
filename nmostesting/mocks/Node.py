@@ -56,7 +56,8 @@ def _validate_against_schema(payload, schema):
 
 def _get_transport_params_schema_file(resource_kind, transport, version):
     """
-    Return (spec_path, file_name) for the transport_params array item schema.
+    Return (spec_path, file_name) for the transport_params schema: the array item schema, or
+    for IS-05 v1.0 the whole array schema.
     Raises ValueError if the transport is not supported for the API version.
     """
     if transport.startswith("urn:x-nmos:transport:rtp"):
@@ -140,11 +141,16 @@ def _validate_staged_patch_schema(resource, resource_id, request_json, version):
         return False, "Unable to load {} transport params schema '{}': {}".format(
             version, transport_schema_file, exception)
 
-    transport_params_schema = {
-        "$schema": "http://json-schema.org/draft-04/schema#",
-        "type": "array",
-        "items": transport_leg_schema
-    }
+    # The IS-05 v1.0 transport params schemas describe the whole array of legs;
+    # later versions describe a single leg.
+    if transport_leg_schema.get("type") == "array":
+        transport_params_schema = transport_leg_schema
+    else:
+        transport_params_schema = {
+            "$schema": "http://json-schema.org/draft-04/schema#",
+            "type": "array",
+            "items": transport_leg_schema
+        }
     schema_error = _validate_against_schema(
         request_json["transport_params"], transport_params_schema)
     if schema_error:
