@@ -56,10 +56,12 @@ def receive_answer(version):
 
         answer_json = request.json
         answer_json['time_received'] = time.time()
-        _event_loop.call_soon_threadsafe(_answer_response_queue.put_nowait, answer_json)
 
         # Interrupt any 'sleeps' that are still active
+        # Must be set before the answer is made available, otherwise the test thread
+        # may receive the answer and clear() the event before it is set here
         exitTestEvent.set()
+        _event_loop.call_soon_threadsafe(_answer_response_queue.put_nowait, answer_json)
 
     return '', 202
 
