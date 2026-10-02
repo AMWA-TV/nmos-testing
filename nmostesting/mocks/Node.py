@@ -143,7 +143,7 @@ def _validate_staged_patch_schema(resource, resource_id, request_json, version):
 
     # The IS-05 v1.0 transport params schemas describe the whole array of legs;
     # later versions describe a single leg.
-    if transport_leg_schema.get("type") == "array":
+    if IS04Utils.compare_api_version(version, "v1.0") == 0:
         transport_params_schema = transport_leg_schema
     else:
         transport_params_schema = {
