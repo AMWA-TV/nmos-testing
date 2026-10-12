@@ -29,29 +29,38 @@ optional arguments:
   --version VERSION     Version of IS-05 API of DuT
   -s, --sender          Configure NMOS Sender
   -r, --receiver        Configure NMOS Receiver
-  --request REQUEST     JSON data to be sent in the request to configure
-                        sender
-  --sdp SDP             SDP file to be sent in the request to configure
-                        receiver
+  --request REQUEST     JSON data to be sent in the request to configure sender
+  --sdp SDP             SDP file to be queried from a Sender (write) or be sent to a Receiver (read)
   -u UUID, --uuid UUID  UUID of resource to be configured
-```
-
-Example call to change receiver
-```
-python3 is05Control.py --ip <hostname or IP> --port <IS-05 Port> --version <IS-05 Version> --receiver --uuid <Receiver ID> --request tune-receiver-to-reference.json --sdp video-1080i-7.sdp
-```
-
-Example call to enable sender
-```
-python3 is05Control.py --ip <hostname or IP> --port <IS-05 Port> --version <IS-05 Version> --sender --uuid <Sender ID> --request sender-to-20-1080i-7.json
 ```
 
 Inside the script the IS-05 device can be controlled with the following keys
 ```
 Press 'e' to set master_enable True
 Press 'd' to set master_enable False
-Press 'c' to set Sender or Receiver to valid config
-Press 'u' to set Sender or Receiver to dummy config
+Press 'c' to set a valid config on a Sender or a Receiver
+Press 'u' to set a dummy config on a Sender or a Receiver
 Press '7' to set 2022-7 Sender to dummy config
+Press 's' to get SDP file (and save to  "./latest.sdp" from a Sender)
 Waiting for input...
 ```
+
+## Example: create a media connection
+
+1. Connect to a sender:
+
+```
+python3 is05Control.py --ip <hostname or IP> --port <IS-05 Port> --version <IS-05 Version> --sender --uuid <Sender ID> --request sender-to-20-1080i-7.json --sdp new.sdp
+```
+
+2. Enable (`e`)
+3. Push a valid RTP config (`c`)
+4. Save SDP file (`s`)
+5. Connect to a receiver:
+
+```
+python3 is05Control.py --ip <hostname or IP> --port <IS-05 Port> --version <IS-05 Version> --receiver --uuid <Receiver ID> --sdp new.sdp
+```
+
+6. Enable (`e`)
+7. Push the new SDP (`c`)
