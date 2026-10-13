@@ -115,6 +115,19 @@ class IS1301Test(GenericTest):
         except Exception as ex:
             raise NMOSTestException(test.FAIL(f"GET {url} did not return JSON ({api_name}): {ex}"))
 
+    def parse_resource_ids(self, test, url, entries):
+        """Return resource ids from a Node API or Annotation API list body."""
+        resource_ids = []
+        for entry in entries:
+            if isinstance(entry, str):
+                resource_ids.append(entry.rstrip("/"))
+            elif isinstance(entry, dict) and "id" in entry:
+                resource_ids.append(entry["id"])
+            else:
+                raise NMOSTestException(test.FAIL(
+                    f"Unexpected list entry at {url}: {entry!r}"))
+        return resource_ids
+
     def list_resource_ids(self, test, resource_type):
         """Return Annotation API resource IDs for a list type, or raise UNCLEAR if the list is empty."""
         annotation_list_url = f"{self.annotation_url}node/{resource_type}"
@@ -122,17 +135,7 @@ class IS1301Test(GenericTest):
         if not annotation_list:
             raise NMOSTestException(test.UNCLEAR(
                 f"No {resource_type} found at {annotation_list_url}"))
-
-        resource_ids = []
-        for entry in annotation_list:
-            if isinstance(entry, str):
-                resource_ids.append(entry.rstrip("/"))
-            elif isinstance(entry, dict) and "id" in entry:
-                resource_ids.append(entry["id"])
-            else:
-                raise NMOSTestException(test.FAIL(
-                    f"Unexpected list entry at {annotation_list_url}: {entry!r}"))
-        return resource_ids
+        return self.parse_resource_ids(test, annotation_list_url, annotation_list)
 
     def iter_resource_urls(self, test, resource_type):
         """
@@ -163,6 +166,25 @@ class IS1301Test(GenericTest):
             "tags": tags_patch
         }
         self.do_request("PATCH", url, json=body)
+
+    def check_resource_values(self, test, resource, check_values, link, source):
+        """Fail when resource does not contain the expected annotation values.
+
+        For tags, only the named keys in check_values['tags'] are compared.
+        A missing tag matches an expected value of None (a reset that removes the tag).
+        """
+        for name, expected in check_values.items():
+            if name == "tags":
+                tags = resource.get("tags") or {}
+                for tag_name, tag_values in expected.items():
+                    if tags.get(tag_name) != tag_values:
+                        raise NMOSTestException(test.FAIL(
+                            f"{source} tags[{tag_name!r}] is {tags.get(tag_name)!r}, expected {tag_values!r}",
+                            link=link))
+            elif resource.get(name) != expected:
+                raise NMOSTestException(test.FAIL(
+                    f"{source} {name} is {resource.get(name)!r}, expected {expected!r}",
+                    link=link))
 
     def patch_and_check(self, test, resource_type, annotation_url, node_url, patch_body, check_values, link,
                         requirement="MUST"):
@@ -216,28 +238,8 @@ class IS1301Test(GenericTest):
                 f"Annotation version {annotation['version']} does not match Node API version {node['version']}",
                 link=self.version_link()))
 
-        for name, expected in check_values.items():
-            if name == "tags":
-                for tag_name, tag_values in expected.items():
-                    if annotation.get("tags", {}).get(tag_name) != tag_values:
-                        raise NMOSTestException(test.FAIL(
-                            f"Annotation tags[{tag_name!r}] is {annotation.get('tags', {}).get(tag_name)!r}, "
-                            f"expected {tag_values!r}",
-                            link=link))
-                    if node.get("tags", {}).get(tag_name) != tag_values:
-                        raise NMOSTestException(test.FAIL(
-                            f"Node API tags[{tag_name!r}] is {node.get('tags', {}).get(tag_name)!r}, "
-                            f"expected {tag_values!r}",
-                            link=self.consistent_link()))
-            else:
-                if annotation.get(name) != expected:
-                    raise NMOSTestException(test.FAIL(
-                        f"Annotation {name} is {annotation.get(name)!r}, expected {expected!r}",
-                        link=link))
-                if node.get(name) != expected:
-                    raise NMOSTestException(test.FAIL(
-                        f"Node API {name} is {node.get(name)!r}, expected {expected!r}",
-                        link=self.consistent_link()))
+        self.check_resource_values(test, annotation, check_values, link, "Annotation API")
+        self.check_resource_values(test, node, check_values, self.consistent_link(), "Node API")
 
         return annotation
 
