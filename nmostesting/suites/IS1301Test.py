@@ -81,6 +81,27 @@ class IS1301Test(GenericTest):
         branch = self.apis[ANNOTATION_API_KEY]["spec_branch"]
         return f"https://specs.amwa.tv/is-13/branches/{branch}/docs/{page}"
 
+    def discovery_link(self):
+        return self.spec_link("Interoperability_-_IS-04.html#discovery")
+
+    def consistent_link(self):
+        return self.spec_link("Interoperability_-_IS-04.html#consistent-resources")
+
+    def version_link(self):
+        return self.spec_link("Interoperability_-_IS-04.html#version-increments")
+
+    def reset_link(self):
+        return self.spec_link("Behaviour.html#resetting-values")
+
+    def read_only_link(self):
+        return self.spec_link("Behaviour.html#read-only-tags")
+
+    def limit_link(self):
+        return self.spec_link("Behaviour.html#additional-limitations")
+
+    def successful_link(self):
+        return self.spec_link("Behaviour.html#successful-response")
+
     def get_json(self, test, url, api_name):
         """GET JSON from url or raise NMOSTestException. Returns the parsed body."""
         valid, response = self.do_request("GET", url)
@@ -172,7 +193,7 @@ class IS1301Test(GenericTest):
         if not valid_body:
             raise NMOSTestException(test.FAIL(
                 f"PATCH {annotation_url} response failed schema or header checks: {message}",
-                link=self.spec_link("Behaviour.html#successful-response")))
+                link=self.successful_link()))
 
         time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
@@ -182,18 +203,18 @@ class IS1301Test(GenericTest):
         if annotation.get("id") != node.get("id"):
             raise NMOSTestException(test.FAIL(
                 f"Annotation resource id {annotation.get('id')} does not match Node API id {node.get('id')}",
-                link=self.spec_link("Interoperability_-_IS-04.html#consistent-resources")))
+                link=self.consistent_link()))
 
         if NMOSUtils.compare_resource_version(annotation["version"], prev["version"]) <= 0:
             raise NMOSTestException(test.FAIL(
                 f"Annotation version did not increase after PATCH "
                 f"(before {prev['version']}, after {annotation['version']})",
-                link=self.spec_link("Behaviour.html#successful-response")))
+                link=self.successful_link()))
 
         if annotation["version"] != node["version"]:
             raise NMOSTestException(test.FAIL(
                 f"Annotation version {annotation['version']} does not match Node API version {node['version']}",
-                link=self.spec_link("Interoperability_-_IS-04.html#version-increments")))
+                link=self.version_link()))
 
         for name, expected in check_values.items():
             if name == "tags":
@@ -207,7 +228,7 @@ class IS1301Test(GenericTest):
                         raise NMOSTestException(test.FAIL(
                             f"Node API tags[{tag_name!r}] is {node.get('tags', {}).get(tag_name)!r}, "
                             f"expected {tag_values!r}",
-                            link=self.spec_link("Interoperability_-_IS-04.html#consistent-resources")))
+                            link=self.consistent_link()))
             else:
                 if annotation.get(name) != expected:
                     raise NMOSTestException(test.FAIL(
@@ -216,7 +237,7 @@ class IS1301Test(GenericTest):
                 if node.get(name) != expected:
                     raise NMOSTestException(test.FAIL(
                         f"Node API {name} is {node.get(name)!r}, expected {expected!r}",
-                        link=self.spec_link("Interoperability_-_IS-04.html#consistent-resources")))
+                        link=self.consistent_link()))
 
         return annotation
 
@@ -224,8 +245,6 @@ class IS1301Test(GenericTest):
         """
         Reset the property, write a 64-byte value, reset again and compare, then restore.
         """
-        reset_link = self.spec_link("Behaviour.html#resetting-values")
-        limit_link = self.spec_link("Behaviour.html#additional-limitations")
         for annotation_url, node_url in self.iter_resource_urls(test, resource_type):
             initial = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
             try:
@@ -233,25 +252,25 @@ class IS1301Test(GenericTest):
                     test, resource_type, annotation_url, node_url,
                     {annotation_property: None},
                     {},
-                    reset_link,
+                    self.reset_link(),
                     requirement)
                 if after_reset.get(annotation_property) is None:
                     raise NMOSTestException(test.FAIL(
                         f"After reset, {annotation_property} must be a string, not null",
-                        link=reset_link))
+                        link=self.reset_link()))
 
                 self.patch_and_check(
                     test, resource_type, annotation_url, node_url,
                     {annotation_property: STRING_MAX_LENGTH_VALUE},
                     {annotation_property: STRING_MAX_LENGTH_VALUE},
-                    limit_link,
+                    self.limit_link(),
                     requirement)
 
                 self.patch_and_check(
                     test, resource_type, annotation_url, node_url,
                     {annotation_property: None},
                     {annotation_property: after_reset.get(annotation_property)},
-                    reset_link,
+                    self.reset_link(),
                     requirement)
             finally:
                 self.restore_annotations(annotation_url, initial)
@@ -268,31 +287,29 @@ class IS1301Test(GenericTest):
                     test, resource_type, annotation_url, node_url,
                     {"tags": tags_patch},
                     {"tags": tags_patch},
-                    self.spec_link("Behaviour.html#additional-limitations"),
+                    self.limit_link(),
                     requirement)
             finally:
                 self.restore_annotations(annotation_url, initial, list(tag_names))
 
         return test.PASS()
 
-    def check_tags_match_after_reset(self, test, after_reset, after_second, node, reset_link):
+    def check_tags_match_after_reset(self, test, after_reset, after_second, node):
         after_reset_tags = after_reset.get("tags") or {}
         after_second_tags = after_second.get("tags") or {}
         if after_second_tags != after_reset_tags:
             raise NMOSTestException(test.FAIL(
                 f"After reset, tags {after_second_tags!r} do not match the values after the first reset "
                 f"{after_reset_tags!r}",
-                link=reset_link))
+                link=self.reset_link()))
         node_tags = node.get("tags") or {}
         if node_tags != after_reset_tags:
             raise NMOSTestException(test.FAIL(
                 f"Node API tags {node_tags!r} do not match the values after the first reset {after_reset_tags!r}",
-                link=self.spec_link("Interoperability_-_IS-04.html#consistent-resources")))
+                link=self.consistent_link()))
 
     def do_named_tag_reset_sequence(self, test, resource_type):
         """Reset a named tag, write it, reset again and compare the whole tags object, then restore."""
-        reset_link = self.spec_link("Behaviour.html#resetting-values")
-        limit_link = self.spec_link("Behaviour.html#additional-limitations")
         tag_name = USER_TAG_PREFIX + "nmos-testing-reset"
         for annotation_url, node_url in self.iter_resource_urls(test, resource_type):
             initial = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
@@ -301,21 +318,21 @@ class IS1301Test(GenericTest):
                     test, resource_type, annotation_url, node_url,
                     {"tags": {tag_name: None}},
                     {},
-                    reset_link)
+                    self.reset_link())
 
                 self.patch_and_check(
                     test, resource_type, annotation_url, node_url,
                     {"tags": {tag_name: deepcopy(USER_TAG_VALUE)}},
                     {"tags": {tag_name: USER_TAG_VALUE}},
-                    limit_link)
+                    self.limit_link())
 
                 after_second = self.patch_and_check(
                     test, resource_type, annotation_url, node_url,
                     {"tags": {tag_name: None}},
                     {"tags": {tag_name: (after_reset.get("tags") or {}).get(tag_name)}},
-                    reset_link)
+                    self.reset_link())
                 node = self.get_json(test, node_url, NODE_API_KEY)
-                self.check_tags_match_after_reset(test, after_reset, after_second, node, reset_link)
+                self.check_tags_match_after_reset(test, after_reset, after_second, node)
             finally:
                 self.restore_annotations(annotation_url, initial, [tag_name])
 
@@ -323,9 +340,6 @@ class IS1301Test(GenericTest):
 
     def do_all_tags_reset_sequence(self, test, resource_type):
         """Reset all tags, write one user tag, reset all again and compare, then restore."""
-        reset_link = self.spec_link("Behaviour.html#resetting-values")
-        limit_link = self.spec_link("Behaviour.html#additional-limitations")
-        readonly_link = self.spec_link("Behaviour.html#read-only-tags")
         tag_name = USER_TAG_PREFIX + "nmos-testing-reset-all"
         for annotation_url, node_url in self.iter_resource_urls(test, resource_type):
             initial = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
@@ -334,7 +348,7 @@ class IS1301Test(GenericTest):
                     test, resource_type, annotation_url, node_url,
                     {"tags": None},
                     {},
-                    reset_link)
+                    self.reset_link())
                 node_after_reset = self.get_json(test, node_url, NODE_API_KEY)
                 for name, values in (initial.get("tags") or {}).items():
                     if not is_read_only_tag(name):
@@ -342,25 +356,25 @@ class IS1301Test(GenericTest):
                     if (after_reset.get("tags") or {}).get(name) != values:
                         raise NMOSTestException(test.FAIL(
                             f"Read-only tag {name!r} changed after PATCH tags null",
-                            link=readonly_link))
+                            link=self.read_only_link()))
                     if (node_after_reset.get("tags") or {}).get(name) != values:
                         raise NMOSTestException(test.FAIL(
                             f"Node API read-only tag {name!r} changed after PATCH tags null",
-                            link=self.spec_link("Interoperability_-_IS-04.html#consistent-resources")))
+                            link=self.consistent_link()))
 
                 self.patch_and_check(
                     test, resource_type, annotation_url, node_url,
                     {"tags": {tag_name: deepcopy(USER_TAG_VALUE)}},
                     {"tags": {tag_name: USER_TAG_VALUE}},
-                    limit_link)
+                    self.limit_link())
 
                 after_second = self.patch_and_check(
                     test, resource_type, annotation_url, node_url,
                     {"tags": None},
                     {},
-                    reset_link)
+                    self.reset_link())
                 node = self.get_json(test, node_url, NODE_API_KEY)
-                self.check_tags_match_after_reset(test, after_reset, after_second, node, reset_link)
+                self.check_tags_match_after_reset(test, after_reset, after_second, node)
             finally:
                 self.restore_annotations(annotation_url, initial, [tag_name])
 
@@ -373,14 +387,14 @@ class IS1301Test(GenericTest):
         if not isinstance(services, list):
             raise NMOSTestException(test.FAIL(
                 "Node self resource has no services array",
-                link=self.spec_link("Interoperability_-_IS-04.html#discovery")))
+                link=self.discovery_link()))
 
         matches = [s for s in services
                    if isinstance(s, dict) and str(s.get("type", "")).startswith(ANNOTATION_SERVICE_TYPE_PREFIX)]
         if not matches:
             raise NMOSTestException(test.WARNING(
                 "Node self services array does not advertise urn:x-nmos:service:annotation",
-                link=self.spec_link("Interoperability_-_IS-04.html#discovery")))
+                link=self.discovery_link()))
 
         for service in matches:
             href = service.get("href")
@@ -390,7 +404,7 @@ class IS1301Test(GenericTest):
         hrefs = [s.get("href") for s in matches]
         raise NMOSTestException(test.FAIL(
             f"Annotation service href {hrefs} does not match the API under test {self.annotation_url}",
-            link=self.spec_link("Interoperability_-_IS-04.html#discovery")))
+            link=self.discovery_link()))
 
     def test_01(self, test):
         """Annotation and Node API resource IDs match for self, devices, sources, flows, senders and receivers"""
@@ -410,7 +424,7 @@ class IS1301Test(GenericTest):
                 if annotation.get("id") != node.get("id"):
                     raise NMOSTestException(test.FAIL(
                         f"{resource_type}: Annotation id {annotation.get('id')} != Node API id {node.get('id')}",
-                        link=self.spec_link("Interoperability_-_IS-04.html#consistent-resources")))
+                        link=self.consistent_link()))
                 checked += 1
         if checked == 0:
             return test.UNCLEAR("No resources found to compare")
@@ -515,7 +529,6 @@ class IS1301Test(GenericTest):
     def test_26(self, test):
         """Read-only tags are not updated by PATCH (group hint / asset tags)"""
         checked = 0
-        link = self.spec_link("Behaviour.html#read-only-tags")
         for resource_type in RESOURCE_TYPES:
             try:
                 resource_urls = list(self.iter_resource_urls(test, resource_type))
@@ -537,25 +550,25 @@ class IS1301Test(GenericTest):
                         raise NMOSTestException(test.FAIL(
                             f"PATCH of read-only tag {name!r} on {resource_type} returned HTTP "
                             f"{response.status_code}, expected 500",
-                            link=link))
+                            link=self.read_only_link()))
                     valid_error, message = self.check_error_response("PATCH", response, 500)
                     if not valid_error:
                         raise NMOSTestException(test.FAIL(
                             f"PATCH of read-only tag {name!r} on {resource_type} returned HTTP 500 "
                             f"but the error body failed checks: {message}",
-                            link=link))
+                            link=self.read_only_link()))
 
                     time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
                     after = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
                     if after.get("tags", {}).get(name) != values:
                         raise NMOSTestException(test.FAIL(
                             f"Read-only tag {name!r} on {resource_type} changed after a rejected PATCH",
-                            link=link))
+                            link=self.read_only_link()))
                     node = self.get_json(test, node_url, NODE_API_KEY)
                     if node.get("tags", {}).get(name) != values:
                         raise NMOSTestException(test.FAIL(
                             f"Node API read-only tag {name!r} on {resource_type} changed after a rejected PATCH",
-                            link=self.spec_link("Interoperability_-_IS-04.html#consistent-resources")))
+                            link=self.consistent_link()))
                     checked += 1
         if checked == 0:
             return test.UNCLEAR(
