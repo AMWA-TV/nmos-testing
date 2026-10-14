@@ -230,7 +230,7 @@ class IS1301Test(GenericTest):
         response is compared to check_values rather than to the request body.
         requirement: 'MUST' fails on HTTP error. Otherwise a valid 500 rejection warns for 'SHOULD'
         or reports the feature as not implemented for 'MAY', and any other error fails.
-        Raises NMOSTestException. Returns the Annotation GET body after the PATCH.
+        Raises NMOSTestException. Returns the Annotation API and Node API GET bodies after the PATCH.
         """
         prev = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
         prev_version = prev.get("version")
@@ -312,7 +312,7 @@ class IS1301Test(GenericTest):
                     f"PATCH response had {patched.get(name)!r}",
                     link=self.version_link() if name == "version" else self.consistent_link()))
 
-        return annotation
+        return annotation, node
 
     def do_label_or_description_sequence(self, test, resource_type, annotation_property, requirement):
         """
@@ -322,7 +322,7 @@ class IS1301Test(GenericTest):
         for annotation_url, node_url in self.iter_resource_urls(test, resource_type):
             initial = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
             try:
-                after_reset = self.patch_and_check(
+                after_reset, _ = self.patch_and_check(
                     test, resource_type, annotation_url, node_url,
                     {annotation_property: None},
                     {},
@@ -397,7 +397,7 @@ class IS1301Test(GenericTest):
         for annotation_url, node_url in self.iter_resource_urls(test, resource_type):
             initial = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
             try:
-                after_reset = self.patch_and_check(
+                after_reset, _ = self.patch_and_check(
                     test, resource_type, annotation_url, node_url,
                     {"tags": {tag_name: None}},
                     {},
@@ -409,12 +409,11 @@ class IS1301Test(GenericTest):
                     {"tags": {tag_name: USER_TAG_VALUE}},
                     self.limit_link())
 
-                after_second = self.patch_and_check(
+                after_second, node = self.patch_and_check(
                     test, resource_type, annotation_url, node_url,
                     {"tags": {tag_name: None}},
                     {"tags": {tag_name: (after_reset.get("tags") or {}).get(tag_name)}},
                     self.reset_link())
-                node = self.get_json(test, node_url, NODE_API_KEY)
                 self.check_tags_match_after_reset(test, after_reset, after_second, node)
             finally:
                 self.restore_annotations(annotation_url, initial, [tag_name])
@@ -427,12 +426,11 @@ class IS1301Test(GenericTest):
         for annotation_url, node_url in self.iter_resource_urls(test, resource_type):
             initial = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
             try:
-                after_reset = self.patch_and_check(
+                after_reset, node_after_reset = self.patch_and_check(
                     test, resource_type, annotation_url, node_url,
                     {"tags": None},
                     {},
                     self.reset_link())
-                node_after_reset = self.get_json(test, node_url, NODE_API_KEY)
                 for name, values in (initial.get("tags") or {}).items():
                     if not is_read_only_tag(name):
                         continue
@@ -451,12 +449,11 @@ class IS1301Test(GenericTest):
                     {"tags": {tag_name: USER_TAG_VALUE}},
                     self.limit_link())
 
-                after_second = self.patch_and_check(
+                after_second, node = self.patch_and_check(
                     test, resource_type, annotation_url, node_url,
                     {"tags": None},
                     {},
                     self.reset_link())
-                node = self.get_json(test, node_url, NODE_API_KEY)
                 self.check_tags_match_after_reset(test, after_reset, after_second, node)
             finally:
                 self.restore_annotations(annotation_url, initial, [tag_name])
