@@ -49,6 +49,10 @@ USER_TAG_NAMES_FIVE = [f"{USER_TAG_PREFIX}nmos-testing-{i}" for i in range(5)]
 USER_TAG_NAME_TWO_VALUES = USER_TAG_PREFIX + "nmos-testing-two-values"
 USER_TAG_TWO_VALUES = ["nmos-testing-1", "nmos-testing-2"]
 
+GROUP_HINT_TAG_NAME = "urn:x-nmos:tag:grouphint/v1.0"
+# "<group-name>:<role-in-group>[:<group-scope>]" per the NMOS Parameter Registers
+GROUP_HINT_TAG_VALUE = ["nmos-testing:role"]
+
 READ_ONLY_TAG_PREFIXES = (
     "urn:x-nmos:tag:grouphint/",
     "urn:x-nmos:tag:asset:",
@@ -704,8 +708,10 @@ class IS1301Test(GenericTest):
                 read_only = {name: values for name, values in initial.get("tags", {}).items()
                              if is_read_only_tag(name)}
                 for name, values in read_only.items():
+                    # A valid value means a rejected PATCH is due to the tag being read-only
+                    new_values = GROUP_HINT_TAG_VALUE if name == GROUP_HINT_TAG_NAME else ["nmos-testing"]
                     valid, response = self.do_request(
-                        "PATCH", annotation_url, json={"tags": {name: ["nmos-testing"]}})
+                        "PATCH", annotation_url, json={"tags": {name: new_values}})
                     if not valid:
                         raise NMOSTestException(test.FAIL(f"PATCH {annotation_url} failed: {response}"))
                     # Rejecting an update of a read-only tag is optional. When the API does reject it,
