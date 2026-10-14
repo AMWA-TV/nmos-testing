@@ -613,11 +613,23 @@ class IS1301Test(GenericTest):
                         "PATCH", annotation_url, json={"tags": {name: ["nmos-testing"]}})
                     if not valid:
                         raise NMOSTestException(test.FAIL(f"PATCH {annotation_url} failed: {response}"))
+                    # Rejecting an update of a read-only tag is optional. When the API does reject it,
+                    # the response is 500 and the tag is left unchanged.
                     if response.status_code != 500:
-                        raise NMOSTestException(test.FAIL(
+                        after = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
+                        time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
+                        node = self.get_json(test, node_url, NODE_API_KEY)
+                        after_values = (after.get("tags") or {}).get(name)
+                        node_values = (node.get("tags") or {}).get(name)
+                        changed = after_values != values or node_values != values
+                        if changed:
+                            self.do_request("PATCH", annotation_url, json={"tags": {name: values}})
+                        result = result or test.WARNING(
                             f"PATCH of read-only tag {name!r} on {resource_type} returned HTTP "
-                            f"{response.status_code}, expected 500",
-                            link=self.read_only_link()))
+                            f"{response.status_code}. The specification permits rejecting this update with 500."
+                            + (" The tag value changed; a restore PATCH was attempted." if changed else ""),
+                            link=self.read_only_link())
+                        continue
                     valid_error, message = self.check_error_response("PATCH", response, 500)
                     if not valid_error:
                         raise NMOSTestException(test.FAIL(
