@@ -121,10 +121,10 @@ class IS1301Test(GenericTest):
         annotation_list_url = f"{self.annotation_url}node/{resource_type}"
         node_list_url = f"{self.node_url}{resource_type}"
         if resource_type == "self":
-            yield f"{annotation_list_url}/", f"{node_list_url}/"
+            yield annotation_list_url, node_list_url
             return
         for resource_id in NMOSUtils.sampled_list(self.list_resource_ids(test, resource_type)):
-            yield f"{annotation_list_url}/{resource_id}/", f"{node_list_url}/{resource_id}/"
+            yield f"{annotation_list_url}/{resource_id}", f"{node_list_url}/{resource_id}"
 
     def patch_schema_path(self, resource_type):
         if resource_type == "self":
@@ -368,7 +368,7 @@ class IS1301Test(GenericTest):
 
     def test_00(self, test):
         """Node API advertises the Annotation API as a service"""
-        node_self = self.get_json(test, f"{self.node_url}self/", NODE_API_KEY)
+        node_self = self.get_json(test, f"{self.node_url}self", NODE_API_KEY)
         services = node_self.get("services")
         if not isinstance(services, list):
             raise NMOSTestException(test.FAIL(
