@@ -46,6 +46,8 @@ USER_TAG_VALUE = [STRING_MAX_LENGTH_VALUE]
 USER_TAG_NAME_MAX_LENGTH = USER_TAG_PREFIX + "nmos-testing-a-sixty-four-byte-long-tag-name"
 assert len(USER_TAG_NAME_MAX_LENGTH.encode("utf-8")) == 64
 USER_TAG_NAMES_FIVE = [f"{USER_TAG_PREFIX}nmos-testing-{i}" for i in range(5)]
+USER_TAG_NAME_TWO_VALUES = USER_TAG_PREFIX + "nmos-testing-two-values"
+USER_TAG_TWO_VALUES = ["nmos-testing-1", "nmos-testing-2"]
 
 READ_ONLY_TAG_PREFIXES = (
     "urn:x-nmos:tag:grouphint/",
@@ -210,7 +212,8 @@ class IS1301Test(GenericTest):
         PATCH the Annotation API, then check the PATCH response and both subsequent GETs.
         check_values is the resulting annotation values. Nulls in patch_body request a reset, so the
         response is compared to check_values rather than to the request body.
-        requirement: 'MUST' fails on HTTP error; 'SHOULD' warns.
+        requirement: 'MUST' fails on HTTP error. Otherwise a valid 500 rejection warns for 'SHOULD'
+        or reports the feature as not implemented for 'MAY', and any other error fails.
         Raises NMOSTestException. Returns the Annotation GET body after the PATCH.
         """
         prev = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
@@ -225,8 +228,19 @@ class IS1301Test(GenericTest):
         if response.status_code != 200:
             detail = (f"PATCH {annotation_url} returned HTTP {response.status_code}, expected 200. "
                       f"Body: {getattr(response, 'text', '')}")
+            # A request that the API cannot process is rejected with 500
+            if requirement == "MUST" or response.status_code != 500:
+                raise NMOSTestException(test.FAIL(detail, link=link))
+            valid_error, message = self.check_error_response("PATCH", response, 500)
+            if not valid_error:
+                raise NMOSTestException(test.FAIL(
+                    f"PATCH {annotation_url} returned HTTP 500 but the error body failed checks: {message}",
+                    link=link))
             if requirement == "SHOULD":
                 raise NMOSTestException(test.WARNING(detail, link=link))
+            if requirement == "MAY":
+                raise NMOSTestException(test.OPTIONAL(detail, link=link))
+            # Unreachable for the 'MUST', 'SHOULD' and 'MAY' requirements
             raise NMOSTestException(test.FAIL(detail, link=link))
 
         schema = self.get_schema(ANNOTATION_API_KEY, "PATCH", self.patch_schema_path(resource_type), 200)
@@ -325,9 +339,9 @@ class IS1301Test(GenericTest):
 
         return result or test.PASS()
 
-    def do_tags_sequence(self, test, resource_type, tag_names, requirement):
-        """Write 1 or 5 user-namespace tags of the required minimum size, then restore."""
-        tags_patch = {name: deepcopy(USER_TAG_VALUE) for name in tag_names}
+    def do_tags_sequence(self, test, resource_type, tag_names, requirement, tag_values=USER_TAG_VALUE):
+        """Write 1 or more user-namespace tags with tag_values, then restore."""
+        tags_patch = {name: deepcopy(tag_values) for name in tag_names}
         result = None
         for annotation_url, node_url in self.iter_resource_urls(test, resource_type):
             initial = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
@@ -514,6 +528,10 @@ class IS1301Test(GenericTest):
         """Node self tags: write 5 user-namespace tags (SHOULD)"""
         return self.do_tags_sequence(test, "self", USER_TAG_NAMES_FIVE, "SHOULD")
 
+    def test_05_01(self, test):
+        """Node self tags: write 1 user-namespace tag with 2 values (MAY)"""
+        return self.do_tags_sequence(test, "self", [USER_TAG_NAME_TWO_VALUES], "MAY", USER_TAG_TWO_VALUES)
+
     def test_06(self, test):
         """Node self tags: named tag reset, write, reset again (MUST)"""
         return self.do_named_tag_reset_sequence(test, "self")
@@ -537,6 +555,10 @@ class IS1301Test(GenericTest):
     def test_11(self, test):
         """Device tags: write 5 user-namespace tags (SHOULD)"""
         return self.do_tags_sequence(test, "devices", USER_TAG_NAMES_FIVE, "SHOULD")
+
+    def test_11_01(self, test):
+        """Device tags: write 1 user-namespace tag with 2 values (MAY)"""
+        return self.do_tags_sequence(test, "devices", [USER_TAG_NAME_TWO_VALUES], "MAY", USER_TAG_TWO_VALUES)
 
     def test_12(self, test):
         """Device tags: named tag reset, write, reset again (MUST)"""
@@ -562,6 +584,10 @@ class IS1301Test(GenericTest):
         """Sender tags: write 5 user-namespace tags (SHOULD)"""
         return self.do_tags_sequence(test, "senders", USER_TAG_NAMES_FIVE, "SHOULD")
 
+    def test_17_01(self, test):
+        """Sender tags: write 1 user-namespace tag with 2 values (MAY)"""
+        return self.do_tags_sequence(test, "senders", [USER_TAG_NAME_TWO_VALUES], "MAY", USER_TAG_TWO_VALUES)
+
     def test_18(self, test):
         """Sender tags: named tag reset, write, reset again (MUST)"""
         return self.do_named_tag_reset_sequence(test, "senders")
@@ -585,6 +611,10 @@ class IS1301Test(GenericTest):
     def test_23(self, test):
         """Receiver tags: write 5 user-namespace tags (SHOULD)"""
         return self.do_tags_sequence(test, "receivers", USER_TAG_NAMES_FIVE, "SHOULD")
+
+    def test_23_01(self, test):
+        """Receiver tags: write 1 user-namespace tag with 2 values (MAY)"""
+        return self.do_tags_sequence(test, "receivers", [USER_TAG_NAME_TWO_VALUES], "MAY", USER_TAG_TWO_VALUES)
 
     def test_24(self, test):
         """Receiver tags: named tag reset, write, reset again (MUST)"""
