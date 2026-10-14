@@ -320,7 +320,8 @@ class IS1301Test(GenericTest):
         """
         result = None
         for annotation_url, node_url in self.iter_resource_urls(test, resource_type):
-            initial = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
+            initial_value = self.get_json(test, annotation_url, ANNOTATION_API_KEY).get(annotation_property)
+            after_reset = None
             try:
                 after_reset, _ = self.patch_and_check(
                     test, resource_type, annotation_url, node_url,
@@ -350,17 +351,17 @@ class IS1301Test(GenericTest):
                 if e.args[0].state == TestStates.FAIL:
                     raise
                 result = result or e.args[0]
-            finally:
-                self.restore_annotations(annotation_url, initial)
+            # Attempt to restore the state
+            if after_reset is not None and after_reset.get(annotation_property) != initial_value:
+                self.do_request("PATCH", annotation_url, json={annotation_property: initial_value})
 
         return result or test.PASS()
 
     def do_tags_sequence(self, test, resource_type, tag_names, requirement, tag_values=USER_TAG_VALUE):
-        """Write 1 or more user-namespace tags with tag_values, then restore."""
+        """Write 1 or more user-namespace tags with tag_values, then remove them."""
         tags_patch = {name: deepcopy(tag_values) for name in tag_names}
         result = None
         for annotation_url, node_url in self.iter_resource_urls(test, resource_type):
-            initial = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
             try:
                 self.patch_and_check(
                     test, resource_type, annotation_url, node_url,
@@ -368,12 +369,12 @@ class IS1301Test(GenericTest):
                     {"tags": tags_patch},
                     self.limit_link(),
                     requirement)
+                # Attempt to restore the state
+                self.do_request("PATCH", annotation_url, json={"tags": {name: None for name in tag_names}})
             except NMOSTestException as e:
                 if e.args[0].state == TestStates.FAIL:
                     raise
                 result = result or e.args[0]
-            finally:
-                self.restore_annotations(annotation_url, initial, list(tag_names))
 
         return result or test.PASS()
 
@@ -726,6 +727,7 @@ class IS1301Test(GenericTest):
                         after_values = (after.get("tags") or {}).get(name)
                         node_values = (node.get("tags") or {}).get(name)
                         changed = after_values != values or node_values != values
+                        # Attempt to restore the state
                         if changed:
                             self.do_request("PATCH", annotation_url, json={"tags": {name: values}})
                         result = result or test.WARNING(
