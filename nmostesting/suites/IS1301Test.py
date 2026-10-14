@@ -414,11 +414,11 @@ class IS1301Test(GenericTest):
                 "Node self resource has no services array",
                 link=self.discovery_link()))
 
-        matches = [s for s in services
-                   if isinstance(s, dict) and str(s.get("type", "")).startswith(ANNOTATION_SERVICE_TYPE_PREFIX)]
+        expected_type = f"{ANNOTATION_SERVICE_TYPE_PREFIX}/{self.apis[ANNOTATION_API_KEY]['version']}"
+        matches = [s for s in services if isinstance(s, dict) and s.get("type") == expected_type]
         if not matches:
             raise NMOSTestException(test.WARNING(
-                "Node self services array does not advertise urn:x-nmos:service:annotation",
+                f"Node self services array does not advertise {expected_type}",
                 link=self.discovery_link()))
 
         for service in matches:
