@@ -527,159 +527,159 @@ class IS1301Test(GenericTest):
         """Node self tags: write 5 user-namespace tags (SHOULD)"""
         return self.do_tags_sequence(test, "self", USER_TAG_NAMES_FIVE, "SHOULD")
 
-    def test_05_01(self, test):
+    def test_06(self, test):
         """Node self tags: write 1 user-namespace tag with 2 values (MAY)"""
         return self.do_tags_sequence(test, "self", [USER_TAG_NAME_TWO_VALUES], "MAY", USER_TAG_TWO_VALUES)
 
-    def test_06(self, test):
+    def test_07(self, test):
         """Node self tags: named tag reset, write, reset again (MUST)"""
         return self.do_named_tag_reset_sequence(test, "self")
 
-    def test_07(self, test):
+    def test_08(self, test):
         """Node self tags: reset all, write one user tag, reset again (MUST)"""
         return self.do_all_tags_reset_sequence(test, "self")
 
-    def test_08(self, test):
+    def test_09(self, test):
         """Device label: reset, write 64 bytes, reset again (MUST)"""
         return self.do_label_or_description_sequence(test, "devices", "label", "MUST")
 
-    def test_09(self, test):
+    def test_10(self, test):
         """Device description: reset, write 64 bytes, reset again (SHOULD)"""
         return self.do_label_or_description_sequence(test, "devices", "description", "SHOULD")
 
-    def test_10(self, test):
+    def test_11(self, test):
         """Device tags: write 1 user-namespace tag of 64-byte name and value (MUST)"""
         return self.do_tags_sequence(test, "devices", [USER_TAG_NAME_MAX_LENGTH], "MUST")
 
-    def test_11(self, test):
+    def test_12(self, test):
         """Device tags: write 5 user-namespace tags (SHOULD)"""
         return self.do_tags_sequence(test, "devices", USER_TAG_NAMES_FIVE, "SHOULD")
 
-    def test_11_01(self, test):
+    def test_13(self, test):
         """Device tags: write 1 user-namespace tag with 2 values (MAY)"""
         return self.do_tags_sequence(test, "devices", [USER_TAG_NAME_TWO_VALUES], "MAY", USER_TAG_TWO_VALUES)
 
-    def test_12(self, test):
+    def test_14(self, test):
         """Device tags: named tag reset, write, reset again (MUST)"""
         return self.do_named_tag_reset_sequence(test, "devices")
 
-    def test_13(self, test):
+    def test_15(self, test):
         """Device tags: reset all, write one user tag, reset again (MUST)"""
         return self.do_all_tags_reset_sequence(test, "devices")
 
-    def test_13_01(self, test):
+    def test_16(self, test):
         """Source label: reset, write 64 bytes, reset again (MUST)"""
         return self.do_label_or_description_sequence(test, "sources", "label", "MUST")
 
-    def test_13_02(self, test):
+    def test_17(self, test):
         """Source description: reset, write 64 bytes, reset again (SHOULD)"""
         return self.do_label_or_description_sequence(test, "sources", "description", "SHOULD")
 
-    def test_13_03(self, test):
+    def test_18(self, test):
         """Source tags: write 1 user-namespace tag of 64-byte name and value (MUST)"""
         return self.do_tags_sequence(test, "sources", [USER_TAG_NAME_MAX_LENGTH], "MUST")
 
-    def test_13_04(self, test):
+    def test_19(self, test):
         """Source tags: write 5 user-namespace tags (SHOULD)"""
         return self.do_tags_sequence(test, "sources", USER_TAG_NAMES_FIVE, "SHOULD")
 
-    def test_13_05(self, test):
+    def test_20(self, test):
         """Source tags: write 1 user-namespace tag with 2 values (MAY)"""
         return self.do_tags_sequence(test, "sources", [USER_TAG_NAME_TWO_VALUES], "MAY", USER_TAG_TWO_VALUES)
 
-    def test_13_06(self, test):
+    def test_21(self, test):
         """Source tags: named tag reset, write, reset again (MUST)"""
         return self.do_named_tag_reset_sequence(test, "sources")
 
-    def test_13_07(self, test):
+    def test_22(self, test):
         """Source tags: reset all, write one user tag, reset again (MUST)"""
         return self.do_all_tags_reset_sequence(test, "sources")
 
-    def test_13_08(self, test):
+    def test_23(self, test):
         """Flow label: reset, write 64 bytes, reset again (MUST)"""
         return self.do_label_or_description_sequence(test, "flows", "label", "MUST")
 
-    def test_13_09(self, test):
+    def test_24(self, test):
         """Flow description: reset, write 64 bytes, reset again (SHOULD)"""
         return self.do_label_or_description_sequence(test, "flows", "description", "SHOULD")
 
-    def test_13_10(self, test):
+    def test_25(self, test):
         """Flow tags: write 1 user-namespace tag of 64-byte name and value (MUST)"""
         return self.do_tags_sequence(test, "flows", [USER_TAG_NAME_MAX_LENGTH], "MUST")
 
-    def test_13_11(self, test):
+    def test_26(self, test):
         """Flow tags: write 5 user-namespace tags (SHOULD)"""
         return self.do_tags_sequence(test, "flows", USER_TAG_NAMES_FIVE, "SHOULD")
 
-    def test_13_12(self, test):
+    def test_27(self, test):
         """Flow tags: write 1 user-namespace tag with 2 values (MAY)"""
         return self.do_tags_sequence(test, "flows", [USER_TAG_NAME_TWO_VALUES], "MAY", USER_TAG_TWO_VALUES)
 
-    def test_13_13(self, test):
+    def test_28(self, test):
         """Flow tags: named tag reset, write, reset again (MUST)"""
         return self.do_named_tag_reset_sequence(test, "flows")
 
-    def test_13_14(self, test):
+    def test_29(self, test):
         """Flow tags: reset all, write one user tag, reset again (MUST)"""
         return self.do_all_tags_reset_sequence(test, "flows")
 
-    def test_14(self, test):
+    def test_30(self, test):
         """Sender label: reset, write 64 bytes, reset again (MUST)"""
         return self.do_label_or_description_sequence(test, "senders", "label", "MUST")
 
-    def test_15(self, test):
+    def test_31(self, test):
         """Sender description: reset, write 64 bytes, reset again (SHOULD)"""
         return self.do_label_or_description_sequence(test, "senders", "description", "SHOULD")
 
-    def test_16(self, test):
+    def test_32(self, test):
         """Sender tags: write 1 user-namespace tag of 64-byte name and value (MUST)"""
         return self.do_tags_sequence(test, "senders", [USER_TAG_NAME_MAX_LENGTH], "MUST")
 
-    def test_17(self, test):
+    def test_33(self, test):
         """Sender tags: write 5 user-namespace tags (SHOULD)"""
         return self.do_tags_sequence(test, "senders", USER_TAG_NAMES_FIVE, "SHOULD")
 
-    def test_17_01(self, test):
+    def test_34(self, test):
         """Sender tags: write 1 user-namespace tag with 2 values (MAY)"""
         return self.do_tags_sequence(test, "senders", [USER_TAG_NAME_TWO_VALUES], "MAY", USER_TAG_TWO_VALUES)
 
-    def test_18(self, test):
+    def test_35(self, test):
         """Sender tags: named tag reset, write, reset again (MUST)"""
         return self.do_named_tag_reset_sequence(test, "senders")
 
-    def test_19(self, test):
+    def test_36(self, test):
         """Sender tags: reset all, write one user tag, reset again (MUST)"""
         return self.do_all_tags_reset_sequence(test, "senders")
 
-    def test_20(self, test):
+    def test_37(self, test):
         """Receiver label: reset, write 64 bytes, reset again (MUST)"""
         return self.do_label_or_description_sequence(test, "receivers", "label", "MUST")
 
-    def test_21(self, test):
+    def test_38(self, test):
         """Receiver description: reset, write 64 bytes, reset again (SHOULD)"""
         return self.do_label_or_description_sequence(test, "receivers", "description", "SHOULD")
 
-    def test_22(self, test):
+    def test_39(self, test):
         """Receiver tags: write 1 user-namespace tag of 64-byte name and value (MUST)"""
         return self.do_tags_sequence(test, "receivers", [USER_TAG_NAME_MAX_LENGTH], "MUST")
 
-    def test_23(self, test):
+    def test_40(self, test):
         """Receiver tags: write 5 user-namespace tags (SHOULD)"""
         return self.do_tags_sequence(test, "receivers", USER_TAG_NAMES_FIVE, "SHOULD")
 
-    def test_23_01(self, test):
+    def test_41(self, test):
         """Receiver tags: write 1 user-namespace tag with 2 values (MAY)"""
         return self.do_tags_sequence(test, "receivers", [USER_TAG_NAME_TWO_VALUES], "MAY", USER_TAG_TWO_VALUES)
 
-    def test_24(self, test):
+    def test_42(self, test):
         """Receiver tags: named tag reset, write, reset again (MUST)"""
         return self.do_named_tag_reset_sequence(test, "receivers")
 
-    def test_25(self, test):
+    def test_43(self, test):
         """Receiver tags: reset all, write one user tag, reset again (MUST)"""
         return self.do_all_tags_reset_sequence(test, "receivers")
 
-    def test_26(self, test):
+    def test_44(self, test):
         """Read-only tags are not updated by PATCH (group hint / asset tags)"""
         checked = 0
         result = None
@@ -747,7 +747,7 @@ class IS1301Test(GenericTest):
                 "No BCP-002-01 group hint or BCP-002-02 asset tags found on sampled resources")
         return test.PASS()
 
-    def test_26_01(self, test):
+    def test_45(self, test):
         """Invalid tag values are rejected by PATCH"""
         checked = 0
         result = None
