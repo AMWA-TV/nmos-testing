@@ -181,18 +181,6 @@ class IS1301Test(GenericTest):
             return "/node/self"
         return f"/node/{resource_type}/{{{RESOURCE_ID_PARAMS[resource_type]}}}"
 
-    def restore_annotations(self, url, initial, extra_tag_names=None):
-        """Best-effort restore of label, description and writable tags."""
-        extra_tag_names = extra_tag_names or []
-        tags_patch = {name: None for name in extra_tag_names}
-        tags_patch.update(writable_tags(initial.get("tags", {})))
-        body = {
-            "label": initial.get("label"),
-            "description": initial.get("description"),
-            "tags": tags_patch
-        }
-        self.do_request("PATCH", url, json=body)
-
     def check_resource_values(self, test, resource, check_values, link, source):
         """Fail when resource does not contain the expected annotation values.
 
@@ -393,71 +381,68 @@ class IS1301Test(GenericTest):
                 link=self.consistent_link()))
 
     def do_named_tag_reset_sequence(self, test, resource_type):
-        """Reset a named tag, write it, reset again and compare the whole tags object, then restore."""
+        """Reset a named tag, write it, reset again and compare the whole tags object."""
         tag_name = USER_TAG_PREFIX + "nmos-testing-reset"
         for annotation_url, node_url in self.iter_resource_urls(test, resource_type):
-            initial = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
-            try:
-                after_reset, _ = self.patch_and_check(
-                    test, resource_type, annotation_url, node_url,
-                    {"tags": {tag_name: None}},
-                    {},
-                    self.reset_link())
+            after_reset, _ = self.patch_and_check(
+                test, resource_type, annotation_url, node_url,
+                {"tags": {tag_name: None}},
+                {},
+                self.reset_link())
 
-                self.patch_and_check(
-                    test, resource_type, annotation_url, node_url,
-                    {"tags": {tag_name: deepcopy(USER_TAG_VALUE)}},
-                    {"tags": {tag_name: USER_TAG_VALUE}},
-                    self.limit_link())
+            self.patch_and_check(
+                test, resource_type, annotation_url, node_url,
+                {"tags": {tag_name: deepcopy(USER_TAG_VALUE)}},
+                {"tags": {tag_name: USER_TAG_VALUE}},
+                self.limit_link())
 
-                after_second, node = self.patch_and_check(
-                    test, resource_type, annotation_url, node_url,
-                    {"tags": {tag_name: None}},
-                    {"tags": {tag_name: (after_reset.get("tags") or {}).get(tag_name)}},
-                    self.reset_link())
-                self.check_tags_match_after_reset(test, after_reset, after_second, node)
-            finally:
-                self.restore_annotations(annotation_url, initial, [tag_name])
+            after_second, node = self.patch_and_check(
+                test, resource_type, annotation_url, node_url,
+                {"tags": {tag_name: None}},
+                {"tags": {tag_name: (after_reset.get("tags") or {}).get(tag_name)}},
+                self.reset_link())
+            self.check_tags_match_after_reset(test, after_reset, after_second, node)
 
         return test.PASS()
 
     def do_all_tags_reset_sequence(self, test, resource_type):
-        """Reset all tags, write one user tag, reset all again and compare, then restore."""
+        """Reset all tags, write one user tag, reset all again and compare, then restore any removed tags."""
         tag_name = USER_TAG_PREFIX + "nmos-testing-reset-all"
         for annotation_url, node_url in self.iter_resource_urls(test, resource_type):
             initial = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
-            try:
-                after_reset, node_after_reset = self.patch_and_check(
-                    test, resource_type, annotation_url, node_url,
-                    {"tags": None},
-                    {},
-                    self.reset_link())
-                for name, values in (initial.get("tags") or {}).items():
-                    if not is_read_only_tag(name):
-                        continue
-                    if (after_reset.get("tags") or {}).get(name) != values:
-                        raise NMOSTestException(test.FAIL(
-                            f"Read-only tag {name!r} changed after PATCH tags null",
-                            link=self.read_only_link()))
-                    if (node_after_reset.get("tags") or {}).get(name) != values:
-                        raise NMOSTestException(test.FAIL(
-                            f"Node API read-only tag {name!r} changed after PATCH tags null",
-                            link=self.consistent_link()))
+            after_reset, node_after_reset = self.patch_and_check(
+                test, resource_type, annotation_url, node_url,
+                {"tags": None},
+                {},
+                self.reset_link())
+            for name, values in (initial.get("tags") or {}).items():
+                if not is_read_only_tag(name):
+                    continue
+                if (after_reset.get("tags") or {}).get(name) != values:
+                    raise NMOSTestException(test.FAIL(
+                        f"Read-only tag {name!r} changed after PATCH tags null",
+                        link=self.read_only_link()))
+                if (node_after_reset.get("tags") or {}).get(name) != values:
+                    raise NMOSTestException(test.FAIL(
+                        f"Node API read-only tag {name!r} changed after PATCH tags null",
+                        link=self.consistent_link()))
 
-                self.patch_and_check(
-                    test, resource_type, annotation_url, node_url,
-                    {"tags": {tag_name: deepcopy(USER_TAG_VALUE)}},
-                    {"tags": {tag_name: USER_TAG_VALUE}},
-                    self.limit_link())
+            self.patch_and_check(
+                test, resource_type, annotation_url, node_url,
+                {"tags": {tag_name: deepcopy(USER_TAG_VALUE)}},
+                {"tags": {tag_name: USER_TAG_VALUE}},
+                self.limit_link())
 
-                after_second, node = self.patch_and_check(
-                    test, resource_type, annotation_url, node_url,
-                    {"tags": None},
-                    {},
-                    self.reset_link())
-                self.check_tags_match_after_reset(test, after_reset, after_second, node)
-            finally:
-                self.restore_annotations(annotation_url, initial, [tag_name])
+            after_second, node = self.patch_and_check(
+                test, resource_type, annotation_url, node_url,
+                {"tags": None},
+                {},
+                self.reset_link())
+            self.check_tags_match_after_reset(test, after_reset, after_second, node)
+            # Attempt to restore the state
+            initial_writable_tags = writable_tags(initial.get("tags") or {})
+            if initial_writable_tags != writable_tags(after_second.get("tags") or {}):
+                self.do_request("PATCH", annotation_url, json={"tags": initial_writable_tags})
 
         return test.PASS()
 
