@@ -117,6 +117,8 @@ class IS1301Test(GenericTest):
 
     def parse_resource_ids(self, test, url, entries):
         """Return resource ids from a Node API or Annotation API list body."""
+        if not isinstance(entries, list):
+            raise NMOSTestException(test.FAIL(f"Resource list at {url} is not an array"))
         resource_ids = []
         for entry in entries:
             if isinstance(entry, str):
@@ -196,6 +198,10 @@ class IS1301Test(GenericTest):
         Raises NMOSTestException. Returns the Annotation GET body after the PATCH.
         """
         prev = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
+        prev_version = prev.get("version")
+        if not isinstance(prev_version, str):
+            raise NMOSTestException(test.FAIL(
+                f"GET {annotation_url} response version is not a string: {prev_version!r}"))
 
         valid, response = self.do_request("PATCH", annotation_url, json=patch_body)
         if not valid:
@@ -217,9 +223,10 @@ class IS1301Test(GenericTest):
                 f"PATCH {annotation_url} response failed schema or header checks: {message}",
                 link=self.successful_link()))
 
+        annotation = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
+
         time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
-        annotation = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
         node = self.get_json(test, node_url, NODE_API_KEY)
 
         if annotation.get("id") != node.get("id"):
@@ -227,15 +234,21 @@ class IS1301Test(GenericTest):
                 f"Annotation resource id {annotation.get('id')} does not match Node API id {node.get('id')}",
                 link=self.consistent_link()))
 
-        if NMOSUtils.compare_resource_version(annotation["version"], prev["version"]) <= 0:
+        annotation_version = annotation.get("version")
+        if not isinstance(annotation_version, str):
+            raise NMOSTestException(test.FAIL(
+                f"GET {annotation_url} response version is not a string: {annotation_version!r}"))
+
+        if NMOSUtils.compare_resource_version(annotation_version, prev_version) <= 0:
             raise NMOSTestException(test.FAIL(
                 f"Annotation version did not increase after PATCH "
-                f"(before {prev['version']}, after {annotation['version']})",
+                f"(before {prev_version}, after {annotation_version})",
                 link=self.successful_link()))
 
-        if annotation["version"] != node["version"]:
+        node_version = node.get("version")
+        if annotation_version != node_version:
             raise NMOSTestException(test.FAIL(
-                f"Annotation version {annotation['version']} does not match Node API version {node['version']}",
+                f"Annotation version {annotation_version} does not match Node API version {node_version}",
                 link=self.version_link()))
 
         self.check_resource_values(test, annotation, check_values, link, "Annotation API")
@@ -247,6 +260,7 @@ class IS1301Test(GenericTest):
         """
         Reset the property, write a 64-byte value, reset again and compare, then restore.
         """
+        result = None
         for annotation_url, node_url in self.iter_resource_urls(test, resource_type):
             initial = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
             try:
@@ -274,14 +288,19 @@ class IS1301Test(GenericTest):
                     {annotation_property: after_reset.get(annotation_property)},
                     self.reset_link(),
                     requirement)
+            except NMOSTestException as e:
+                if e.args[0].state == TestStates.FAIL:
+                    raise
+                result = result or e.args[0]
             finally:
                 self.restore_annotations(annotation_url, initial)
 
-        return test.PASS()
+        return result or test.PASS()
 
     def do_tags_sequence(self, test, resource_type, tag_names, requirement):
         """Write 1 or 5 user-namespace tags of the required minimum size, then restore."""
         tags_patch = {name: deepcopy(USER_TAG_VALUE) for name in tag_names}
+        result = None
         for annotation_url, node_url in self.iter_resource_urls(test, resource_type):
             initial = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
             try:
@@ -291,10 +310,14 @@ class IS1301Test(GenericTest):
                     {"tags": tags_patch},
                     self.limit_link(),
                     requirement)
+            except NMOSTestException as e:
+                if e.args[0].state == TestStates.FAIL:
+                    raise
+                result = result or e.args[0]
             finally:
                 self.restore_annotations(annotation_url, initial, list(tag_names))
 
-        return test.PASS()
+        return result or test.PASS()
 
     def check_tags_match_after_reset(self, test, after_reset, after_second, node):
         after_reset_tags = after_reset.get("tags") or {}
@@ -411,15 +434,17 @@ class IS1301Test(GenericTest):
     def test_01(self, test):
         """Annotation and Node API resource IDs match for self, devices, sources, flows, senders and receivers"""
         checked = 0
+        result = None
         for resource_type in RESOURCE_TYPES:
             try:
                 resource_urls = list(self.iter_resource_urls(test, resource_type))
-            except NMOSTestException as ex:
+            except NMOSTestException as e:
                 # Skip types with no resources; fail on real GET errors
-                result = ex.args[0] if ex.args else None
-                if result is not None and getattr(result, "state", None) == TestStates.UNCLEAR:
-                    continue
-                raise
+                if e.args[0].state == TestStates.FAIL:
+                    raise
+                if e.args[0].state != TestStates.UNCLEAR:
+                    result = result or e.args[0]
+                continue
             for annotation_url, node_url in resource_urls:
                 annotation = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
                 node = self.get_json(test, node_url, NODE_API_KEY)
@@ -428,6 +453,8 @@ class IS1301Test(GenericTest):
                         f"{resource_type}: Annotation id {annotation.get('id')} != Node API id {node.get('id')}",
                         link=self.consistent_link()))
                 checked += 1
+        if result:
+            return result
         if checked == 0:
             return test.UNCLEAR("No resources found to compare")
         return test.PASS()
@@ -531,14 +558,16 @@ class IS1301Test(GenericTest):
     def test_26(self, test):
         """Read-only tags are not updated by PATCH (group hint / asset tags)"""
         checked = 0
+        result = None
         for resource_type in RESOURCE_TYPES:
             try:
                 resource_urls = list(self.iter_resource_urls(test, resource_type))
-            except NMOSTestException as ex:
-                result = ex.args[0] if ex.args else None
-                if result is not None and getattr(result, "state", None) == TestStates.UNCLEAR:
-                    continue
-                raise
+            except NMOSTestException as e:
+                if e.args[0].state == TestStates.FAIL:
+                    raise
+                if e.args[0].state != TestStates.UNCLEAR:
+                    result = result or e.args[0]
+                continue
             for annotation_url, node_url in resource_urls:
                 initial = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
                 read_only = {name: values for name, values in initial.get("tags", {}).items()
@@ -560,18 +589,20 @@ class IS1301Test(GenericTest):
                             f"but the error body failed checks: {message}",
                             link=self.read_only_link()))
 
-                    time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
                     after = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
                     if after.get("tags", {}).get(name) != values:
                         raise NMOSTestException(test.FAIL(
                             f"Read-only tag {name!r} on {resource_type} changed after a rejected PATCH",
                             link=self.read_only_link()))
+                    time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
                     node = self.get_json(test, node_url, NODE_API_KEY)
                     if node.get("tags", {}).get(name) != values:
                         raise NMOSTestException(test.FAIL(
                             f"Node API read-only tag {name!r} on {resource_type} changed after a rejected PATCH",
                             link=self.consistent_link()))
                     checked += 1
+        if result:
+            return result
         if checked == 0:
             return test.UNCLEAR(
                 "No BCP-002-01 group hint or BCP-002-02 asset tags found on sampled resources")
