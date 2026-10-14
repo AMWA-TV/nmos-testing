@@ -204,9 +204,9 @@ class IS1301Test(GenericTest):
     def patch_and_check(self, test, resource_type, annotation_url, node_url, patch_body, check_values, link,
                         requirement="MUST"):
         """
-        PATCH the Annotation API, then check the Annotation and Node APIs.
-        check_values is a dict of annotation properties that MUST match after the PATCH.
-        For tags, only the named keys in check_values['tags'] are compared.
+        PATCH the Annotation API, then check the PATCH response and both subsequent GETs.
+        check_values is the resulting annotation values. Nulls in patch_body request a reset, so the
+        response is compared to check_values rather than to the request body.
         requirement: 'MUST' fails on HTTP error; 'SHOULD' warns.
         Raises NMOSTestException. Returns the Annotation GET body after the PATCH.
         """
@@ -236,36 +236,48 @@ class IS1301Test(GenericTest):
                 f"PATCH {annotation_url} response failed schema or header checks: {message}",
                 link=self.successful_link()))
 
+        try:
+            patched = response.json()
+        except Exception as ex:
+            raise NMOSTestException(test.FAIL(
+                f"PATCH {annotation_url} did not return JSON: {ex}", link=self.successful_link()))
+        if not isinstance(patched, dict):
+            raise NMOSTestException(test.FAIL(
+                f"PATCH {annotation_url} response is not an object", link=self.successful_link()))
+        patched_version = patched.get("version")
+        if not isinstance(patched_version, str):
+            raise NMOSTestException(test.FAIL(
+                f"PATCH {annotation_url} response version is not a string: {patched_version!r}",
+                link=self.successful_link()))
+
+        if NMOSUtils.compare_resource_version(patched_version, prev_version) <= 0:
+            raise NMOSTestException(test.FAIL(
+                f"PATCH {annotation_url} response version did not increase "
+                f"(before {prev_version}, response {patched_version})",
+                link=self.successful_link()))
+
+        self.check_resource_values(test, patched, check_values, link, "PATCH response")
+
         annotation = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
 
         time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
         node = self.get_json(test, node_url, NODE_API_KEY)
 
-        if annotation.get("id") != node.get("id"):
-            raise NMOSTestException(test.FAIL(
-                f"Annotation resource id {annotation.get('id')} does not match Node API id {node.get('id')}",
-                link=self.consistent_link()))
-
-        annotation_version = annotation.get("version")
-        if not isinstance(annotation_version, str):
-            raise NMOSTestException(test.FAIL(
-                f"GET {annotation_url} response version is not a string: {annotation_version!r}"))
-
-        if NMOSUtils.compare_resource_version(annotation_version, prev_version) <= 0:
-            raise NMOSTestException(test.FAIL(
-                f"Annotation version did not increase after PATCH "
-                f"(before {prev_version}, after {annotation_version})",
-                link=self.successful_link()))
-
-        node_version = node.get("version")
-        if annotation_version != node_version:
-            raise NMOSTestException(test.FAIL(
-                f"Annotation version {annotation_version} does not match Node API version {node_version}",
-                link=self.version_link()))
-
         self.check_resource_values(test, annotation, check_values, link, "Annotation API")
         self.check_resource_values(test, node, check_values, self.consistent_link(), "Node API")
+
+        for name in CORE_PROPERTIES:
+            if annotation.get(name) != patched.get(name):
+                raise NMOSTestException(test.FAIL(
+                    f"Annotation API {name} is {annotation.get(name)!r}, "
+                    f"PATCH response had {patched.get(name)!r}",
+                    link=self.successful_link()))
+            if node.get(name) != patched.get(name):
+                raise NMOSTestException(test.FAIL(
+                    f"Node API {name} is {node.get(name)!r}, "
+                    f"PATCH response had {patched.get(name)!r}",
+                    link=self.version_link() if name == "version" else self.consistent_link()))
 
         return annotation
 
