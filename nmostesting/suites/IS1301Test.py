@@ -48,6 +48,9 @@ assert len(USER_TAG_NAME_MAX_LENGTH.encode("utf-8")) == 64
 USER_TAG_NAMES_FIVE = [f"{USER_TAG_PREFIX}nmos-testing-{i}" for i in range(5)]
 USER_TAG_NAME_TWO_VALUES = USER_TAG_PREFIX + "nmos-testing-two-values"
 USER_TAG_TWO_VALUES = ["nmos-testing-1", "nmos-testing-2"]
+USER_TAG_NAME_INVALID = USER_TAG_PREFIX + "nmos-testing-invalid"
+# Tag values must be strings
+INVALID_TAG_VALUE = [42]
 
 GROUP_HINT_TAG_NAME = "urn:x-nmos:tag:grouphint/v1.0"
 # "<group-name>:<role-in-group>[:<group-scope>]" per the NMOS Parameter Registers
@@ -92,6 +95,9 @@ class IS1301Test(GenericTest):
     def spec_link(self, page):
         branch = self.apis[ANNOTATION_API_KEY]["spec_branch"]
         return f"https://specs.amwa.tv/is-13/branches/{branch}/docs/{page}"
+
+    def validation_link(self):
+        return self.spec_link("APIs.html#api-validation")
 
     def discovery_link(self):
         return self.spec_link("Interoperability_-_IS-04.html#discovery")
@@ -755,4 +761,68 @@ class IS1301Test(GenericTest):
         if checked == 0:
             return test.UNCLEAR(
                 "No BCP-002-01 group hint or BCP-002-02 asset tags found on sampled resources")
+        return test.PASS()
+
+    def test_26_01(self, test):
+        """Invalid tag values are rejected by PATCH"""
+        checked = 0
+        result = None
+        name = USER_TAG_NAME_INVALID
+        for resource_type in RESOURCE_TYPES:
+            try:
+                resource_urls = list(self.iter_resource_urls(test, resource_type))
+            except NMOSTestException as e:
+                if e.args[0].state == TestStates.FAIL:
+                    raise
+                if e.args[0].state not in (TestStates.UNCLEAR, TestStates.NA):
+                    result = result or e.args[0]
+                continue
+            for annotation_url, node_url in resource_urls:
+                valid, response = self.do_request(
+                    "PATCH", annotation_url, json={"tags": {name: INVALID_TAG_VALUE}})
+                if not valid:
+                    raise NMOSTestException(test.FAIL(f"PATCH {annotation_url} failed: {response}"))
+                if response.status_code >= 400:
+                    valid_error, message = self.check_error_response("PATCH", response, response.status_code)
+                    if not valid_error:
+                        raise NMOSTestException(test.FAIL(
+                            f"PATCH of invalid tag value on {resource_type} returned HTTP "
+                            f"{response.status_code} but the error body failed checks: {message}"))
+                elif response.status_code == 200:
+                    schema_path = self.patch_schema_path(resource_type)
+                    schema = self.get_schema(ANNOTATION_API_KEY, "PATCH", schema_path, 200)
+                    if not schema:
+                        raise NMOSTestException(test.MANUAL(
+                            f"Test suite unable to locate PATCH 200 schema for {schema_path}"))
+                    valid_body, message = self.check_response(schema, "PATCH", response)
+                    if not valid_body:
+                        raise NMOSTestException(test.FAIL(
+                            f"PATCH of invalid tag value on {resource_type} returned HTTP 200 "
+                            f"but the response failed schema or header checks: {message}",
+                            link=self.successful_link()))
+
+                after = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
+                if (after.get("tags") or {}).get(name) == INVALID_TAG_VALUE:
+                    raise NMOSTestException(test.FAIL(
+                        f"Annotation API {resource_type} tag {name!r} has the invalid value "
+                        f"{INVALID_TAG_VALUE!r} after PATCH", link=self.validation_link()))
+                time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
+                node = self.get_json(test, node_url, NODE_API_KEY)
+                if (node.get("tags") or {}).get(name) == INVALID_TAG_VALUE:
+                    raise NMOSTestException(test.FAIL(
+                        f"Node API {resource_type} tag {name!r} has the invalid value "
+                        f"{INVALID_TAG_VALUE!r} after PATCH", link=self.validation_link()))
+
+                if response.status_code != 400:
+                    result = result or test.WARNING(
+                        f"PATCH of invalid tag value on {resource_type} returned HTTP "
+                        f"{response.status_code}, expected 400", link=self.validation_link())
+                    # Attempt to restore the state
+                    if name in (after.get("tags") or {}):
+                        self.do_request("PATCH", annotation_url, json={"tags": {name: None}})
+                checked += 1
+        if result:
+            return result
+        if checked == 0:
+            return test.UNCLEAR("No resources found to PATCH")
         return test.PASS()
