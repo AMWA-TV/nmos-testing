@@ -37,11 +37,14 @@ NODE_API_KEY = "node"
 ANNOTATION_SERVICE_TYPE_PREFIX = "urn:x-nmos:service:annotation"
 
 # Minimum supported UTF-8 sizes from IS-13 Behaviour: Additional Limitations
-STRING_MAX_LENGTH_VALUE = "X" * 64
+# 64 bytes in UTF-8: twenty 3-byte characters and one 4-byte character
+STRING_MAX_LENGTH_VALUE = "スタジオＡの第一カメラ用エンコーダー出力🎚"
+assert len(STRING_MAX_LENGTH_VALUE.encode("utf-8")) == 64
 USER_TAG_PREFIX = "urn:x-nmos:tag:user:"
-USER_TAG_VALUE = ["Y" * 64]
+USER_TAG_VALUE = [STRING_MAX_LENGTH_VALUE]
 # Full tag name of 64 bytes including the required user-namespace prefix
-USER_TAG_NAME_MAX_LENGTH = USER_TAG_PREFIX + "Z" * (64 - len(USER_TAG_PREFIX.encode("utf-8")))
+USER_TAG_NAME_MAX_LENGTH = USER_TAG_PREFIX + "nmos-testing-a-sixty-four-byte-long-tag-name"
+assert len(USER_TAG_NAME_MAX_LENGTH.encode("utf-8")) == 64
 USER_TAG_NAMES_FIVE = [f"{USER_TAG_PREFIX}nmos-testing-{i}" for i in range(5)]
 
 READ_ONLY_TAG_PREFIXES = (
@@ -283,7 +286,7 @@ class IS1301Test(GenericTest):
 
     def do_label_or_description_sequence(self, test, resource_type, annotation_property, requirement):
         """
-        Reset the property, write a 64-byte value, reset again and compare, then restore.
+        Reset the property, write a 64-byte non-ASCII value, reset again and compare, then restore.
         """
         result = None
         for annotation_url, node_url in self.iter_resource_urls(test, resource_type):
