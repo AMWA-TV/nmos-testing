@@ -50,6 +50,9 @@ READ_ONLY_TAG_PREFIXES = (
 )
 
 RESOURCE_TYPES = ("self", "devices", "sources", "flows", "senders", "receivers")
+# The Annotation API MAY omit Sources and Flows. Every other Node API type MUST be present.
+OPTIONAL_RESOURCE_TYPES = ("sources", "flows")
+CORE_PROPERTIES = ("id", "version", "label", "description", "tags")
 RESOURCE_ID_PARAMS = {
     "devices": "deviceId",
     "sources": "sourceId",
@@ -187,6 +190,16 @@ class IS1301Test(GenericTest):
                 raise NMOSTestException(test.FAIL(
                     f"{source} {name} is {resource.get(name)!r}, expected {expected!r}",
                     link=link))
+
+    def get_and_check(self, test, resource_type, annotation_url, node_url):
+        annotation = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
+        node = self.get_json(test, node_url, NODE_API_KEY)
+        for name in CORE_PROPERTIES:
+            if annotation.get(name) != node.get(name):
+                raise NMOSTestException(test.FAIL(
+                    f"{resource_type}: Annotation API {name} is {annotation.get(name)!r}, "
+                    f"Node API {name} is {node.get(name)!r}",
+                    link=self.version_link() if name == "version" else self.consistent_link()))
 
     def patch_and_check(self, test, resource_type, annotation_url, node_url, patch_body, check_values, link,
                         requirement="MUST"):
@@ -432,29 +445,40 @@ class IS1301Test(GenericTest):
             link=self.discovery_link()))
 
     def test_01(self, test):
-        """Annotation and Node API resource IDs match for self, devices, sources, flows, senders and receivers"""
+        """Annotation and Node API resources match for self, devices, sources, flows, senders and receivers"""
         checked = 0
-        result = None
         for resource_type in RESOURCE_TYPES:
-            try:
-                resource_urls = list(self.iter_resource_urls(test, resource_type))
-            except NMOSTestException as e:
-                # Skip types with no resources; fail on real GET errors
-                if e.args[0].state == TestStates.FAIL:
-                    raise
-                if e.args[0].state != TestStates.UNCLEAR:
-                    result = result or e.args[0]
-                continue
-            for annotation_url, node_url in resource_urls:
-                annotation = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
-                node = self.get_json(test, node_url, NODE_API_KEY)
-                if annotation.get("id") != node.get("id"):
-                    raise NMOSTestException(test.FAIL(
-                        f"{resource_type}: Annotation id {annotation.get('id')} != Node API id {node.get('id')}",
-                        link=self.consistent_link()))
+            annotation_list_url = f"{self.annotation_url}node/{resource_type}"
+            node_list_url = f"{self.node_url}{resource_type}"
+            if resource_type == "self":
+                self.get_and_check(test, resource_type, annotation_list_url, node_list_url)
                 checked += 1
-        if result:
-            return result
+                continue
+
+            annotation_ids = self.parse_resource_ids(
+                test, annotation_list_url,
+                self.get_json(test, annotation_list_url, ANNOTATION_API_KEY))
+            node_ids = self.parse_resource_ids(
+                test, node_list_url, self.get_json(test, node_list_url, NODE_API_KEY))
+            missing_from_node = sorted(set(annotation_ids) - set(node_ids))
+            if missing_from_node:
+                raise NMOSTestException(test.FAIL(
+                    f"{resource_type}: Annotation API ids {missing_from_node} are not present in the Node API",
+                    link=self.consistent_link()))
+            # Sources and Flows have a get-out: the Annotation API MAY omit them, including all of them.
+            missing_from_annotation = sorted(set(node_ids) - set(annotation_ids))
+            if missing_from_annotation and resource_type not in OPTIONAL_RESOURCE_TYPES:
+                raise NMOSTestException(test.FAIL(
+                    f"{resource_type}: Node API ids {missing_from_annotation} are not present in the Annotation API",
+                    link=self.consistent_link()))
+
+            node_id_set = set(node_ids)
+            common_ids = [resource_id for resource_id in annotation_ids if resource_id in node_id_set]
+            for resource_id in NMOSUtils.sampled_list(common_ids):
+                self.get_and_check(
+                    test, resource_type,
+                    f"{annotation_list_url}/{resource_id}", f"{node_list_url}/{resource_id}")
+                checked += 1
         if checked == 0:
             return test.UNCLEAR("No resources found to compare")
         return test.PASS()
