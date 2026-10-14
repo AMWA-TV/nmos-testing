@@ -139,10 +139,16 @@ class IS1301Test(GenericTest):
         return resource_ids
 
     def list_resource_ids(self, test, resource_type):
-        """Return Annotation API resource IDs for a list type, or raise UNCLEAR if the list is empty."""
+        """
+        Return Annotation API resource IDs for a list type.
+        Raise NA if the list of an optional resource type is empty, or UNCLEAR for other types.
+        """
         annotation_list_url = f"{self.annotation_url}node/{resource_type}"
         annotation_list = self.get_json(test, annotation_list_url, ANNOTATION_API_KEY)
         if not annotation_list:
+            if resource_type in OPTIONAL_RESOURCE_TYPES:
+                raise NMOSTestException(test.NA(
+                    f"The Annotation API does not include {resource_type}", link=self.consistent_link()))
             raise NMOSTestException(test.UNCLEAR(
                 f"No {resource_type} found at {annotation_list_url}"))
         return self.parse_resource_ids(test, annotation_list_url, annotation_list)
@@ -568,6 +574,62 @@ class IS1301Test(GenericTest):
         """Device tags: reset all, write one user tag, reset again (MUST)"""
         return self.do_all_tags_reset_sequence(test, "devices")
 
+    def test_13_01(self, test):
+        """Source label: reset, write 64 bytes, reset again (MUST)"""
+        return self.do_label_or_description_sequence(test, "sources", "label", "MUST")
+
+    def test_13_02(self, test):
+        """Source description: reset, write 64 bytes, reset again (SHOULD)"""
+        return self.do_label_or_description_sequence(test, "sources", "description", "SHOULD")
+
+    def test_13_03(self, test):
+        """Source tags: write 1 user-namespace tag of 64-byte name and value (MUST)"""
+        return self.do_tags_sequence(test, "sources", [USER_TAG_NAME_MAX_LENGTH], "MUST")
+
+    def test_13_04(self, test):
+        """Source tags: write 5 user-namespace tags (SHOULD)"""
+        return self.do_tags_sequence(test, "sources", USER_TAG_NAMES_FIVE, "SHOULD")
+
+    def test_13_05(self, test):
+        """Source tags: write 1 user-namespace tag with 2 values (MAY)"""
+        return self.do_tags_sequence(test, "sources", [USER_TAG_NAME_TWO_VALUES], "MAY", USER_TAG_TWO_VALUES)
+
+    def test_13_06(self, test):
+        """Source tags: named tag reset, write, reset again (MUST)"""
+        return self.do_named_tag_reset_sequence(test, "sources")
+
+    def test_13_07(self, test):
+        """Source tags: reset all, write one user tag, reset again (MUST)"""
+        return self.do_all_tags_reset_sequence(test, "sources")
+
+    def test_13_08(self, test):
+        """Flow label: reset, write 64 bytes, reset again (MUST)"""
+        return self.do_label_or_description_sequence(test, "flows", "label", "MUST")
+
+    def test_13_09(self, test):
+        """Flow description: reset, write 64 bytes, reset again (SHOULD)"""
+        return self.do_label_or_description_sequence(test, "flows", "description", "SHOULD")
+
+    def test_13_10(self, test):
+        """Flow tags: write 1 user-namespace tag of 64-byte name and value (MUST)"""
+        return self.do_tags_sequence(test, "flows", [USER_TAG_NAME_MAX_LENGTH], "MUST")
+
+    def test_13_11(self, test):
+        """Flow tags: write 5 user-namespace tags (SHOULD)"""
+        return self.do_tags_sequence(test, "flows", USER_TAG_NAMES_FIVE, "SHOULD")
+
+    def test_13_12(self, test):
+        """Flow tags: write 1 user-namespace tag with 2 values (MAY)"""
+        return self.do_tags_sequence(test, "flows", [USER_TAG_NAME_TWO_VALUES], "MAY", USER_TAG_TWO_VALUES)
+
+    def test_13_13(self, test):
+        """Flow tags: named tag reset, write, reset again (MUST)"""
+        return self.do_named_tag_reset_sequence(test, "flows")
+
+    def test_13_14(self, test):
+        """Flow tags: reset all, write one user tag, reset again (MUST)"""
+        return self.do_all_tags_reset_sequence(test, "flows")
+
     def test_14(self, test):
         """Sender label: reset, write 64 bytes, reset again (MUST)"""
         return self.do_label_or_description_sequence(test, "senders", "label", "MUST")
@@ -634,7 +696,7 @@ class IS1301Test(GenericTest):
             except NMOSTestException as e:
                 if e.args[0].state == TestStates.FAIL:
                     raise
-                if e.args[0].state != TestStates.UNCLEAR:
+                if e.args[0].state not in (TestStates.UNCLEAR, TestStates.NA):
                     result = result or e.args[0]
                 continue
             for annotation_url, node_url in resource_urls:
