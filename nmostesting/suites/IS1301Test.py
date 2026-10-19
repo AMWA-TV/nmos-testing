@@ -694,7 +694,7 @@ class IS1301Test(GenericTest):
                 continue
             for annotation_url, node_url in resource_urls:
                 initial = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
-                read_only = {name: values for name, values in initial.get("tags", {}).items()
+                read_only = {name: values for name, values in (initial.get("tags") or {}).items()
                              if is_read_only_tag(name)}
                 for name, values in read_only.items():
                     # A valid value means a rejected PATCH is due to the tag being read-only
@@ -729,13 +729,13 @@ class IS1301Test(GenericTest):
                             link=self.read_only_link()))
 
                     after = self.get_json(test, annotation_url, ANNOTATION_API_KEY)
-                    if after.get("tags", {}).get(name) != values:
+                    if (after.get("tags") or {}).get(name) != values:
                         raise NMOSTestException(test.FAIL(
                             f"Read-only tag {name!r} on {resource_type} changed after a rejected PATCH",
                             link=self.read_only_link()))
                     time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
                     node = self.get_json(test, node_url, NODE_API_KEY)
-                    if node.get("tags", {}).get(name) != values:
+                    if (node.get("tags") or {}).get(name) != values:
                         raise NMOSTestException(test.FAIL(
                             f"Node API read-only tag {name!r} on {resource_type} changed after a rejected PATCH",
                             link=self.consistent_link()))
