@@ -16,8 +16,9 @@
 IS-13-01 tests the AMWA IS-13 NMOS Annotation API
 (https://specs.amwa.tv/is-13/).
 
-Each annotation-property test tries to restore the Node's previous values, but
-that cannot be guaranteed if the implementation rejects the restore PATCH.
+A passing annotation-property test tries to restore the Node's previous
+values, but that cannot be guaranteed if the implementation rejects the
+restore PATCH. A failing test leaves the Node as it was when it failed.
 
 Not covered yet:
 * Persistence of updates
