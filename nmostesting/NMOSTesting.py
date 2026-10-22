@@ -90,6 +90,7 @@ from .suites import BCP0050101Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
 from .suites import BCP0070302Test
+from .suites import BCP0040201Test
 from .suites import BCP00604Test
 from .suites import BCP0070301Test
 from .suites import BCP0080101Test
@@ -504,6 +505,33 @@ TEST_DEFINITIONS = {
             "disable_fields": ["host", "port"]
         }],
         "class": BCP0070302Test.BCP0070302Test
+    },
+    "BCP-004-02-01": {
+        "name": "BCP-004-02 Sender Capabilities",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "flow-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "sender-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "caps-register"
+        }, {
+            "spec_key": "bcp-004-01",
+            "api_key": "receiver-caps"
+        }, {
+            "spec_key": "bcp-004-02",
+            "api_key": "sender-caps"
+        }],
+        "class": BCP0040201Test.BCP0040201Test
     },
     "BCP-008-01-01": {
         "name": "BCP-008-01 Receiver Status Monitoring",
