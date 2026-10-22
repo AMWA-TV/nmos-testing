@@ -2,7 +2,7 @@
 
 [![LICENSE](https://img.shields.io/github/license/amwa-tv/nmos-testing.svg?color=blue&logo=apache)](https://github.com/amwa-tv/nmos-testing/blob/master/LICENSE)
 [![Lint Status](https://github.com/AMWA-TV/nmos-testing/workflows/Lint/badge.svg)](https://github.com/AMWA-TV/nmos-testing/actions?query=workflow%3ALint)
-[![Render Status](https://github.com/AMWA-TV/nmos-testing/workflows/Render/badge.svg)](https://github.com/AMWA-TV/nmos-testing/actions?query=workflow%3ARender)
+[![Zensical Render Status](https://github.com/AMWA-TV/nmos-testing/actions/workflows/docs.yml/badge.svg)](https://github.com/AMWA-TV/nmos-testing/actions/workflows/docs.yml)
 [![Deploy Status](https://github.com/AMWA-TV/nmos-testing/workflows/Deploy/badge.svg)](https://github.com/AMWA-TV/nmos-testing/actions?query=workflow%3ADeploy)
 
 <!-- INTRO-START -->
