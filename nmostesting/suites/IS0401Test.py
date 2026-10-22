@@ -1572,13 +1572,16 @@ class IS0401Test(GenericTest):
                                         groups["device"][resource["device_id"]][group_params[0]] = {}
                                     group_ref = groups["device"][resource["device_id"]][group_params[0]]
 
-                                # Check for duplicate roles within groups
-                                if group_params[1] in group_ref:
+                                # Check for duplicate roles within groups of the same resource type
+                                if resource_name not in group_ref:
+                                    group_ref[resource_name] = {}
+                                resource_group_ref = group_ref[resource_name]
+                                if group_params[1] in resource_group_ref:
                                     return test.FAIL("Duplicate role found in group {} for resources {} and {}"
                                                      .format(group_params[0], resource["id"],
-                                                             group_ref[group_params[1]]))
+                                                             resource_group_ref[group_params[1]]))
                                 else:
-                                    group_ref[group_params[1]] = resource["id"]
+                                    resource_group_ref[group_params[1]] = resource["id"]
 
                 except json.JSONDecodeError:
                     return test.FAIL("Non-JSON response returned from Node API")
