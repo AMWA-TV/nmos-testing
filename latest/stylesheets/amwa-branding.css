@@ -1,0 +1,85 @@
+:root {
+  --md-primary-fg-color: #418ab3;
+  --md-primary-fg-color--light: #a5cadf;
+  --md-primary-fg-color--dark: #418ab3;
+  --md-primary-bg-color: #d1e4ef;
+  --md-primary-bg-color--light: #d1e4ef;
+}
+
+/* Match the title and navigation colours used by specs.amwa.tv/nmos. */
+.md-header {
+  background-color: #418ab3;
+  color: #d1e4ef;
+}
+
+.md-header a {
+  color: #d1e4ef;
+}
+
+.md-tabs {
+  background-color: #a5cadf;
+}
+
+.md-tabs__link {
+  color: #418ab3;
+}
+
+.md-search__form {
+  background-color: #a5cadf;
+}
+
+.md-search__form:hover,
+.md-search__form:focus-within {
+  background-color: #d1e4ef;
+}
+
+.md-search__input {
+  color: #418ab3;
+}
+
+.md-search__input::placeholder {
+  color: rgba(65, 138, 179, 0.75);
+}
+
+.md-sidebar .md-nav__link:hover {
+  background-color: #a5cadf;
+  color: #418ab3;
+}
+
+/* Highlight only the exact current page, not its active ancestor sections. */
+.md-sidebar--primary .amwa-current-page {
+  background-color: #a5cadf !important;
+  color: #418ab3 !important;
+}
+
+.amwa-header-branding {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.45rem;
+  margin-inline: 0.5rem;
+}
+
+.amwa-header-branding a {
+  align-items: center;
+  display: flex;
+}
+
+.amwa-header-branding img {
+  display: block;
+  height: 1.55rem;
+  object-fit: contain;
+  width: auto;
+}
+
+.amwa-header-branding a + a,
+.amwa-header-branding a + img {
+  border-left: 1px solid rgba(209, 228, 239, 0.7);
+  padding-left: 0.45rem;
+}
+
+@media screen and (max-width: 600px) {
+  .amwa-header-branding img {
+    height: 1.25rem;
+  }
+}

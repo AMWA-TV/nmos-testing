@@ -1,0 +1,124 @@
+.json-viewer {
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+
+.source-viewer-mode {
+  display: inline-block;
+  margin: 0 0 0.35rem;
+}
+
+.source-viewer-mode select {
+  margin-left: 0.25rem;
+}
+
+.source-viewer-controls {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0 0 0.35rem;
+}
+
+.source-viewer-controls button {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.2rem;
+  background: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
+  cursor: pointer;
+  padding: 0.15rem 0.45rem;
+}
+
+.source-viewer-controls button:hover,
+.source-viewer-mode select:hover {
+  background: var(--md-default-fg-color--lightest);
+}
+
+.source-editor,
+.source-viewer-raw {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.2rem;
+  background: var(--md-code-bg-color, var(--md-default-bg-color));
+  color: var(--md-code-fg-color, var(--md-typeset-color));
+  font-family: var(--md-code-font-family, monospace);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  margin: 0;
+  overflow-x: auto;
+  padding: 0.35rem 0;
+}
+
+.source-viewer-raw code {
+  white-space: pre;
+}
+
+.source-editor-line {
+  min-height: 1.35em;
+  padding: 0 0.5rem 0 0;
+  white-space: pre;
+}
+
+.source-editor-line[hidden] {
+  display: none;
+}
+
+.source-editor-gutter {
+  display: inline-flex;
+  align-items: center;
+  width: 4.5em;
+}
+
+.source-editor-fold-toggle,
+.source-editor-fold-spacer {
+  display: inline-block;
+  width: 1.5em;
+}
+
+.source-editor-fold-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--md-default-fg-color--light);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  padding: 0;
+  text-align: center;
+}
+
+.source-editor-fold-toggle:hover {
+  color: var(--md-typeset-color);
+}
+
+.source-editor-line-number {
+  color: var(--md-default-fg-color--light);
+  display: inline-block;
+  padding-right: 0.75em;
+  text-align: right;
+  user-select: none;
+  width: 2.5em;
+}
+
+.source-editor-code {
+  color: var(--md-code-fg-color, var(--md-typeset-color));
+}
+
+.source-editor-line[data-collapsed] .source-editor-code::after {
+  color: var(--md-default-fg-color--light);
+  content: " ...";
+}
+
+.source-token-string {
+  color: var(--md-code-hl-string-color, var(--md-typeset-color));
+}
+
+.source-token-number,
+.source-token-boolean {
+  color: var(--md-code-hl-number-color, var(--md-typeset-color));
+}
+
+.source-token-punctuation {
+  color: var(--md-typeset-color);
+}
+
+.json-viewer .source-viewer-folding[hidden],
+.json-viewer .source-viewer-raw[hidden] {
+  display: none;
+}
