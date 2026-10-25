@@ -577,10 +577,20 @@ class IS05Utils(NMOSUtils):
                 for index, sdp_data in enumerate(tp_compare):
                     transport_params = a_response["transport_params"][index]
                     media_line = re.search(r"m=([a-z]+) ([0-9]+) RTP/AVP ([0-9]+)", sdp_data)
+                    if not media_line:
+                        return False, "SDP media description is not of the form " \
+                                      "'m=<media> <port> RTP/AVP <fmt>'"
                     if media_line.group(2) != str(transport_params["destination_port"]):
                         return False, "SDP destination port {} does not match transport_params: {}" \
                                       .format(media_line.group(2), transport_params["destination_port"])
-                    connection_line = re.search(r"c=IN IP[4,6] ([^/\r\n]*)(?:/[0-9]+){0,2}", sdp_data)
+                    # RFC 4566 Section 5.7 permits a single session-level connection line in
+                    # place of one per media description, so fall back to the session level
+                    # rather than treating its absence here as a malformed SDP.
+                    connection_line = re.search(r"c=IN IP[4,6] ([^/\r\n]*)(?:/[0-9]+){0,2}", sdp_data) \
+                        or re.search(r"c=IN IP[4,6] ([^/\r\n]*)(?:/[0-9]+){0,2}", sdp_global)
+                    if not connection_line:
+                        return False, "SDP has no connection line at session level or in the " \
+                                      "media description, as required by RFC 4566 Section 5.7"
                     if connection_line.group(1) != transport_params["destination_ip"]:
                         return False, "SDP destination IP {} does not match transport_params: {}" \
                                       .format(connection_line.group(1), transport_params["destination_ip"])
