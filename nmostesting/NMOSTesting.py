@@ -1366,7 +1366,7 @@ def main(args):
     # Advertise the primary mock Authorization server to allow the Node to find it
     if CONFIG.ENABLE_AUTH and CONFIG.DNS_SD_MODE == "multicast":
         primary_auth_info = PRIMARY_AUTH.make_mdns_info()
-        zc = Zeroconf()
+        zc = Zeroconf(interfaces=[get_default_ip()]) if CONFIG.BIND_INTERFACE else Zeroconf()
         zc.register_service(primary_auth_info)
 
     # Start the HTTP servers

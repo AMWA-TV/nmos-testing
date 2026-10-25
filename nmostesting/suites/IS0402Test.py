@@ -28,7 +28,7 @@ from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
-from ..TestHelper import is_ip_address, load_resolved_schema, WebsocketWorker
+from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema, WebsocketWorker
 from ..TestResult import Test
 
 REG_API_KEY = "registration"
@@ -56,7 +56,7 @@ class IS0402Test(GenericTest):
         self.auth = auths[0] if auths else None
 
     def set_up_tests(self):
-        self.zc = Zeroconf()
+        self.zc = Zeroconf(interfaces=[get_default_ip()]) if CONFIG.BIND_INTERFACE else Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
 
     def tear_down_tests(self):

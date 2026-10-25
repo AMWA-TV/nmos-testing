@@ -20,6 +20,7 @@ from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
 from .. import Config as CONFIG
+from ..TestHelper import get_default_ip
 
 NODE_API_KEY = "node"
 
@@ -34,7 +35,7 @@ class IS0403Test(GenericTest):
         self.is04_utils = IS04Utils(self.node_url)
 
     def set_up_tests(self):
-        self.zc = Zeroconf()
+        self.zc = Zeroconf(interfaces=[get_default_ip()]) if CONFIG.BIND_INTERFACE else Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
 
     def tear_down_tests(self):
