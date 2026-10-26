@@ -13,6 +13,9 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v7
 
+      # Keep these checkouts in sync with SPECIFICATIONS in
+      # nmostesting/Config.py, in the same order. Startup clones any
+      # repository missing from the image and exits if the clone fails.
       - name: Checkout Spec Repo 'is-04'
         uses: actions/checkout@v7
         with:
@@ -69,6 +72,46 @@ jobs:
       - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
         working-directory: cache/is-10
 
+      - name: Checkout Spec Repo 'is-11'
+        uses: actions/checkout@v7
+        with:
+          repository: AMWA-TV/is-11
+          path: cache/is-11
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-11
+
+      - name: Checkout Spec Repo 'is-12'
+        uses: actions/checkout@v7
+        with:
+          repository: AMWA-TV/is-12
+          path: cache/is-12
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-12
+
+      - name: Checkout Spec Repo 'is-14'
+        uses: actions/checkout@v7
+        with:
+          repository: AMWA-TV/is-14
+          path: cache/is-14
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-14
+
+      - name: Checkout Spec Repo 'ms-05-02'
+        uses: actions/checkout@v7
+        with:
+          repository: AMWA-TV/ms-05-02
+          path: cache/ms-05-02
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/ms-05-02
+
+      - name: Checkout Spec Repo 'nmos-control-feature-sets'
+        uses: actions/checkout@v7
+        with:
+          repository: AMWA-TV/nmos-control-feature-sets
+          path: cache/nmos-control-feature-sets
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/nmos-control-feature-sets
+
       - name: Checkout Spec Repo 'bcp-002-01'
         uses: actions/checkout@v7
         with:
@@ -100,6 +143,38 @@ jobs:
           path: cache/bcp-004-01
       - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
         working-directory: cache/bcp-004-01
+
+      - name: Checkout Spec Repo 'bcp-008-01'
+        uses: actions/checkout@v7
+        with:
+          repository: AMWA-TV/bcp-008-01
+          path: cache/bcp-008-01
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/bcp-008-01
+
+      - name: Checkout Spec Repo 'bcp-008-02'
+        uses: actions/checkout@v7
+        with:
+          repository: AMWA-TV/bcp-008-02
+          path: cache/bcp-008-02
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/bcp-008-02
+
+      - name: Checkout Spec Repo 'bcp-005-01'
+        uses: actions/checkout@v7
+        with:
+          repository: AMWA-TV/bcp-005-01
+          path: cache/bcp-005-01
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/bcp-005-01
+
+      - name: Checkout Spec Repo 'bcp-007-03'
+        uses: actions/checkout@v7
+        with:
+          repository: AMWA-TV/bcp-007-03
+          path: cache/bcp-007-03
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/bcp-007-03
 
       - name: Checkout Spec Repo 'nmos-parameter-registers'
         uses: actions/checkout@v7
