@@ -1,4 +1,4 @@
-FROM ubuntu:focal
+FROM ubuntu:noble
 
 WORKDIR /home/nmos-testing
 ADD . .
@@ -6,15 +6,15 @@ ADD .git .git
 
 RUN apt-get update \
     && export DEBIAN_FRONTEND=noninteractive \
+    && export PIP_BREAK_SYSTEM_PACKAGES=1 \
     && apt-get install -y wget \
-    && wget https://deb.nodesource.com/setup_16.x \
-    && chmod 755 setup_16.x \
-    && /home/nmos-testing/setup_16.x \
+    && wget https://deb.nodesource.com/setup_22.x \
+    && chmod 755 setup_22.x \
+    && /home/nmos-testing/setup_22.x \
     && apt-get install -y --no-install-recommends \
     gcc openssl libssl-dev wget ca-certificates avahi-daemon avahi-utils libnss-mdns libavahi-compat-libdnssd-dev \
     python3 python3-pip python3-dev nodejs \
-    procps ldnsutils libidn11 git coreutils curl bsdmainutils \
-    && pip3 install --upgrade pip \
+    procps ldnsutils libidn12 git coreutils curl bsdmainutils \
     && pip3 install setuptools wheel \
     && pip3 install -r requirements.txt \
     && mkdir -p /config \
@@ -24,9 +24,8 @@ RUN apt-get update \
     && wget https://github.com/drwetter/testssl.sh/archive/v3.0.7.tar.gz \
     && tar -xvzf v3.0.7.tar.gz --strip-components=1 \
     && rm v3.0.7.tar.gz \
-    && npm config set unsafe-perm true \
     && npm install -g AMWA-TV/sdpoker#v0.3.0 \
-    && rm /home/nmos-testing/setup_16.x \
+    && rm /home/nmos-testing/setup_22.x \
     && apt-get remove -y wget \
     && apt-get clean -y --no-install-recommends \
     && apt-get autoclean -y --no-install-recommends \
