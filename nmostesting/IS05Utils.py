@@ -32,6 +32,17 @@ class IS05Utils(NMOSUtils):
     def __init__(self, url):
         NMOSUtils.__init__(self, url)
 
+    @staticmethod
+    def check_requested_time(activate_mode, active_requested, activate_time, active_activation):
+        """Validate requested_time values reported by the active endpoint."""
+        if activate_mode == IMMEDIATE_ACTIVATION:
+            if not isinstance(active_requested, str) or not isinstance(active_activation, str):
+                return False
+            if re.match("^[0-9]+:[0-9]+$", active_requested) is None:
+                return False
+            return NMOSUtils.compare_resource_version(active_activation, active_requested) >= 0
+        return active_requested == activate_time
+
     def get_valid_transports(self, api_version, include_transports_without_transport_file=True):
         """Identify the valid transport types for a given version of IS-05"""
         valid_transports = ["urn:x-nmos:transport:rtp",
@@ -227,8 +238,10 @@ class IS05Utils(NMOSUtils):
                             return False, "Expected a dict to be returned from {}, " \
                                           "got a {}: {}".format(activeUrl, type(active), active)
 
-                        if activeMode == activateMode and activeActivation \
-                                and (activateMode == IMMEDIATE_ACTIVATION or activeRequested == activateTime) \
+                        requestedTimeValid = self.check_requested_time(
+                            activateMode, activeRequested, activateTime, activeActivation)
+
+                        if activeMode == activateMode and activeActivation and requestedTimeValid \
                                 and self.compare_resource_version(activeActivation, stageActivation) >= 0:
                             if tries > 1:
                                 # True with a message means WARNING!

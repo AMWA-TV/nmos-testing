@@ -653,9 +653,14 @@ class Node(object):
             valid, response = do_request('POST', self.registry_url + 'x-nmos/registration/' + self.registry_version +
                                          '/resource', json={'type': resource_type, 'data': subscription_update})
 
-            # Update active data with new data
-            activations['active'] = response_data
-            activations['transport_params'] = response_data['transport_params']
+            # Update active data with new data. For immediate activations the
+            # PATCH response has a null requested_time, but /active reports a
+            # non-null requested_time. The mock uses activation_time.
+            active_data = deepcopy(response_data)
+            if active_data['activation']['mode'] == 'activate_immediate':
+                active_data['activation']['requested_time'] = active_data['activation']['activation_time']
+            activations['active'] = active_data
+            activations['transport_params'] = active_data['transport_params']
 
         # Update staged data with new data
         staged_data = deepcopy(response_data)
