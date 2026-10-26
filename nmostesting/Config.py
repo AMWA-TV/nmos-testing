@@ -214,6 +214,9 @@ STABLE_STATE_DELAY = 3
 STABLE_STATE_ATTEMPTS = 5
 
 # Definition of each API specification and its versions.
+# The image build in .github/workflows/deploy.yml reads this dict. For each
+# version it fetches the first existing branch among "<version>.x",
+# "<version>-dev" and "<version>".
 SPECIFICATIONS = {
     "is-04": {
         "repo": "is-04",
