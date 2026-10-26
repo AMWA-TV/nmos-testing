@@ -13,176 +13,59 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v7
 
-      # Keep these checkouts in sync with SPECIFICATIONS in
-      # nmostesting/Config.py, in the same order. Startup clones any
-      # repository missing from the image and exits if the clone fails.
-      - name: Checkout Spec Repo 'is-04'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/is-04
-          path: cache/is-04
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/is-04
+      # Reads SPECIFICATIONS in nmostesting/Config.py. For each version, fetches
+      # the first existing branch among <version>.x, <version>-dev and <version>.
+      - name: Checkout specification repositories
+        run: |
+          python3 - << 'PY'
+          import os
+          import subprocess
+          import sys
+          from nmostesting.Config import SPECIFICATIONS
 
-      - name: Checkout Spec Repo 'is-05'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/is-05
-          path: cache/is-05
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/is-05
+          def git(args, cwd=None):
+              subprocess.run(["git", *args], cwd=cwd, check=True)
 
-      - name: Checkout Spec Repo 'is-06'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/is-06
-          path: cache/is-06
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/is-06
+          os.makedirs("cache", exist_ok=True)
+          for repo_key, repo_data in SPECIFICATIONS.items():
+              repo = repo_data["repo"]
+              if repo is None:
+                  continue
+              dest = os.path.join("cache", repo_key)
+              url = "https://github.com/AMWA-TV/{}.git".format(repo)
+              print("Cloning {} into {}".format(url, dest), flush=True)
+              git(["clone", "--depth", "1", "--no-tags", url, dest])
 
-      - name: Checkout Spec Repo 'is-07'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/is-07
-          path: cache/is-07
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/is-07
+              listed = subprocess.run(
+                  ["git", "-C", dest, "ls-remote", "--heads", "origin"],
+                  check=True, capture_output=True, text=True,
+              ).stdout
+              heads = set()
+              for line in listed.splitlines():
+                  ref = line.split()[1]
+                  if ref.startswith("refs/heads/"):
+                      heads.add(ref[len("refs/heads/"):])
 
-      - name: Checkout Spec Repo 'is-08'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/is-08
-          path: cache/is-08
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/is-08
+              branches = []
+              for version in repo_data["versions"]:
+                  candidates = [version + ".x", version + "-dev", version]
+                  match = None
+                  for candidate in candidates:
+                      if candidate in heads:
+                          match = candidate
+                          break
+                  if match is None:
+                      sys.exit("No branch for {} version {}: tried {}".format(
+                          repo, version, ", ".join(candidates)))
+                  if match not in branches:
+                      branches.append(match)
 
-      - name: Checkout Spec Repo 'is-09'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/is-09
-          path: cache/is-09
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/is-09
-
-      - name: Checkout Spec Repo 'is-10'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/is-10
-          path: cache/is-10
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/is-10
-
-      - name: Checkout Spec Repo 'is-11'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/is-11
-          path: cache/is-11
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/is-11
-
-      - name: Checkout Spec Repo 'is-12'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/is-12
-          path: cache/is-12
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/is-12
-
-      - name: Checkout Spec Repo 'is-14'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/is-14
-          path: cache/is-14
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/is-14
-
-      - name: Checkout Spec Repo 'ms-05-02'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/ms-05-02
-          path: cache/ms-05-02
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/ms-05-02
-
-      - name: Checkout Spec Repo 'nmos-control-feature-sets'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/nmos-control-feature-sets
-          path: cache/nmos-control-feature-sets
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/nmos-control-feature-sets
-
-      - name: Checkout Spec Repo 'bcp-002-01'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/bcp-002-01
-          path: cache/bcp-002-01
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/bcp-002-01
-
-      - name: Checkout Spec Repo 'bcp-002-02'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/bcp-002-02
-          path: cache/bcp-002-02
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/bcp-002-02
-
-      - name: Checkout Spec Repo 'bcp-003-01'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/bcp-003-01
-          path: cache/bcp-003-01
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/bcp-003-01
-
-      - name: Checkout Spec Repo 'bcp-004-01'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/bcp-004-01
-          path: cache/bcp-004-01
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/bcp-004-01
-
-      - name: Checkout Spec Repo 'bcp-008-01'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/bcp-008-01
-          path: cache/bcp-008-01
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/bcp-008-01
-
-      - name: Checkout Spec Repo 'bcp-008-02'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/bcp-008-02
-          path: cache/bcp-008-02
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/bcp-008-02
-
-      - name: Checkout Spec Repo 'bcp-005-01'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/bcp-005-01
-          path: cache/bcp-005-01
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/bcp-005-01
-
-      - name: Checkout Spec Repo 'bcp-007-03'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/bcp-007-03
-          path: cache/bcp-007-03
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/bcp-007-03
-
-      - name: Checkout Spec Repo 'nmos-parameter-registers'
-        uses: actions/checkout@v7
-        with:
-          repository: AMWA-TV/nmos-parameter-registers
-          path: cache/nmos-parameter-registers
-      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        working-directory: cache/nmos-parameter-registers
+              # A depth-1 clone tracks only its default branch. Register the
+              # version branches so a later checkout can follow them.
+              git(["remote", "set-branches", "origin", *branches], cwd=dest)
+              print("Fetching {}: {}".format(repo, ", ".join(branches)), flush=True)
+              git(["fetch", "--no-tags", "--depth", "1", "origin"], cwd=dest)
+          PY
 
       - name: Docker meta
         id: meta
