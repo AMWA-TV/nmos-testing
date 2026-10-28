@@ -35,6 +35,7 @@ The following test suites are currently supported.
 | IS-11-01 | IS-11 Stream Compatibility Management API | X | | | |
 | IS-12-01 | IS-12 Control Protocol API | X | | | See [Invasive Device Model Testing](docs/2.10%20Usage%20-%20Invasive%20Device%20Model%20Testing.md) |
 | IS-13-01 | IS-13 Annotation API | X | | | |
+| IS-13-02 | IS-13 Controller | | | X | See [Testing Controllers](docs/2.8.%20Usage%20-%20Testing%20Controllers.md) |
 | IS-14-01 | IS-14 Device Configuration API | X | | | See [Invasive Device Model Testing](docs/2.10%20Usage%20-%20Invasive%20Device%20Model%20Testing.md) |
 | - | BCP-002-01 Natural Grouping | X | | | Included in IS-04 Node API suite |
 | - | BCP-002-02 Asset Distinguishing Information | X | | | Included in IS-04 Node API suite |

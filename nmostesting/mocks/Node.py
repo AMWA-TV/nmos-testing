@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import time
 import uuid
 import json
 import ipaddress
@@ -32,7 +33,13 @@ from .Auth import PRIMARY_AUTH
 MXL_TRANSPORT = "urn:x-nmos:transport:mxl"
 MXL_TRANSPORT_PARAM_KEYS = ("mxl_domain_id", "mxl_flow_id")
 IS05_SPEC_PATH = os.path.join(CONFIG.CACHE_PATH, "is-05")
+IS13_SPEC_PATH = os.path.join(CONFIG.CACHE_PATH, "is-13")
 BCP00703_SPEC_PATH = os.path.join(CONFIG.CACHE_PATH, "bcp-007-03")
+READ_ONLY_TAG_PREFIXES = (
+    "urn:x-nmos:tag:grouphint/",
+    "urn:x-nmos:tag:asset:",
+)
+ANNOTATION_SUBRESOURCE_TYPES = ("device", "flow", "receiver", "sender", "source")
 
 
 def _resource_transport(resource, resource_id):
@@ -153,6 +160,10 @@ def _validate_staged_patch_schema(resource, resource_id, request_json, version):
     return True, None
 
 
+def _is_read_only_annotation_tag(name):
+    return any(name.startswith(prefix) for prefix in READ_ONLY_TAG_PREFIXES)
+
+
 def _mxl_activation_block():
     return {
         "activation_time": None,
@@ -182,6 +193,8 @@ class Node(object):
         self.senders = {}
         self.patched_sdp = {}
         self.auth_cache = {}
+        self.annotation_resources = {}
+        self.annotation_requests = []
 
     def get_sender(self, media_type="video/raw", version="v1.3"):
         protocol = "http"
@@ -658,6 +671,136 @@ class Node(object):
 
         return response_data, response_code
 
+    def add_annotation(self, reg_type, resource):
+        """Remember a registered IS-04 resource so the Annotation API can serve and update it."""
+        stored = deepcopy(resource)
+        self.annotation_resources[stored["id"]] = {
+            "reg_type": reg_type,
+            "resource": stored,
+            "initial": {
+                "label": stored.get("label") or "",
+                "description": stored.get("description") or "",
+                "tags": deepcopy(stored.get("tags") or {}),
+            },
+        }
+
+    def clear_annotation_requests(self):
+        self.annotation_requests = []
+
+    def annotation_core(self, resource):
+        return {
+            "id": resource["id"],
+            "version": resource["version"],
+            "label": resource.get("label", ""),
+            "description": resource.get("description", ""),
+            "tags": resource.get("tags") or {},
+        }
+
+    def annotation_ids(self, reg_type):
+        return sorted(
+            entry["resource"]["id"] + "/"
+            for entry in self.annotation_resources.values()
+            if entry["reg_type"] == reg_type
+        )
+
+    def annotation_id_for_type(self, reg_type):
+        for entry in self.annotation_resources.values():
+            if entry["reg_type"] == reg_type:
+                return entry["resource"]["id"]
+        return None
+
+    def _bump_annotation_version(self, resource):
+        previous = resource.get("version")
+        resource["version"] = IS04Utils.get_TAI_time()
+        if resource["version"] == previous:
+            time.sleep(0.01)
+            resource["version"] = IS04Utils.get_TAI_time()
+
+    def _register_annotation(self, entry):
+        if not self.registry_url or not self.registry_version:
+            return
+        do_request(
+            "POST",
+            self.registry_url + "x-nmos/registration/" + self.registry_version + "/resource",
+            json={"type": entry["reg_type"], "data": entry["resource"]},
+        )
+
+    def restore_annotation(self, resource_id):
+        """Put a resource's label, description and tags back to the values it was registered with."""
+        entry = self.annotation_resources.get(resource_id)
+        if entry is None:
+            return
+        resource = entry["resource"]
+        initial = entry["initial"]
+        if (resource.get("label") == initial["label"]
+                and resource.get("description") == initial["description"]
+                and (resource.get("tags") or {}) == initial["tags"]):
+            return
+        resource["label"] = initial["label"]
+        resource["description"] = initial["description"]
+        resource["tags"] = deepcopy(initial["tags"])
+        self._bump_annotation_version(resource)
+        self._register_annotation(entry)
+
+    def patch_annotation(self, resource_id, patch):
+        """
+        Apply an Annotation API PATCH.
+        Returns (response JSON, HTTP status). Does not record the request.
+        """
+        entry = self.annotation_resources[resource_id]
+        resource = entry["resource"]
+        initial = entry["initial"]
+
+        # A tags object that names a read-only tag is rejected as a whole.
+        # tags set to null does not name those tags, and leaves them in place.
+        if isinstance(patch.get("tags"), dict):
+            for name in patch["tags"]:
+                if _is_read_only_annotation_tag(name):
+                    return {
+                        "code": 500,
+                        "error": "cannot patch read-only tag: {}".format(name),
+                        "debug": None,
+                    }, 500
+
+        current_tags = resource.get("tags") or {}
+        readonly_tags = {
+            name: deepcopy(value)
+            for name, value in current_tags.items()
+            if _is_read_only_annotation_tag(name)
+        }
+
+        for key in ("label", "description", "tags"):
+            if key not in patch:
+                continue
+            value = patch[key]
+            if value is None:
+                resource.pop(key, None)
+            elif key == "tags":
+                tags = resource.setdefault("tags", {})
+                for name, tag_value in value.items():
+                    if tag_value is None:
+                        tags.pop(name, None)
+                    else:
+                        tags[name] = deepcopy(tag_value)
+            else:
+                resource[key] = value
+
+        if not isinstance(resource.get("label"), str):
+            resource["label"] = initial["label"]
+        if not isinstance(resource.get("description"), str):
+            resource["description"] = initial["description"]
+        if not isinstance(resource.get("tags"), dict):
+            resource["tags"] = {}
+        for name, value in readonly_tags.items():
+            resource["tags"].setdefault(name, value)
+        for name, value in initial["tags"].items():
+            if name not in resource["tags"]:
+                resource["tags"][name] = deepcopy(value)
+
+        self._bump_annotation_version(resource)
+        self._register_annotation(entry)
+        return self.annotation_core(resource), 200
+
     def check_authorization(self, auth, path, scope, write=False):
         if not CONFIG.ENABLE_AUTH:
             return True, ""
@@ -701,9 +844,30 @@ def check_authorization(func):
     return wrapper
 
 
+def check_annotation_authorization(func):
+    def wrapper(*args, **kwargs):
+        write = (request.method == "PATCH")
+        authorized, error_message = NODE.check_authorization(PRIMARY_AUTH,
+                                                             request.path,
+                                                             scope="x-nmos-annotation",
+                                                             write=write)
+        if authorized is not True:
+            abort(authorized, description=error_message)
+
+        return func(*args, **kwargs)
+    wrapper.__name__ = func.__name__
+    return wrapper
+
+
+def _annotation_json(data, status=200):
+    return make_response(Response(json.dumps(data), status=status, mimetype="application/json"))
+
+
 @NODE_API.route('/x-nmos', methods=['GET'], strict_slashes=False)
 def x_nmos_root():
     base_data = ['connection/']
+    if NODE.annotation_resources:
+        base_data.append('annotation/')
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
@@ -711,7 +875,7 @@ def x_nmos_root():
 @NODE_API.route('/x-nmos/connection', methods=['GET'], strict_slashes=False)
 @check_authorization
 def connection_root():
-    base_data = ['v1.0/', 'v1.1/', 'v1.2/']
+    base_data = [version + '/' for version in CONFIG.SPECIFICATIONS["is-05"]["versions"]]
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
@@ -976,3 +1140,99 @@ def transport_file(version, resource, resource_id):
     except KeyError:
         # Requested a resource that doesn't exist
         abort(404)
+
+
+def _record_annotation_request(resource_type, resource_id, body, status, schema_valid=None, schema_error=None):
+    record = {
+        "method": request.method,
+        "path": request.path,
+        "resource_type": resource_type,
+        "resource_id": resource_id,
+        "data": body,
+        "status": status,
+    }
+    if request.method == "PATCH":
+        record["schema_valid"] = schema_valid
+        record["schema_error"] = schema_error
+    NODE.annotation_requests.append(record)
+
+
+def _annotation_patch_response(resource_type, resource_id):
+    body = request.get_json(silent=True)
+    schema_file = "resource_core_patch.json"
+    try:
+        schema = load_resolved_schema(IS13_SPEC_PATH, schema_file)
+    except (OSError, IOError, FileNotFoundError) as exception:
+        load_error = "Unable to load IS-13 patch schema '{}': {}".format(schema_file, exception)
+        response = {"code": 500, "error": load_error, "debug": None}
+        _record_annotation_request(resource_type, resource_id, body, 500, False, load_error)
+        return _annotation_json(response, 500)
+
+    schema_error = _validate_against_schema(body, schema)
+    if schema_error:
+        response = {"code": 400, "error": schema_error, "debug": None}
+        _record_annotation_request(resource_type, resource_id, body, 400, False, schema_error)
+        return _annotation_json(response, 400)
+
+    response, status = NODE.patch_annotation(resource_id, body)
+    _record_annotation_request(resource_type, resource_id, body, status, True, None)
+    return _annotation_json(response, status)
+
+
+@NODE_API.route('/x-nmos/annotation', methods=['GET'], strict_slashes=False)
+@check_annotation_authorization
+def annotation_root():
+    base_data = [version + '/' for version in CONFIG.SPECIFICATIONS["is-13"]["versions"]]
+
+    return _annotation_json(base_data)
+
+
+@NODE_API.route('/x-nmos/annotation/<version>', methods=['GET'], strict_slashes=False)
+@check_annotation_authorization
+def annotation_version(version):
+    base_data = ['node/']
+
+    return _annotation_json(base_data)
+
+
+@NODE_API.route('/x-nmos/annotation/<version>/node', methods=['GET'], strict_slashes=False)
+@check_annotation_authorization
+def annotation_node(version):
+    base_data = ['self/', 'sources/', 'flows/', 'devices/', 'senders/', 'receivers/']
+
+    return _annotation_json(base_data)
+
+
+@NODE_API.route('/x-nmos/annotation/<version>/node/self', methods=['GET', 'PATCH'], strict_slashes=False)
+@check_annotation_authorization
+def annotation_self(version):
+    resource_id = NODE.annotation_id_for_type("node")
+    if resource_id is None:
+        return _annotation_json({"code": 500, "error": "Self resource not found", "debug": None}, 500)
+    if request.method == "GET":
+        _record_annotation_request("self", resource_id, None, 200)
+        return _annotation_json(NODE.annotation_core(NODE.annotation_resources[resource_id]["resource"]))
+    return _annotation_patch_response("self", resource_id)
+
+
+@NODE_API.route('/x-nmos/annotation/<version>/node/<resource_type>', methods=['GET'], strict_slashes=False)
+@check_annotation_authorization
+def annotation_resources(version, resource_type):
+    reg_type = resource_type.rstrip("s")
+    if reg_type not in ANNOTATION_SUBRESOURCE_TYPES:
+        abort(404)
+    return _annotation_json(NODE.annotation_ids(reg_type))
+
+
+@NODE_API.route('/x-nmos/annotation/<version>/node/<resource_type>/<resource_id>',
+                methods=['GET', 'PATCH'], strict_slashes=False)
+@check_annotation_authorization
+def annotation_resource(version, resource_type, resource_id):
+    reg_type = resource_type.rstrip("s")
+    entry = NODE.annotation_resources.get(resource_id)
+    if reg_type not in ANNOTATION_SUBRESOURCE_TYPES or entry is None or entry["reg_type"] != reg_type:
+        abort(404)
+    if request.method == "GET":
+        _record_annotation_request(resource_type, resource_id, None, 200)
+        return _annotation_json(NODE.annotation_core(entry["resource"]))
+    return _annotation_patch_response(resource_type, resource_id)
