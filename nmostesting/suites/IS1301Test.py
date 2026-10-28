@@ -19,9 +19,6 @@ IS-13-01 tests the AMWA IS-13 NMOS Annotation API
 A passing annotation-property test tries to restore the Node's previous
 values, but that cannot be guaranteed if the implementation rejects the
 restore PATCH. A failing test leaves the Node as it was when it failed.
-
-Not covered yet:
-* Persistence of updates
 """
 
 from copy import deepcopy
@@ -120,6 +117,9 @@ class IS1301Test(GenericTest):
 
     def successful_link(self):
         return self.spec_link("Behaviour.html#successful-response")
+
+    def persistence_link(self):
+        return self.spec_link("Behaviour.html#persistence-of-updates")
 
     def get_json(self, test, url, api_name):
         """GET JSON from url or raise NMOSTestException. Returns the parsed body."""
@@ -811,3 +811,11 @@ class IS1301Test(GenericTest):
         if checked == 0:
             return test.UNCLEAR("No resources found to PATCH")
         return test.PASS()
+
+    def test_46(self, test):
+        """Annotation updates persist for the lifetime of the resource ID"""
+        return test.MANUAL(
+            "Restart the Node and confirm that label, description, and writable tags from a "
+            "successful PATCH are still present for the same resource ID. This tool cannot "
+            "restart the Node.",
+            link=self.persistence_link())
