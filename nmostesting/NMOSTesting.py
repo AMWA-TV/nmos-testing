@@ -84,6 +84,8 @@ from .suites import IS0902Test
 # from .suites import IS1001Test
 from .suites import IS1101Test
 from .suites import IS1201Test
+from .suites import IS1301Test
+from .suites import IS1302Test
 from .suites import IS1401Test
 from .suites import BCP00301Test
 from .suites import BCP0050101Test
@@ -389,6 +391,33 @@ TEST_DEFINITIONS = {
         }],
         "class": IS1201Test.IS1201Test,
         "urlpath": True
+    },
+    "IS-13-01": {
+        "name": "IS-13 Annotation API",
+        "specs": [{
+            "spec_key": "is-13",
+            "api_key": "annotation"
+        }, {
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
+        "class": IS1301Test.IS1301Test
+    },
+    "IS-13-02": {
+        "name": "IS-13 Controller",
+        "specs": [{
+            "spec_key": "testing-facade",
+            "api_key": "testquestion"
+        }, {
+            "spec_key": "is-04",
+            "api_key": "query",
+            "disable_fields": ["host", "port"]
+        }, {
+            "spec_key": "is-13",
+            "api_key": "annotation",
+            "disable_fields": ["host", "port"]
+        }],
+        "class": IS1302Test.IS1302Test
     },
     "IS-14-01": {
         "name": "IS-14 Device Configuration",
