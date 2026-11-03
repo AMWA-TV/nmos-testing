@@ -18,10 +18,10 @@
 
 import time
 import inspect
-import random
 import textwrap
 
 from ..ControllerTest import ControllerTest, TestingFacadeException
+from ..NMOSUtils import NMOSUtils
 from ..TestingFacadeUtils import exitTestEvent
 
 
@@ -135,9 +135,9 @@ class IS0503Test(ControllerTest):
             self.node.clear_staged_requests()
             # Choose random sender and receiver to be connected
             registered_senders = [s for s in self.senders if s['registered']]
-            sender = random.choice(registered_senders)
+            sender = NMOSUtils.RANDOM.choice(registered_senders)
             registered_receivers = [r for r in self.receivers if r['registered'] and r['connectable']]
-            receiver = random.choice(registered_receivers)
+            receiver = NMOSUtils.RANDOM.choice(registered_receivers)
 
             question = textwrap.dedent(f"""\
                        All flows that are available in a Sender should be able to be connected to a Receiver.
@@ -174,6 +174,7 @@ class IS0503Test(ControllerTest):
                 return test.FAIL('No PATCH request was received by the node')
             elif len(patch_requests) == 1:
                 self.assert_valid_staged_patch_schema(test, patch_requests[0])
+                self.assert_valid_staged_patch_url(test, patch_requests[0])
 
                 if patch_requests[0]['resource_id'] != receiver['id']:
                     return test.FAIL('Connection request sent to incorrect receiver')
@@ -227,9 +228,9 @@ class IS0503Test(ControllerTest):
         try:
             # Choose random sender and receiver to be connected
             registered_senders = [s for s in self.senders if s['registered']]
-            sender = random.choice(registered_senders)
+            sender = NMOSUtils.RANDOM.choice(registered_senders)
             registered_receivers = [r for r in self.receivers if r['registered'] and r['connectable']]
-            receiver = random.choice(registered_receivers)
+            receiver = NMOSUtils.RANDOM.choice(registered_receivers)
 
             # Set up connection on the mock node
             valid, response = self.do_request('GET', self.mock_node_base_url
@@ -282,6 +283,7 @@ class IS0503Test(ControllerTest):
                 return test.FAIL('Multiple PATCH requests were received by the node')
             else:
                 self.assert_valid_staged_patch_schema(test, patch_requests[0])
+                self.assert_valid_staged_patch_url(test, patch_requests[0])
 
                 # Should be one PATCH request for disconnection
                 if patch_requests[0]['resource_id'] != receiver['id']:
@@ -327,9 +329,9 @@ class IS0503Test(ControllerTest):
         try:
             # Choose random sender and receiver to be connected
             registered_senders = [s for s in self.senders if s['registered']]
-            sender = random.choice(registered_senders)
+            sender = NMOSUtils.RANDOM.choice(registered_senders)
             registered_receivers = [r for r in self.receivers if r['registered'] and r['connectable']]
-            receiver = random.choice(registered_receivers)
+            receiver = NMOSUtils.RANDOM.choice(registered_receivers)
 
             # Set up connection on the mock node
             valid, response = self.do_request('GET', self.mock_node_base_url
@@ -417,7 +419,7 @@ class IS0503Test(ControllerTest):
 
             # Wait a random amount of time before disconnecting
             exitTestEvent.clear()
-            time_delay = random.randint(10, max_time_until_online)
+            time_delay = NMOSUtils.RANDOM.randint(10, max_time_until_online)
             expected_time_online = time.time() + time_delay
             exitTestEvent.wait(time_delay)
 

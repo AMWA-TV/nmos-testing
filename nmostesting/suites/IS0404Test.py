@@ -18,11 +18,11 @@
 
 import time
 import inspect
-import random
 import textwrap
 
 from .. import Config as CONFIG
 from ..ControllerTest import ControllerTest, TestingFacadeException
+from ..NMOSUtils import NMOSUtils
 
 
 class IS0404Test(ControllerTest):
@@ -247,7 +247,7 @@ class IS0404Test(ControllerTest):
                                 'resource': {'id': s['id'], 'label': s['label'], 'description': s['description']}}
                                 for i, s in enumerate(self.senders) if s['registered']]
             answer_indices = [index for index, s in enumerate(self.senders) if s['registered']]
-            offline_sender_index = random.choice(answer_indices)
+            offline_sender_index = NMOSUtils.RANDOM.choice(answer_indices)
             expected_answer = 'answer_' + str(offline_sender_index)
 
             self.delete_sender(test, self.senders[offline_sender_index])
@@ -293,7 +293,7 @@ class IS0404Test(ControllerTest):
 
             # Wait a random amount of time before bringing sender back online
             self.testing_facade_utils.exit_test_event_clear()
-            time_delay = random.randint(10, max_time_until_online)
+            time_delay = NMOSUtils.RANDOM.randint(10, max_time_until_online)
             expected_time_online = time.time() + time_delay
             self.testing_facade_utils.exit_test_event_wait(time_delay)
 

@@ -445,6 +445,7 @@ class BCP0070302Test(ControllerTest):
 
                 patch_request = patch_requests[0]
                 self.assert_valid_staged_patch_schema(test, patch_request)
+                self.assert_valid_staged_patch_url(test, patch_request)
 
                 patch_data = patch_request['data']
 

@@ -246,6 +246,7 @@ class GenericTest(object):
                     raise NMOSInitException("No API found or unexpected error at {} ({})".format(self.apis[api]["url"],
                                                                                                  response.status_code))
 
+        NMOSUtils.seed_random("set_up_tests")
         self.set_up_tests()
         self.result.append(test.NA(""))
 

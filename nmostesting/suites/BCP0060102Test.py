@@ -1008,6 +1008,7 @@ class BCP0060102Test(ControllerTest):
                     return test.FAIL('No PATCH request was received by the node')
                 elif len(patch_requests) == 1:
                     self.assert_valid_staged_patch_schema(test, patch_requests[0])
+                    self.assert_valid_staged_patch_url(test, patch_requests[0])
 
                     if patch_requests[0]['resource_id'] != receiver['id']:
                         return test.FAIL('Connection request sent to incorrect receiver')
