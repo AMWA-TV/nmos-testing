@@ -15,7 +15,6 @@
 import time
 import json
 import uuid
-import random
 import textwrap
 from copy import deepcopy
 from urllib.parse import urlparse
@@ -149,9 +148,9 @@ class ControllerTest(GenericTest):
         min_index_count, max_index_count: Minimum, maximum number of indices to be returned.
         """
         indices = list(range(index_range))
-        index_count = random.randint(min_index_count, max_index_count)
+        index_count = NMOSUtils.RANDOM.randint(min_index_count, max_index_count)
 
-        return random.sample(indices, index_count)
+        return NMOSUtils.RANDOM.sample(indices, index_count)
 
     def _format_device_metadata(self, label, description, id):
         """ Used to format answers based on device metadata """
