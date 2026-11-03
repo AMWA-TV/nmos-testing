@@ -14,8 +14,9 @@
 
 # IS-13-02 exercises a Controller against a mock Node that advertises and serves the
 # Annotation API. The cases follow IS-13 v1.0-dev: discovery from the Node services
-# array, setting and resetting label, writing a urn:x-nmos:tag:user: tag, and seeing
-# a label change through the Query API.
+# array, setting and resetting a Sender label, writing a urn:x-nmos:tag:user: tag,
+# setting a Receiver description and resetting one of its tags, and seeing a label
+# change through the Query API.
 
 import inspect
 import random
@@ -37,12 +38,18 @@ RESET_LABEL = "nmos-testing reset me"
 OBSERVE_LABEL = "nmos-testing live update"
 USER_TAG_NAME = "urn:x-nmos:tag:user:favourite-colour"
 USER_TAG_VALUE = ["teal"]
+NEW_DESCRIPTION = "nmos-testing description"
+RECEIVER_TAG_VALUE = ["olive"]
+OVERRIDE_TAG_VALUE = ["chocolate"]
+OTHER_TAG_NAME = "urn:x-nmos:tag:user:favourite-number"
+NO_VALUE_ANSWER = "(no value)"
 OBSERVE_ANSWER_SECONDS = 30
 SENDERS = (
     {'label': 's1/weller', 'description': 'Mock sender 1'},
     {'label': 's2/foxton', 'description': 'Mock sender 2'},
     {'label': 's3/buckler', 'description': 'Mock sender 3'},
 )
+RECEIVER = {'label': 'r1/brookes', 'description': 'Mock receiver 1'}
 
 
 class IS1302Test(ControllerTest):
@@ -54,7 +61,7 @@ class IS1302Test(ControllerTest):
         ControllerTest.__init__(self, apis, registries, node, dns_server, **kwargs)
 
     def set_up_tests(self):
-        # One Sender is on the Node that advertises the Annotation API.
+        # One Sender and the Receiver are on the Node that advertises the Annotation API.
         # Each other Sender is on its own Node, which does not.
         annotated_index = self.generate_random_indices(
             len(SENDERS), min_index_count=1, max_index_count=1)[0]
@@ -66,10 +73,17 @@ class IS1302Test(ControllerTest):
             'description': annotated['description'],
             'registered': True,
         }]
-        self.receivers = []
+        self.receivers = [{
+            'label': RECEIVER['label'],
+            'description': RECEIVER['description'],
+            'connectable': True,
+            'registered': True,
+        }]
+        self.other_tag_value = [str(random.randint(1, 99))]
 
         ControllerTest.set_up_tests(self)
         self.annotated_sender = self.senders[0]
+        self.annotated_receiver = self.receivers[0]
 
         test = Test("Register the Annotation API", "set_up_tests")
         try:
@@ -94,6 +108,11 @@ class IS1302Test(ControllerTest):
         }]
         self.post_resource(test, "node", node_data, codes=[200])
 
+        receiver_data = deepcopy(resources["receiver"][self.annotated_receiver["id"]])
+        receiver_data["tags"] = {USER_TAG_NAME: RECEIVER_TAG_VALUE, OTHER_TAG_NAME: self.other_tag_value}
+        receiver_data["version"] = NMOSUtils.get_TAI_time()
+        self.post_resource(test, "receiver", receiver_data, codes=[200])
+
         resources = self.primary_registry.get_resources()
         device_ids = set()
         for device in resources.get("device", {}).values():
@@ -114,8 +133,8 @@ class IS1302Test(ControllerTest):
     def _annotation_version(self):
         return self.apis.get(ANNOTATION_API_KEY, {}).get("version") or "v1.0"
 
-    def _sender_patch_path(self, sender_id):
-        return "/x-nmos/annotation/{}/node/senders/{}".format(self._annotation_version(), sender_id)
+    def _patch_path(self, reg_type, resource_id):
+        return "/x-nmos/annotation/{}/node/{}s/{}".format(self._annotation_version(), reg_type, resource_id)
 
     def _register_plain_senders(self, test, senders):
         """Register one Node per Sender. Those Nodes do not advertise the Annotation API."""
@@ -183,13 +202,14 @@ class IS1302Test(ControllerTest):
             })
         return registered
 
-    def _registry_sender(self, test, sender_id):
-        sender = self.primary_registry.get_resources().get("sender", {}).get(sender_id)
-        if sender is None:
-            raise NMOSTestException(test.FAIL("Sender {} is not in the mock Registry".format(sender_id)))
-        return sender
+    def _registry_resource(self, test, reg_type, resource_id):
+        resource = self.primary_registry.get_resources().get(reg_type, {}).get(resource_id)
+        if resource is None:
+            raise NMOSTestException(test.FAIL("{} {} is not in the mock Registry".format(
+                reg_type.capitalize(), resource_id)))
+        return resource
 
-    def _require_sender_patch(self, test, sender_id):
+    def _require_patch(self, test, reg_type, resource_id):
         patches = [request for request in self.node.annotation_requests if request["method"] == "PATCH"]
         if len(patches) < 1:
             raise NMOSTestException(test.FAIL("No PATCH request was received by the Annotation API"))
@@ -207,7 +227,7 @@ class IS1302Test(ControllerTest):
         if patch.get("path", "").endswith("/"):
             raise NMOSTestException(test.FAIL("PATCH URL has a trailing slash"))
 
-        expected_path = self._sender_patch_path(sender_id)
+        expected_path = self._patch_path(reg_type, resource_id)
         if patch.get("path") != expected_path:
             raise NMOSTestException(test.FAIL(
                 "PATCH was sent to {} rather than {}".format(patch.get("path"), expected_path)))
@@ -219,7 +239,19 @@ class IS1302Test(ControllerTest):
                 raise NMOSTestException(test.FAIL(
                     "PATCH changed {}: was {!r}, now {!r}".format(field, before.get(field), after.get(field))))
         if after.get("version") == before.get("version"):
-            raise NMOSTestException(test.FAIL("Sender version did not change after the PATCH"))
+            raise NMOSTestException(test.FAIL("Resource version did not change after the PATCH"))
+
+    def _require_displayed_value(self, test, question, values, expected, metadata):
+        """Ask which of the values the NCuT shows, and fail unless it is the expected one."""
+        values = list(values)
+        random.shuffle(values)
+        possible_answers = [{'answer_id': 'answer_' + str(index), 'display_answer': value}
+                            for index, value in enumerate(values)]
+        actual_answer = self.testing_facade_utils.invoke_testing_facade(
+            question, possible_answers, test_type="single_choice", multipart_test=1, metadata=metadata,
+            test_method_name=inspect.currentframe().f_back.f_code.co_name)['answer_response']
+        if actual_answer != 'answer_' + str(values.index(expected)):
+            raise NMOSTestException(test.FAIL('NCuT does not show the value held by the Node'))
 
     def test_01(self, test):
         """
@@ -272,7 +304,7 @@ class IS1302Test(ControllerTest):
         sender = self.annotated_sender
         try:
             self.node.clear_annotation_requests()
-            before = self._registry_sender(test, sender['id'])
+            before = self._registry_resource(test, 'sender', sender['id'])
 
             question = textwrap.dedent("""\
                 The NCuT should be able to set a Sender's label through the Annotation API. \
@@ -295,11 +327,11 @@ class IS1302Test(ControllerTest):
             self.testing_facade_utils.invoke_testing_facade(
                 question, [], test_type="action", metadata=metadata)
 
-            patch = self._require_sender_patch(test, sender['id'])
+            patch = self._require_patch(test, 'sender', sender['id'])
             if patch['data'].get('label') != NEW_LABEL:
                 return test.FAIL('PATCH label was {!r}'.format(patch['data'].get('label')))
 
-            after = self._registry_sender(test, sender['id'])
+            after = self._registry_resource(test, 'sender', sender['id'])
             if after.get('label') != NEW_LABEL:
                 return test.FAIL('Registry label was {!r}'.format(after.get('label')))
             self._require_unchanged(test, before, after, ('description', 'tags'))
@@ -316,7 +348,7 @@ class IS1302Test(ControllerTest):
         sender = self.annotated_sender
         try:
             self.node.clear_annotation_requests()
-            before = self._registry_sender(test, sender['id'])
+            before = self._registry_resource(test, 'sender', sender['id'])
 
             question = textwrap.dedent("""\
                 The NCuT should be able to set a tag in the urn:x-nmos:tag:user: namespace. \
@@ -341,12 +373,12 @@ class IS1302Test(ControllerTest):
             self.testing_facade_utils.invoke_testing_facade(
                 question, [], test_type="action", metadata=metadata)
 
-            patch = self._require_sender_patch(test, sender['id'])
+            patch = self._require_patch(test, 'sender', sender['id'])
             tags = patch['data'].get('tags')
             if not isinstance(tags, dict) or tags.get(USER_TAG_NAME) != USER_TAG_VALUE:
                 return test.FAIL('PATCH did not set {} to {}'.format(USER_TAG_NAME, USER_TAG_VALUE))
 
-            after = self._registry_sender(test, sender['id'])
+            after = self._registry_resource(test, 'sender', sender['id'])
             expected_tags = dict(before.get('tags') or {})
             expected_tags[USER_TAG_NAME] = USER_TAG_VALUE
             if after.get('tags') != expected_tags:
@@ -366,7 +398,7 @@ class IS1302Test(ControllerTest):
         try:
             self.node.patch_annotation(sender['id'], {'label': RESET_LABEL})
             self.node.clear_annotation_requests()
-            before = self._registry_sender(test, sender['id'])
+            before = self._registry_resource(test, 'sender', sender['id'])
 
             question = textwrap.dedent("""\
                 The NCuT should be able to reset a Sender's label. The PATCH sends null for the label, \
@@ -391,14 +423,23 @@ class IS1302Test(ControllerTest):
             self.testing_facade_utils.invoke_testing_facade(
                 question, [], test_type="action", metadata=metadata)
 
-            patch = self._require_sender_patch(test, sender['id'])
+            patch = self._require_patch(test, 'sender', sender['id'])
             if 'label' not in patch['data'] or patch['data'].get('label') is not None:
                 return test.FAIL('Reset must PATCH label set to null')
 
-            after = self._registry_sender(test, sender['id'])
+            after = self._registry_resource(test, 'sender', sender['id'])
             if after.get('label') != sender['label']:
                 return test.FAIL('Registry label was {!r} after reset'.format(after.get('label')))
             self._require_unchanged(test, before, after, ('description', 'tags'))
+
+            question = textwrap.dedent("""\
+                The NCuT should show the label held by the Node, which can differ from the value \
+                that was requested.
+
+                What label does the NCuT now show for this Sender?
+                """)
+            self._require_displayed_value(
+                test, question, [sender['label'], RESET_LABEL, NO_VALUE_ANSWER], sender['label'], metadata)
             return test.PASS('Sender label reset')
         except TestingFacadeException as exception:
             return test.UNCLEAR(exception.args[0])
@@ -461,7 +502,7 @@ class IS1302Test(ControllerTest):
             if response['time_received'] > expected_time + OBSERVE_ANSWER_SECONDS:
                 seconds = int(response['time_received'] - expected_time)
                 return test.FAIL('Label changed {} seconds before the button was clicked'.format(seconds))
-            after = self._registry_sender(test, sender['id'])
+            after = self._registry_resource(test, 'sender', sender['id'])
             if after.get('label') != OBSERVE_LABEL:
                 return test.FAIL('Registry label was {!r}'.format(after.get('label')))
             return test.PASS('Label change shown by the NCuT')
@@ -469,3 +510,107 @@ class IS1302Test(ControllerTest):
             return test.UNCLEAR(exception.args[0])
         finally:
             self.node.restore_annotation(sender['id'])
+
+    def test_06(self, test):
+        """
+        Set a Receiver description via the Annotation API
+        """
+        receiver = self.annotated_receiver
+        try:
+            self.node.clear_annotation_requests()
+            before = self._registry_resource(test, 'receiver', receiver['id'])
+
+            question = textwrap.dedent("""\
+                The NCuT should be able to set a Receiver's description through the Annotation API. \
+                The label and tags stay as they are.
+
+                Set the description of this Receiver to exactly:
+
+                {}
+
+                {}
+
+                Click the 'Next' button once the description has been saved.
+                """).format(NEW_DESCRIPTION, receiver['display_answer'])
+
+            metadata = {'receiver': {
+                'id': receiver['id'],
+                'label': receiver['label'],
+                'description': NEW_DESCRIPTION,
+            }}
+            self.testing_facade_utils.invoke_testing_facade(
+                question, [], test_type="action", metadata=metadata)
+
+            patch = self._require_patch(test, 'receiver', receiver['id'])
+            if patch['data'].get('description') != NEW_DESCRIPTION:
+                return test.FAIL('PATCH description was {!r}'.format(patch['data'].get('description')))
+
+            after = self._registry_resource(test, 'receiver', receiver['id'])
+            if after.get('description') != NEW_DESCRIPTION:
+                return test.FAIL('Registry description was {!r}'.format(after.get('description')))
+            self._require_unchanged(test, before, after, ('label', 'tags'))
+            return test.PASS('Receiver description updated')
+        except TestingFacadeException as exception:
+            return test.UNCLEAR(exception.args[0])
+        finally:
+            self.node.restore_annotation(receiver['id'])
+
+    def test_07(self, test):
+        """
+        Reset a Receiver tag via the Annotation API
+        """
+        receiver = self.annotated_receiver
+        try:
+            self.node.patch_annotation(receiver['id'], {'tags': {USER_TAG_NAME: OVERRIDE_TAG_VALUE}})
+            self.node.clear_annotation_requests()
+            before = self._registry_resource(test, 'receiver', receiver['id'])
+
+            question = textwrap.dedent("""\
+                The NCuT should be able to reset one of a Receiver's tags. The PATCH sends null for that tag, \
+                and the Node restores the value it had at registration. The other tags stay as they are.
+
+                Refresh the NCuT. This Receiver's {} tag is currently {}.
+
+                {}
+
+                Reset that tag.
+
+                Click the 'Next' button once the tag has been reset.
+                """).format(USER_TAG_NAME, OVERRIDE_TAG_VALUE[0], receiver['display_answer'])
+
+            metadata = {'receiver': {
+                'id': receiver['id'],
+                'label': receiver['label'],
+                'description': receiver['description'],
+            }}
+            self.testing_facade_utils.invoke_testing_facade(
+                question, [], test_type="action", metadata=metadata)
+
+            patch = self._require_patch(test, 'receiver', receiver['id'])
+            tags = patch['data'].get('tags')
+            if 'tags' in patch['data'] and tags is None:
+                return test.FAIL('PATCH reset all tags rather than only {}'.format(USER_TAG_NAME))
+            if not isinstance(tags, dict) or USER_TAG_NAME not in tags or tags[USER_TAG_NAME] is not None:
+                return test.FAIL('Reset must PATCH {} set to null'.format(USER_TAG_NAME))
+
+            after = self._registry_resource(test, 'receiver', receiver['id'])
+            expected_tags = dict(before.get('tags') or {})
+            expected_tags[USER_TAG_NAME] = RECEIVER_TAG_VALUE
+            if after.get('tags') != expected_tags:
+                return test.FAIL('Registry tags were {!r} after reset'.format(after.get('tags')))
+            self._require_unchanged(test, before, after, ('label', 'description'))
+
+            question = textwrap.dedent("""\
+                The NCuT should show the tag value held by the Node, which can differ from the value \
+                that was requested.
+
+                What value does the NCuT now show for this Receiver's {} tag?
+                """).format(USER_TAG_NAME)
+            self._require_displayed_value(
+                test, question, [RECEIVER_TAG_VALUE[0], OVERRIDE_TAG_VALUE[0], NO_VALUE_ANSWER],
+                RECEIVER_TAG_VALUE[0], metadata)
+            return test.PASS('Receiver tag reset')
+        except TestingFacadeException as exception:
+            return test.UNCLEAR(exception.args[0])
+        finally:
+            self.node.restore_annotation(receiver['id'])
