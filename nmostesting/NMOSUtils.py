@@ -15,6 +15,7 @@
 import time
 import functools
 import random
+import zlib
 from urllib.parse import urlparse
 from requests.compat import json
 
@@ -80,6 +81,13 @@ class NMOSUtils(object):
 
     # Seedable instance of random for deterministic testing
     RANDOM = random.Random()
+
+    @staticmethod
+    def seed_random(name):
+        """Seed RANDOM from CONFIG.RANDOM_SEED and a name, such as a test name"""
+        # The built-in hash() of a str differs between processes unless PYTHONHASHSEED is set,
+        # so it would not reproduce the same values for a given RANDOM_SEED
+        NMOSUtils.RANDOM.seed(CONFIG.RANDOM_SEED ^ zlib.crc32(name.encode()))
 
     def __init__(self, url):
         self.url = url
