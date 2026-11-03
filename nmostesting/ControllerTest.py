@@ -126,6 +126,17 @@ class ControllerTest(GenericTest):
                 .format(schema_error)
             ))
 
+    def assert_valid_staged_patch_url(self, test, patch_request):
+        """
+        Raise NMOSTestException if the mock Node recorded that a /staged PATCH
+        URL has a trailing slash.
+        """
+        if patch_request['path'].endswith('/'):
+            raise NMOSTestException(test.FAIL(
+                "PATCH /staged request URL has a trailing slash: {}"
+                .format(patch_request['path'])
+            ))
+
     def execute_tests(self, test_names):
         """Perform tests defined within this class"""
 
@@ -170,10 +181,11 @@ class ControllerTest(GenericTest):
             return MXL_CONNECTION_API_VERSION
         return self.connection_api_version
 
-    def _device_controls(self, transport):
+    def _device_controls(self, transport, trailing_slash):
         connection_api_version = self._connection_api_version_for_transport(transport)
         return {
-            "href": self.mock_node_base_url + "x-nmos/connection/" + connection_api_version + "/",
+            "href": self.mock_node_base_url + "x-nmos/connection/" + connection_api_version
+            + ("/" if trailing_slash else ""),
             "type": "urn:x-nmos:control:sr-ctrl/" + connection_api_version
         }
 
@@ -206,6 +218,9 @@ class ControllerTest(GenericTest):
             self.primary_registry.common.reset()  # Ensure any previously registered senders and receivers are removed
         sender_ip_final_octet = 159
         mxl_domain_id = str(uuid.uuid4())
+        # Controllers MUST support device control hrefs both with and without a trailing slash,
+        # so alternate between the two for the hrefs registered here, starting from a seeded choice
+        trailing_slash = NMOSUtils.RANDOM.random() < 0.5
 
         # Register node
         self._register_node(test, self.node.id, "AMWA Test Suite Node", "AMWA Test Suite Node")
@@ -219,6 +234,11 @@ class ControllerTest(GenericTest):
             sender["device_id"] = str(uuid.uuid4())
             sender["flow_id"] = str(uuid.uuid4())
             sender["source_id"] = str(uuid.uuid4())
+            sender_controls = self._device_controls(self._sender_transport(sender), trailing_slash)
+            sender["controls_href"] = sender_controls["href"]
+            sender["controls_type"] = sender_controls["type"]
+            if sender["registered"]:
+                trailing_slash = not trailing_slash
             if self._sender_uses_rtp_transport(sender):
                 sender["manifest_href"] = self.mock_node_base_url + "x-nmos/connection/" \
                     + self.connection_api_version + "/single/senders/" + sender["id"] + "/transportfile"
@@ -247,9 +267,11 @@ class ControllerTest(GenericTest):
         for receiver in self.receivers:
             receiver["id"] = str(uuid.uuid4())
             receiver["device_id"] = str(uuid.uuid4())
-            receiver_controls = self._device_controls(self._receiver_transport(receiver))
+            receiver_controls = self._device_controls(self._receiver_transport(receiver), trailing_slash)
             receiver["controls_href"] = receiver_controls["href"]
             receiver["controls_type"] = receiver_controls["type"]
+            if receiver["registered"] and receiver["connectable"]:
+                trailing_slash = not trailing_slash
             receiver["version"] = NMOSUtils.get_TAI_time()
             receiver["display_answer"] = self._format_device_metadata(
                     receiver['label'], receiver['description'], receiver['id'])
@@ -377,9 +399,8 @@ class ControllerTest(GenericTest):
         device_data["label"] = "AMWA Test Device"
         device_data["description"] = "AMWA Test Device"
         device_data["node_id"] = self.node.id
-        sender_controls = self._device_controls(self._sender_transport(sender))
-        device_data["controls"][0]["href"] = sender_controls["href"]
-        device_data["controls"][0]["type"] = sender_controls["type"]
+        device_data["controls"][0]["href"] = sender["controls_href"]
+        device_data["controls"][0]["type"] = sender["controls_type"]
         device_data["senders"] = [sender["id"]]
         device_data["receivers"] = []
         device_data["version"] = sender["version"]

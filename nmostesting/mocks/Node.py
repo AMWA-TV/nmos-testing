@@ -834,8 +834,8 @@ def staged(version, resource, resource_id):
     # Track requests. Schema validation outcome is attached for PATCH so controller
     # tests can report invalid request bodies without the mock rejecting them.
     request_json = request.get_json(silent=True)
-    request_record = {'method': request.method, 'resource': resource, 'resource_id': resource_id,
-                      'data': request_json}
+    request_record = {'method': request.method, 'path': request.path, 'resource': resource,
+                      'resource_id': resource_id, 'data': request_json}
     NODE.staged_requests.append(request_record)
 
     try:

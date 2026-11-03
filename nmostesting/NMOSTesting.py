@@ -151,6 +151,9 @@ CORS(sender_app)
 sender_app.debug = False
 sender_app.config['PORT'] = NODE.port
 sender_app.config['SECURE'] = CONFIG.ENABLE_HTTPS
+# Respond 404 to a doubled slash rather than redirect, so that Controller tests detect URLs built from
+# device control hrefs without allowing for a trailing slash
+sender_app.url_map.merge_slashes = False
 sender_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
 FLASK_APPS.append(sender_app)
 
