@@ -19,7 +19,6 @@
 # change through the Query API.
 
 import inspect
-import random
 import textwrap
 import time
 import uuid
@@ -79,7 +78,7 @@ class IS1302Test(ControllerTest):
             'connectable': True,
             'registered': True,
         }]
-        self.other_tag_value = [str(random.randint(1, 99))]
+        self.other_tag_value = [str(NMOSUtils.RANDOM.randint(1, 99))]
 
         ControllerTest.set_up_tests(self)
         self.annotated_sender = self.senders[0]
@@ -100,9 +99,12 @@ class IS1302Test(ControllerTest):
             raise NMOSTestException(test.FAIL("Mock Node is not in the Registry"))
 
         version = self._annotation_version()
+        # Controllers MUST support hrefs both with and without a trailing slash,
+        # so make a seeded choice between the two
+        trailing_slash = NMOSUtils.RANDOM.random() < 0.5
         node_data["version"] = NMOSUtils.get_TAI_time()
         node_data["services"] = [{
-            "href": self.mock_node_base_url + "x-nmos/annotation/" + version + "/",
+            "href": self.mock_node_base_url + "x-nmos/annotation/" + version + ("/" if trailing_slash else ""),
             "type": "urn:x-nmos:service:annotation/" + version,
             "authorization": CONFIG.ENABLE_AUTH,
         }]
@@ -244,7 +246,7 @@ class IS1302Test(ControllerTest):
     def _require_displayed_value(self, test, question, values, expected, metadata):
         """Ask which of the values the NCuT shows, and fail unless it is the expected one."""
         values = list(values)
-        random.shuffle(values)
+        NMOSUtils.RANDOM.shuffle(values)
         possible_answers = [{'answer_id': 'answer_' + str(index), 'display_answer': value}
                             for index, value in enumerate(values)]
         actual_answer = self.testing_facade_utils.invoke_testing_facade(
@@ -492,7 +494,7 @@ class IS1302Test(ControllerTest):
                 test_type="action", multipart_test=1, metadata=metadata)
 
             self.testing_facade_utils.exit_test_event_clear()
-            self.testing_facade_utils.exit_test_event_wait(random.randint(5, 15))
+            self.testing_facade_utils.exit_test_event_wait(NMOSUtils.RANDOM.randint(5, 15))
             self.node.patch_annotation(sender['id'], {'label': OBSERVE_LABEL})
             expected_time = time.time()
 
