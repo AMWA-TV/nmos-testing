@@ -912,21 +912,24 @@ class IS0501Test(GenericTest):
         if len(rtp_senders) == 0:
             return test.UNCLEAR("Not tested. No RTP senders found.")
 
-        # Check SDPoker version
+        # Compare numeric fields so 0.10.0 is not treated as older than 0.3.0.
+        # An unreadable version is not the same as a missing executable.
         sdpoker_min_version = "0.3.0"
         try:
-            cmd_string = "sdpoker --version"
-            output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
-            running_ver = output.decode("utf-8").split(".")
-            expected_ver = sdpoker_min_version.split(".")
-            if (running_ver[0] < expected_ver[0] or
-                    (running_ver[0] == expected_ver[0] and running_ver[1] < expected_ver[1]) or
-                    (running_ver[0] == expected_ver[0] and running_ver[1] == expected_ver[1] and
-                        running_ver[2] < expected_ver[2])):
-                return test.FAIL("SDPoker version is too old. Please update to version {}".format(sdpoker_min_version))
-        except (subprocess.CalledProcessError, IndexError):
+            output = subprocess.check_output("sdpoker --version", stderr=subprocess.STDOUT, shell=True)
+        except subprocess.CalledProcessError:
             return test.DISABLED("SDPoker may be unavailable on this system. Please see the README for "
                                  "installation instructions.")
+        reported_lines = output.decode("utf-8").strip().splitlines()
+        reported = reported_lines[0].strip() if reported_lines else ""
+        parts = reported.split(".")
+        minimum = sdpoker_min_version.split(".")
+        if len(parts) != len(minimum) or not all(part.isdigit() for part in parts):
+            return test.DISABLED("SDPoker version {!r} could not be read. "
+                                 "Expected a version such as {}.".format(reported, sdpoker_min_version))
+        running_ver = tuple(int(part) for part in parts)
+        if running_ver < tuple(int(part) for part in minimum):
+            return test.FAIL("SDPoker version is too old. Please update to version {}".format(sdpoker_min_version))
 
         # First pass to check for errors
         access_error = False
