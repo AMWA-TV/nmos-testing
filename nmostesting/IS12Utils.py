@@ -105,11 +105,7 @@ class IS12Utils(MS05Utils):
         self.ncp_websocket.start()
 
         # Give WebSocket client a chance to start and open its connection
-        start_time = time.time()
-        while time.time() < start_time + WS_MESSAGE_TIMEOUT:
-            if self.ncp_websocket.is_open():
-                break
-            time.sleep(0.2)
+        self.ncp_websocket.wait_for(self.ncp_websocket.is_open, WS_MESSAGE_TIMEOUT)
 
         if self.ncp_websocket.did_error_occur() or not self.ncp_websocket.is_open():
             raise NMOSInitException("Failed to open WebSocket successfully"
@@ -161,10 +157,9 @@ class IS12Utils(MS05Utils):
         self.ncp_websocket.send(json.dumps(command_json))
 
         results = []
-        start_time = time.time()
-        while time.time() < start_time + 2 * WS_MESSAGE_TIMEOUT:  # have enough time for command and notifications
-            if not self.ncp_websocket.is_messages_received():
-                time.sleep(0.2)
+        end_time = time.time() + 2 * WS_MESSAGE_TIMEOUT  # have enough time for command and notifications
+        while time.time() < end_time:
+            if not self.ncp_websocket.wait_for(self.ncp_websocket.is_messages_received, end_time - time.time()):
                 continue
 
             # find the response to our request

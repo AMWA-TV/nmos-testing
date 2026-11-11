@@ -321,6 +321,8 @@ class WebsocketWorker(threading.Thread):
         self.connected = False
         self.error_message = ""
         self.mutex = Lock()
+        # notified whenever the connection state or the received messages change
+        self.state_changed = threading.Condition(self.mutex)
 
     def run(self):
         url = urlparse(self.ws.url)
@@ -331,19 +333,26 @@ class WebsocketWorker(threading.Thread):
         self.ws.run_forever(sslopt=sslopt)
 
     def on_open(self, ws):
-        self.connected = True
+        with self.state_changed:
+            self.connected = True
+            self.state_changed.notify_all()
 
     def on_message(self, ws, message):
-        with self.mutex:
+        with self.state_changed:
             self.messages.append(WebsocketWorker.Message(message))
+            self.state_changed.notify_all()
 
     def on_close(self, ws, close_status, close_message):
-        self.connected = False
+        with self.state_changed:
+            self.connected = False
+            self.state_changed.notify_all()
 
     def on_error(self, ws, error):
-        self.error_occurred = True
-        self.error_message = error
-        self.connected = False
+        with self.state_changed:
+            self.error_occurred = True
+            self.error_message = error
+            self.connected = False
+            self.state_changed.notify_all()
 
     def close(self):
         self.ws.close()
@@ -375,6 +384,14 @@ class WebsocketWorker(threading.Thread):
 
     def is_messages_received(self):
         return len(self.messages) > 0
+
+    def wait_for(self, predicate, timeout):
+        """
+        Wait until predicate() is true or the timeout (seconds) has elapsed. Returns the last result of predicate().
+        predicate is called with the worker's mutex held, so it must not call get_messages or similar methods.
+        """
+        with self.state_changed:
+            return self.state_changed.wait_for(predicate, timeout)
 
     def clear_messages(self):
         with self.mutex:

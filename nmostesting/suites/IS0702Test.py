@@ -296,12 +296,9 @@ class IS0702Test(GenericTest):
 
             # Give each WebSocket client a chance to start and open its connection
             start_time = time.time()
-            while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
-                no_health_opened = all([websockets_no_health[_].is_open() for _ in websockets_no_health])
-                with_health_opened = all([websockets_with_health[_].is_open() for _ in websockets_with_health])
-                if no_health_opened and with_health_opened:
-                    break
-                time.sleep(0.2)
+            for websockets in [websockets_no_health, websockets_with_health]:
+                for websocket in websockets.values():
+                    websocket.wait_for(websocket.is_open, start_time + CONFIG.WS_MESSAGE_TIMEOUT - time.time())
 
             # After that short while, they must all be connected successfully
             for websockets in [websockets_no_health, websockets_with_health]:
@@ -331,10 +328,9 @@ class IS0702Test(GenericTest):
                 websockets_with_health[connection_uri].send(json.dumps(health_command))
 
             # All WebSocket connections which were sent a health command should respond with a health response
-            while time.time() < start_time + WS_HEARTBEAT_INTERVAL * 2:
-                if all([len(websockets_with_health[_].messages) >= 1 for _ in websockets_with_health]):
-                    break
-                time.sleep(0.2)
+            for websocket in websockets_with_health.values():
+                websocket.wait_for(websocket.is_messages_received,
+                                   start_time + WS_HEARTBEAT_INTERVAL * 2 - time.time())
 
             for connection_uri in websockets_with_health:
                 websocket = websockets_with_health[connection_uri]
@@ -413,10 +409,9 @@ class IS0702Test(GenericTest):
                                      .format(connection_uri))
 
             # WebSocket connections which have been sent a health command should start being closed down now
-            while time.time() < start_time + WS_TIMEOUT + WS_HEARTBEAT_INTERVAL * 2:
-                if all([not websockets_with_health[_].is_open() for _ in websockets_with_health]):
-                    break
-                time.sleep(0.2)
+            for websocket in websockets_with_health.values():
+                websocket.wait_for(lambda: not websocket.is_open(),
+                                   start_time + WS_TIMEOUT + WS_HEARTBEAT_INTERVAL * 2 - time.time())
 
             # Now, they must all be disconnected
             for connection_uri in websockets_with_health:
@@ -445,10 +440,8 @@ class IS0702Test(GenericTest):
 
             # Give each WebSocket client a chance to start and open its connection
             start_time = time.time()
-            while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
-                if all([target_websockets[_].is_open() for _ in target_websockets]):
-                    break
-                time.sleep(0.2)
+            for websocket in target_websockets.values():
+                websocket.wait_for(websocket.is_open, start_time + CONFIG.WS_MESSAGE_TIMEOUT - time.time())
 
             # After that short while, they must all be connected successfully
             for connection_uri in target_websockets:
@@ -773,10 +766,11 @@ class IS0702Test(GenericTest):
             target_websockets[connection_uri].send(json.dumps(subscription_command))
 
         # All WebSocket connections which were sent commands should have responded
-        while time.time() < end_time:
-            if all([len(target_websockets[_].messages) >= 2 for _ in target_websockets]):
-                break
-            time.sleep(0.2)
+        # with a health response and a state message for each source
+        for connection_uri in target_websockets:
+            websocket = target_websockets[connection_uri]
+            expected_messages = 1 + len(connection_sources[connection_uri])
+            websocket.wait_for(lambda: len(websocket.messages) >= expected_messages, end_time - time.time())
 
         # Check all state messages
         for connection_uri in target_websockets:
