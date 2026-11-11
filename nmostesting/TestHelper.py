@@ -400,6 +400,11 @@ class WebsocketWorker(threading.Thread):
 
 class MQTTClientWorker:
     """MQTT Client Worker"""
+    # shared by every worker, so that a test can wait for a change at any of several brokers
+    state_changed = threading.Condition()
+    # counts the notifications of state_changed, so that a caller can wait for a change after it last looked
+    changes = 0
+
     def __init__(self, host, port, secure=False, username=None, password=None, topics=[]):
         """
         Initializer
@@ -438,9 +443,25 @@ class MQTTClientWorker:
     def close(self):
         self.client.loop_stop()
 
+    @classmethod
+    def notify_change(cls):
+        with cls.state_changed:
+            cls.changes += 1
+            cls.state_changed.notify_all()
+
+    @classmethod
+    def wait_for(cls, predicate, timeout):
+        """
+        Wait until predicate() is true or the timeout (seconds) has elapsed. Returns the last result of predicate().
+        predicate is checked again whenever any worker's connection state or received messages change.
+        """
+        with cls.state_changed:
+            return cls.state_changed.wait_for(predicate, timeout)
+
     def on_connect(self, flags, rc):
         if len(self.topics) == 0:
             self.connected = True
+            self.notify_change()
         else:
             for topic in self.topics:
                 result, message_id = self.client.subscribe(topic, options=mqtt.SubscribeOptions(retainAsPublished=True))
@@ -453,6 +474,7 @@ class MQTTClientWorker:
             self.pending_subs.remove(message_id)
             if len(self.pending_subs) == 0:
                 self.connected = True
+                self.notify_change()
         else:
             print("Unexpected suback message ID: {}".format(message_id))
 
@@ -476,14 +498,17 @@ class MQTTClientWorker:
         if rc != mqtt.MQTT_ERROR_SUCCESS:
             self.error_occurred = True
             self.error_message = "disconnected with rc {}".format(rc)
+        self.notify_change()
 
     def on_message(self, message):
         self.messages.append(message)
+        self.notify_change()
 
     def on_log(self, level, buf):
         if level == mqtt.MQTT_LOG_ERR:
             self.error_occurred = True
             self.error_message = buf
+            self.notify_change()
         print("MQTT log: {}: {}".format(level, buf))
 
 
