@@ -21,7 +21,7 @@ RUN apt-get update \
     && cp nmostesting/UserConfig.example.py /config/UserConfig.py \
     && ln -s /config/UserConfig.py nmostesting/UserConfig.py \
     && cd testssl \
-    && wget https://github.com/drwetter/testssl.sh/archive/v3.0.7.tar.gz \
+    && wget https://github.com/testssl/testssl.sh/archive/v3.0.7.tar.gz \
     && tar -xvzf v3.0.7.tar.gz --strip-components=1 \
     && rm v3.0.7.tar.gz \
     && npm config set unsafe-perm true \
