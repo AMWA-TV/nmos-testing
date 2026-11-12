@@ -440,10 +440,12 @@ class IS05Utils(NMOSUtils):
                 except TypeError:
                     return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(staged),
                                                                                                 staged)
-                count = 0
                 try:
-                    for item in stagedParams:
-                        expected = paramValues[count]
+                    if len(stagedParams) != len(paramValues):
+                        return False, "Number of transport_params in response from {} ({}) does not match " \
+                                      "the advertised constraints ({})".format(url, len(stagedParams),
+                                                                               len(paramValues))
+                    for expected, item in zip(paramValues, stagedParams):
                         actual = item[paramName]
                         msg = "Could not change {} parameter at {}, expected {}, got {}".format(paramName, url,
                                                                                                 expected,
@@ -452,7 +454,6 @@ class IS05Utils(NMOSUtils):
                             pass
                         else:
                             return False, msg
-                        count = count + 1
                 except TypeError:
                     return False, "Expected a dict to be returned from {}, got a {}: {}".format(url,
                                                                                                 type(stagedParams),
