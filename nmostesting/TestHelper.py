@@ -321,6 +321,8 @@ class WebsocketWorker(threading.Thread):
         self.connected = False
         self.error_message = ""
         self.mutex = Lock()
+        # notified whenever the connection state or the received messages change
+        self.state_changed = threading.Condition(self.mutex)
 
     def run(self):
         url = urlparse(self.ws.url)
@@ -331,19 +333,26 @@ class WebsocketWorker(threading.Thread):
         self.ws.run_forever(sslopt=sslopt)
 
     def on_open(self, ws):
-        self.connected = True
+        with self.state_changed:
+            self.connected = True
+            self.state_changed.notify_all()
 
     def on_message(self, ws, message):
-        with self.mutex:
+        with self.state_changed:
             self.messages.append(WebsocketWorker.Message(message))
+            self.state_changed.notify_all()
 
     def on_close(self, ws, close_status, close_message):
-        self.connected = False
+        with self.state_changed:
+            self.connected = False
+            self.state_changed.notify_all()
 
     def on_error(self, ws, error):
-        self.error_occurred = True
-        self.error_message = error
-        self.connected = False
+        with self.state_changed:
+            self.error_occurred = True
+            self.error_message = error
+            self.connected = False
+            self.state_changed.notify_all()
 
     def close(self):
         self.ws.close()
@@ -376,6 +385,14 @@ class WebsocketWorker(threading.Thread):
     def is_messages_received(self):
         return len(self.messages) > 0
 
+    def wait_for(self, predicate, timeout):
+        """
+        Wait until predicate() is true or the timeout (seconds) has elapsed. Returns the last result of predicate().
+        predicate is called with the worker's mutex held, so it must not call get_messages or similar methods.
+        """
+        with self.state_changed:
+            return self.state_changed.wait_for(predicate, timeout)
+
     def clear_messages(self):
         with self.mutex:
             self.messages.clear()
@@ -383,6 +400,11 @@ class WebsocketWorker(threading.Thread):
 
 class MQTTClientWorker:
     """MQTT Client Worker"""
+    # shared by every worker, so that a test can wait for a change at any of several brokers
+    state_changed = threading.Condition()
+    # counts the notifications of state_changed, so that a caller can wait for a change after it last looked
+    _changes = 0
+
     def __init__(self, host, port, secure=False, username=None, password=None, topics=[]):
         """
         Initializer
@@ -421,9 +443,49 @@ class MQTTClientWorker:
     def close(self):
         self.client.loop_stop()
 
+    @classmethod
+    def notify_change(cls):
+        with cls.state_changed:
+            cls._changes += 1
+            cls.state_changed.notify_all()
+
+    @classmethod
+    def wait_for(cls, predicate, timeout):
+        """
+        Wait until predicate() is true or the timeout (seconds) has elapsed. Returns the last result of predicate().
+        predicate is checked again whenever any worker's connection state or received messages change.
+        """
+        with cls.state_changed:
+            return cls.state_changed.wait_for(predicate, timeout)
+
+    @classmethod
+    def change_count(cls):
+        """
+        Returns the number of changes so far, to pass to wait_for_change.
+        """
+        with cls.state_changed:
+            return cls._changes
+
+    @classmethod
+    def wait_for_change(cls, since, timeout):
+        """
+        Wait until any worker's connection state or received messages change after change_count() returned since,
+        or the timeout (seconds) has elapsed. Returns whether there was a change.
+        """
+        return cls.wait_for(lambda: cls._changes != since, timeout)
+
+    def wait_for_open(self, timeout):
+        """
+        Wait until the connection is open or an error has occurred, or the timeout (seconds) has elapsed.
+        Returns whether the connection is open.
+        """
+        self.wait_for(lambda: self.is_open() or self.did_error_occur(), timeout)
+        return self.is_open()
+
     def on_connect(self, flags, rc):
         if len(self.topics) == 0:
             self.connected = True
+            self.notify_change()
         else:
             for topic in self.topics:
                 result, message_id = self.client.subscribe(topic, options=mqtt.SubscribeOptions(retainAsPublished=True))
@@ -436,6 +498,7 @@ class MQTTClientWorker:
             self.pending_subs.remove(message_id)
             if len(self.pending_subs) == 0:
                 self.connected = True
+                self.notify_change()
         else:
             print("Unexpected suback message ID: {}".format(message_id))
 
@@ -459,14 +522,17 @@ class MQTTClientWorker:
         if rc != mqtt.MQTT_ERROR_SUCCESS:
             self.error_occurred = True
             self.error_message = "disconnected with rc {}".format(rc)
+        self.notify_change()
 
     def on_message(self, message):
         self.messages.append(message)
+        self.notify_change()
 
     def on_log(self, level, buf):
         if level == mqtt.MQTT_LOG_ERR:
             self.error_occurred = True
             self.error_message = buf
+            self.notify_change()
         print("MQTT log: {}: {}".format(level, buf))
 
 
