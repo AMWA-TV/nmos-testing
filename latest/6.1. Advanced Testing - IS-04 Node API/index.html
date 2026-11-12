@@ -1133,7 +1133,7 @@
 <li>The testing tool waits for the <code>DNS_SD_BROWSE_TIMEOUT</code> to pass, or for the registry to receive a registration (whichever comes first).</li>
 </ul>
 <h2 id="test_15-node-correctly-selects-a-registration-api-based-on-advertised-priorities">test_15: Node correctly selects a Registration API based on advertised priorities</h2>
-<p>This test checks that a Node can fail over between a set of advertised registries when one fails, and that when doing so it always fails over to the next best registry as determined by their priority ('pri' TXT record).</p>
+<p>This test checks that a Node can fail over between a set of advertised registries when one fails, and that when doing so it always fails over to the next best registry as determined by their priority (<code>pri</code> TXT record).</p>
 <p>It is important to note that Nodes are expected to immediately try the next available registry when they receive an error code such as an HTTP 500 upon heartbeating. This ensures that if they were previously successfully registered, they have the best chance of avoiding having to re-register all of their resources with the next registry in the list. Whilst Nodes are expected to perform exponential backoff to avoid overloading registries, this is only expected to occur once each available registry has been contacted once, indicating a more major error.</p>
 <p>Note that this test is executed at the same time as test_16 and test_16_01.</p>
 <h3 id="testing-method_1">Testing Method</h3>

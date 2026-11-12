@@ -948,15 +948,21 @@
 <h2 id="dependencies">Dependencies</h2>
 <p>Please ensure that the following dependencies are installed on your system first.</p>
 <ul>
-<li>Python 3.8 or higher, including the 'pip' package manager</li>
+<li>Python 3.8 or higher, including the <code>pip</code> package manager</li>
 <li>Git</li>
 <li><a href="https://testssl.sh">testssl.sh</a> (required for BCP-003-01 testing, see our <a href="https://github.com/AMWA-TV/nmos-testing/blob/master/testssl/README.md">README</a> for instructions)</li>
 <li><a href="https://www.openssl.org/">OpenSSL</a> (required for BCP-003-01 OCSP testing)</li>
 <li>libssl-dev and libffi-dev (Linux users only, required for BCP-003-01/IS-10 testing)</li>
 <li><a href="https://github.com/AMWA-TV/sdpoker">SDPoker</a> (required for IS-05 SDP testing)</li>
 </ul>
+<p>The minimum and tested versions of testssl.sh and SDPoker are listed in <code>EXTERNAL_TOOLS</code> in <a href="https://github.com/AMWA-TV/nmos-testing/blob/master/nmostesting/ExternalTools.py">nmostesting/ExternalTools.py</a>.</p>
+<p>The npm registry has only versions of SDPoker older than the minimum, so install the tested version from its GitHub repository.
+In the Windows Command Prompt, write the version in place of <code>${SDPOKER_VERSION}</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="nv">SDPOKER_VERSION</span><span class="o">=</span><span class="m">0</span>.3.0
+npm<span class="w"> </span>install<span class="w"> </span>-g<span class="w"> </span>AMWA-TV/sdpoker#v<span class="si">${</span><span class="nv">SDPOKER_VERSION</span><span class="si">}</span>
+</code></pre></div>
 <h2 id="installation-method">Installation Method</h2>
-<p>The following instructions will need to be carried out at the command line. This will require either a terminal application on Linux, or the 'Command Prompt' application on Windows. On some more modern installations, 'pip3' and 'python3' will be unavailable. In these cases, it should be possible to replace these commands with 'pip' and 'python' respectively.</p>
+<p>The following instructions will need to be carried out at the command line. This will require either a terminal application on Linux, or the 'Command Prompt' application on Windows. On some more modern installations, <code>pip3</code> and <code>python3</code> will be unavailable. In these cases, it should be possible to replace these commands with <code>pip</code> and <code>python</code> respectively.</p>
 <p>Ensure pip3 is installed and up to date.</p>
 <div class="highlight"><pre><span></span><code>pip3<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>pip
 </code></pre></div>

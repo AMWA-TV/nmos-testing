@@ -997,9 +997,9 @@
 <p>In the NMOS Testing Tool select one of the 'Controller' test suites and configure the IP/Hostname to that of the machine running the Testing Façade (e.g. localhost) and the Port to the Testing Façade's port (use 5001 by default).</p>
 <p>Select and launch the tests from the NMOS Testing tool, and follow the instructions displayed on the Testing Façade.</p>
 <h2 id="secure-controller-testing">Secure Controller Testing</h2>
-<p>Secure testing should typically be done in a unicast DNS-SD environment, by setting DNS_SD_MODE to 'unicast' in UserConfig.py (see <a href="../2.1.%20Usage%20-%20Testing%20Unicast%20Discovery/">Usage - Testing Unicast Discovery</a>).</p>
+<p>Secure testing should typically be done in a unicast DNS-SD environment, by setting <code>DNS_SD_MODE</code> to <code>'unicast'</code> in <code>UserConfig.py</code> (see <a href="../2.1.%20Usage%20-%20Testing%20Unicast%20Discovery/">Usage - Testing Unicast Discovery</a>).</p>
 <p>Before running the Controller tests in secure mode, add entries to the hosts file of the host running the test suite, and the host running the Controller under test, pointing at the IP address of the host running the test suite.
-These entries should correspond to the DNS_DOMAIN and be of the form 'mocks.<DNS_DOMAIN>', which by default should be 'mocks.testsuite.nmos.tv'.</p>
+These entries should correspond to the <code>DNS_DOMAIN</code> and be of the form <code>mocks.&lt;DNS_DOMAIN&gt;</code>, which by default should be <code>mocks.testsuite.nmos.tv</code>.</p>
 <p>More details on secure testing can be found in the <a href="../2.2.%20Usage%20-%20Testing%20BCP-003-01%20TLS/">BCP-003-01 TLS section</a>.</p>
 <h2 id="adjusting-testing-facade-timeout">Adjusting Testing Façade Timeout</h2>
 <p>By default, each user action presented on the Testing Façade will timeout if there is no user action after the number of seconds specified by CONTROLLER_TESTING_TIMEOUT in Config.py.

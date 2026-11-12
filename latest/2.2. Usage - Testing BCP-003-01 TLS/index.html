@@ -852,7 +852,11 @@
 
 <h1 id="testing-bcp-003-01-tls">Testing BCP-003-01 TLS</h1>
 <p>BCP-003-01 covers the use of Transport Layer Security with NMOS APIs. The BCP-003-01 Secure API Communications test suite can be run against an implementation of any of the APIs running in HTTPS mode to confirm that the full requirements of BCP-003-01 are met.</p>
-<p>Testing of certain aspects of BCP-003-01 makes use of an external tool 'testssl.sh'. Please see <a href="https://github.com/AMWA-TV/nmos-testing/blob/master/testssl/">testssl/</a> for installation instructions.</p>
+<p>Testing of certain aspects of BCP-003-01 makes use of an external tool <code>testssl.sh</code>. Please see <a href="https://github.com/AMWA-TV/nmos-testing/blob/master/testssl/">testssl/</a> for installation instructions.</p>
+<p>These tests are reported as disabled if testssl.sh cannot be run, or if the version printed by <code>testssl.sh -v</code> cannot be read.
+They fail if the installed version is older than the minimum version.
+If the installed version is newer than the tested version, the testing tool prints a warning at start-up and still runs the tests.
+Both versions are listed in <code>EXTERNAL_TOOLS</code> in <a href="https://github.com/AMWA-TV/nmos-testing/blob/master/nmostesting/ExternalTools.py">nmostesting/ExternalTools.py</a>.</p>
 <p>In order to ease testing of TLS with the various specifications, sample certificates are provided in this repository. Please see <a href="https://github.com/AMWA-TV/nmos-testing/blob/master/test_data/BCP00301/">test_data/BCP00301/</a> for their details and installation guidance.</p>
 <p>In addition to the specific test suite, each of the specification test suites can be run in HTTPS mode where applicable. When this is enabled, every request which is made by the testing tool will use HTTPS. The configuration parameter <code>ENABLE_HTTPS</code> should be set to <code>True</code> before running the Testing Tool.</p>
 
