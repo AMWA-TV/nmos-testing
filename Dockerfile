@@ -1,5 +1,9 @@
 FROM ubuntu:noble
 
+# The tested versions in EXTERNAL_TOOLS in nmostesting/ExternalTools.py
+ARG TESTSSL_VERSION=3.0.7
+ARG SDPOKER_VERSION=0.3.0
+
 WORKDIR /home/nmos-testing
 ADD . .
 ADD .git .git
@@ -21,10 +25,10 @@ RUN apt-get update \
     && cp nmostesting/UserConfig.example.py /config/UserConfig.py \
     && ln -s /config/UserConfig.py nmostesting/UserConfig.py \
     && cd testssl \
-    && wget https://github.com/testssl/testssl.sh/archive/v3.0.7.tar.gz \
-    && tar -xvzf v3.0.7.tar.gz --strip-components=1 \
-    && rm v3.0.7.tar.gz \
-    && npm install -g AMWA-TV/sdpoker#v0.3.0 \
+    && wget https://github.com/testssl/testssl.sh/archive/v${TESTSSL_VERSION}.tar.gz \
+    && tar -xvzf v${TESTSSL_VERSION}.tar.gz --strip-components=1 \
+    && rm v${TESTSSL_VERSION}.tar.gz \
+    && npm install -g AMWA-TV/sdpoker#v${SDPOKER_VERSION} \
     && rm /home/nmos-testing/setup_22.x \
     && apt-get remove -y wget \
     && apt-get clean -y --no-install-recommends \
