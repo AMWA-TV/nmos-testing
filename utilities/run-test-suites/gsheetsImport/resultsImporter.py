@@ -136,7 +136,8 @@ def gsheets_import(test_results, worksheet, filename, start_col=1, insert=False)
         cell_list_results[current_index] = test_results["url"]
     current_index += 1
     cell_list_names[current_index].value = "Timestamp"
-    cell_list_results[current_index] = (datetime.datetime.utcfromtimestamp(test_results["timestamp"])
+    cell_list_results[current_index] = (datetime.datetime.fromtimestamp(test_results["timestamp"],
+                                                                        datetime.timezone.utc)
                                         .strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + 'Z')
     current_index += 1
     cell_list_names[current_index].value = "Test Suite"
