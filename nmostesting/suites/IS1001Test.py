@@ -23,7 +23,7 @@ from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException
 from .. import Config as CONFIG
 from zeroconf import ServiceBrowser, Zeroconf
 from ..MdnsListener import MdnsListener
-from ..TestHelper import check_content_type
+from ..TestHelper import check_content_type, get_default_ip
 
 AUTH_API_KEY = 'auth'
 GRANT_SCOPES = ['is-04', 'is-05']
@@ -60,7 +60,7 @@ class IS1001Test(GenericTest):
         self.auth_codes = []
         self.clients = []  # List of all registered clients for deleting during clean-up
 
-        self.zc = Zeroconf()
+        self.zc = Zeroconf(interfaces=[get_default_ip()]) if CONFIG.BIND_INTERFACE else Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
 
     def set_up_tests(self):
