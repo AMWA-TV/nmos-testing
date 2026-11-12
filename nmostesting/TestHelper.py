@@ -403,7 +403,7 @@ class MQTTClientWorker:
     # shared by every worker, so that a test can wait for a change at any of several brokers
     state_changed = threading.Condition()
     # counts the notifications of state_changed, so that a caller can wait for a change after it last looked
-    changes = 0
+    _changes = 0
 
     def __init__(self, host, port, secure=False, username=None, password=None, topics=[]):
         """
@@ -446,7 +446,7 @@ class MQTTClientWorker:
     @classmethod
     def notify_change(cls):
         with cls.state_changed:
-            cls.changes += 1
+            cls._changes += 1
             cls.state_changed.notify_all()
 
     @classmethod
@@ -457,6 +457,30 @@ class MQTTClientWorker:
         """
         with cls.state_changed:
             return cls.state_changed.wait_for(predicate, timeout)
+
+    @classmethod
+    def change_count(cls):
+        """
+        Returns the number of changes so far, to pass to wait_for_change.
+        """
+        with cls.state_changed:
+            return cls._changes
+
+    @classmethod
+    def wait_for_change(cls, since, timeout):
+        """
+        Wait until any worker's connection state or received messages change after change_count() returned since,
+        or the timeout (seconds) has elapsed. Returns whether there was a change.
+        """
+        return cls.wait_for(lambda: cls._changes != since, timeout)
+
+    def wait_for_open(self, timeout):
+        """
+        Wait until the connection is open or an error has occurred, or the timeout (seconds) has elapsed.
+        Returns whether the connection is open.
+        """
+        self.wait_for(lambda: self.is_open() or self.did_error_occur(), timeout)
+        return self.is_open()
 
     def on_connect(self, flags, rc):
         if len(self.topics) == 0:
