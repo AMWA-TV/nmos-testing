@@ -29,9 +29,7 @@ import inspect
 import ipaddress
 import socket
 import ssl
-import subprocess
 import pkgutil
-import shlex
 import re
 
 from flask import Flask, render_template, flash, request, make_response, jsonify
@@ -51,6 +49,7 @@ from .GenericTest import NMOSInitException
 from . import TestingFacadeUtils
 from .TestResult import TestStates
 from .TestHelper import get_default_ip
+from .ExternalTools import check_external_requirements
 from .NMOSUtils import DEFAULT_ARGS
 from .CRL import CRL, CRL_API
 from .OCSP import OCSP, OCSP_API
@@ -1219,20 +1218,6 @@ def check_internal_requirements():
             if corrected_req not in installed_pkgs:
                 print(" * ERROR: Could not find Python requirement '{}'".format(requirement_name))
                 sys.exit(ExitCodes.ERROR)
-
-
-def check_external_requirements():
-    deps = {
-        "sdpoker": ("sdpoker --version", "0.3.0"),
-        "testssl": ("{} testssl/testssl.sh -v".format(shlex.quote(CONFIG.TEST_SSL_BASH)), "3.0.7")
-    }
-    for dep_name, dep_ver in deps.items():
-        try:
-            output = subprocess.check_output(dep_ver[0], stderr=subprocess.STDOUT, shell=True)
-            if dep_ver[1] not in str(output):
-                print(" * WARNING: Version of '{}' does not match the expected '{}'".format(dep_name, dep_ver[1]))
-        except subprocess.CalledProcessError:
-            print(" * WARNING: Could not find an installation of '{}'. Some tests will be disabled.".format(dep_name))
 
 
 class ExitCodes(IntEnum):

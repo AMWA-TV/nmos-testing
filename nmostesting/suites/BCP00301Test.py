@@ -21,6 +21,7 @@ import ipaddress
 
 from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException
 from .. import Config as CONFIG
+from ..ExternalTools import check_external_tool
 
 SECURE_API_KEY = "secure"
 TMPFILE = "tls-report.json"
@@ -36,6 +37,7 @@ class BCP00301Test(GenericTest):
             raise NMOSInitException("BCP-003-01 can only be tested when ENABLE_HTTPS is set to True in UserConfig.py")
         self.authorization = False  # Don't send tokens in every request
         self.report_json = {}
+        self.testssl_status_checked = False
 
     def perform_test_ssl(self, test, args=None):
         if os.path.exists(TMPFILE):
@@ -46,6 +48,9 @@ class BCP00301Test(GenericTest):
         if arg_key in self.report_json:
             return self.report_json[arg_key]
         else:
+            if not self.testssl_status_checked:
+                check_external_tool(test, "testssl.sh")
+                self.testssl_status_checked = True
             try:
                 ret = subprocess.run([CONFIG.TEST_SSL_BASH,
                                       "testssl/testssl.sh",

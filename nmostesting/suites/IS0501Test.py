@@ -25,6 +25,7 @@ from jsonschema import ValidationError, SchemaError
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS05Utils import IS05Utils
 from ..TestHelper import load_resolved_schema, check_content_type
+from ..ExternalTools import check_external_tool
 
 CONN_API_KEY = "connection"
 
@@ -912,21 +913,7 @@ class IS0501Test(GenericTest):
         if len(rtp_senders) == 0:
             return test.UNCLEAR("Not tested. No RTP senders found.")
 
-        # Check SDPoker version
-        sdpoker_min_version = "0.3.0"
-        try:
-            cmd_string = "sdpoker --version"
-            output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
-            running_ver = output.decode("utf-8").split(".")
-            expected_ver = sdpoker_min_version.split(".")
-            if (running_ver[0] < expected_ver[0] or
-                    (running_ver[0] == expected_ver[0] and running_ver[1] < expected_ver[1]) or
-                    (running_ver[0] == expected_ver[0] and running_ver[1] == expected_ver[1] and
-                        running_ver[2] < expected_ver[2])):
-                return test.FAIL("SDPoker version is too old. Please update to version {}".format(sdpoker_min_version))
-        except (subprocess.CalledProcessError, IndexError):
-            return test.DISABLED("SDPoker may be unavailable on this system. Please see the README for "
-                                 "installation instructions.")
+        check_external_tool(test, "SDPoker")
 
         # First pass to check for errors
         access_error = False
