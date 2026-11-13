@@ -321,6 +321,17 @@ SPECIFICATIONS = {
             },
         }
     },
+    "is-13": {
+        "repo": "is-13",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "annotation": {
+                "name": "Annotation API",
+                "raml": "AnnotationAPI.raml"
+            }
+        }
+    },
     "is-14": {
         "repo": "is-14",
         "versions": ["v1.0"],
