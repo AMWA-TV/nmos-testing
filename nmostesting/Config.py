@@ -214,6 +214,9 @@ STABLE_STATE_DELAY = 3
 STABLE_STATE_ATTEMPTS = 5
 
 # Definition of each API specification and its versions.
+# .github/scripts/cache_specifications.py reads this dict when the image is
+# built. For each version it fetches the branches matching "<version>*" and
+# checks that one of "<version>.x", "<version>-dev" and "<version>" exists.
 SPECIFICATIONS = {
     "is-04": {
         "repo": "is-04",
