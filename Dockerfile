@@ -2,7 +2,7 @@ FROM ubuntu:noble
 
 # The tested versions in EXTERNAL_TOOLS in nmostesting/ExternalTools.py
 ARG TESTSSL_VERSION=3.0.7
-ARG SDPOKER_VERSION=0.3.0
+ARG SDPOKER_VERSION=0.5.0
 
 WORKDIR /home/nmos-testing
 ADD . .
