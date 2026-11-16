@@ -28,7 +28,7 @@ EXTERNAL_TOOLS = {
         "command": "sdpoker --version",
         "pattern": r"^v?(\d+)\.(\d+)\.(\d+)",
         "minimum": "0.3.0",
-        "tested": "0.3.0"
+        "tested": "0.5.0"
     },
     "testssl.sh": {
         "command": ["{bash}", "testssl/testssl.sh", "-v"],
