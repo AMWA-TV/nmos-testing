@@ -960,7 +960,7 @@ class IS0501Test(GenericTest):
                 if sender in dup_senders:
                     dup_params = " --duplicate true"
                 try:
-                    cmd_string = "sdpoker --shaping true --whitespace true --should true " \
+                    cmd_string = "sdpoker --shaping true --should true " \
                                 "--checkEndings true{} {}".format(dup_params, sdp_files[sender])
                     output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
                     decoded_output = output.decode("utf-8")
