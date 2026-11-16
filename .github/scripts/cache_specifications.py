@@ -30,7 +30,7 @@ from nmostesting.Config import CACHE_PATH, SPECIFICATIONS  # noqa: E402
 
 
 def git(*args):
-    return subprocess.run(["git", *args], check=True, capture_output=True, text=True).stdout
+    return subprocess.run(["git", *args], check=True, stdout=subprocess.PIPE, text=True).stdout
 
 
 for repo_key, repo_data in SPECIFICATIONS.items():
