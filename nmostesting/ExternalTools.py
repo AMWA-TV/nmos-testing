@@ -14,7 +14,6 @@
 
 import os
 import re
-import shlex
 import subprocess
 from enum import IntEnum
 
@@ -32,7 +31,7 @@ EXTERNAL_TOOLS = {
         "tested": "0.3.0"
     },
     "testssl.sh": {
-        "command": "{bash} testssl/testssl.sh -v",
+        "command": ["{bash}", "testssl/testssl.sh", "-v"],
         "pattern": r"testssl\.sh\s+(?:version\s+)?(\d+)\.(\d+)(?:\.(\d+))?",
         "env": {"COLOR": "0"},
         "minimum": "3.0.7",
@@ -52,11 +51,17 @@ class ExternalToolStatus(IntEnum):
 def get_external_tool_status(name):
     """Run an external tool from EXTERNAL_TOOLS to check its version, returning an ExternalToolStatus and a message"""
     tool = EXTERNAL_TOOLS[name]
-    command = tool["command"].format(bash=shlex.quote(CONFIG.TEST_SSL_BASH))
+    # {bash} is replaced only in a command given as a list, which runs without a shell, the same way the
+    # tests run testssl.sh. In a string command, TEST_SSL_BASH would need quoting for whichever shell runs it,
+    # and on Windows cmd.exe would look up "bash" on the PATH, whereas running it directly looks in System32
+    # first, so the check could find a different bash from the tests.
+    command = tool["command"]
+    if isinstance(command, list):
+        command = [arg.format(bash=CONFIG.TEST_SSL_BASH) for arg in command]
     try:
-        output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True,
+        output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=isinstance(command, str),
                                          env=dict(os.environ, **tool.get("env", {})))
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, OSError):
         return ExternalToolStatus.UNAVAILABLE, ("{} may be unavailable on this system. Please see the README for "
                                                 "installation instructions.".format(name))
     text = output.decode("utf-8", errors="replace")
