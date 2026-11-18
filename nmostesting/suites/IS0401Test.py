@@ -65,7 +65,7 @@ class IS0401Test(GenericTest):
         self.zc_listener = None
 
     def set_up_tests(self):
-        self.zc = Zeroconf()
+        self.zc = Zeroconf(interfaces=[get_default_ip()]) if CONFIG.BIND_INTERFACE else Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
         if self.dns_server:
             self.dns_server.load_zone(self.apis[NODE_API_KEY]["version"], self.protocol, self.authorization,
