@@ -651,7 +651,7 @@ class IS0502Test(GenericTest):
             for sender in rtp_senders:
                 flow = flow_map[sender["flow_id"]]
                 source = source_map[flow["source_id"]]
-                media_subtype = re.escape(flow["media_type"].split("/")[1])
+                media_subtype = flow["media_type"].split("/")[1]
 
                 is05_transport_file = self.is05_resources["transport_files"][sender["id"]]
                 if is05_transport_file is None:
@@ -667,13 +667,13 @@ class IS0502Test(GenericTest):
                     sdp_line = sdp_line.replace("\r", "")
                     if sdp_line.startswith(r"a=rtpmap:"):
                         # Perform a coarse check first
-                        rtpmap = re.search(r"^a=rtpmap:\d+ {}/.+$".format(media_subtype), sdp_line)
-                        if not rtpmap:
+                        rtpmap = re.search(r"^a=rtpmap:\d+ ([^/]+)/.+$", sdp_line)
+                        if not rtpmap or rtpmap.group(1) != media_subtype:
                             return test.FAIL(r"a=rtpmap does not match Flow media type {} for Sender {}"
                                              .format(flow["media_type"], sender["id"]))
 
                         if source["format"] == "urn:x-nmos:format:video":
-                            rtpmap = re.search(r"^a=rtpmap:\d+ {}/90000$".format(media_subtype), sdp_line)
+                            rtpmap = re.search(r"^a=rtpmap:\d+ [^/]+/90000$", sdp_line)
                             if not rtpmap:
                                 return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
                                                  "type {} and Sender {}".format(flow["media_type"], sender["id"]))
