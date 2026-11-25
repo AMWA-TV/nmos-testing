@@ -392,6 +392,7 @@ TEST_DEFINITIONS = {
             "spec_key": "nmos-control-feature-sets",
             "api_key": "featuresets"
         }],
+        "auto_description": "Validates MS-05-02 class and datatype definitions advertised by the Class Manager",
         "class": IS1201Test.IS1201Test,
         "urlpath": True
     },
@@ -417,6 +418,8 @@ TEST_DEFINITIONS = {
             "spec_key": "nmos-control-feature-sets",
             "api_key": "featuresets"
         }],
+        "auto_description": "Basic API tests derived from the IS-14 specification RAML, and validates MS-05-02 "
+                            "class and datatype definitions advertised by the Class Manager",
         "class": IS1401Test.IS1401Test,
         "selector": True
     },
@@ -540,6 +543,7 @@ TEST_DEFINITIONS = {
             "api_key": "receivermonitor",
             "disable_fields": ["host", "port", "urlpath"]
         }],
+        "auto_description": "Validates MS-05-02 class and datatype definitions advertised by the Class Manager",
         "class": BCP0080101Test.BCP0080101Test,
         "urlpath": True
     },
@@ -570,6 +574,7 @@ TEST_DEFINITIONS = {
             "api_key": "sendermonitor",
             "disable_fields": ["host", "port", "urlpath"]
         }],
+        "auto_description": "Validates MS-05-02 class and datatype definitions advertised by the Class Manager",
         "class": BCP0080201Test.BCP0080201Test,
         "urlpath": True
     },
@@ -591,10 +596,14 @@ TEST_DEFINITIONS = {
 }
 
 
-def enumerate_tests(class_def, describe=False, disable_auto=False):
+def enumerate_tests(class_def, describe=False, disable_auto=False, auto_description=None):
     tests = ["all: Runs all tests in the suite" if describe else "all"]
     if not disable_auto:
-        tests.append("auto: Basic API tests derived directly from the specification RAML" if describe else "auto")
+        if describe:
+            tests.append("auto: " + (auto_description or
+                                     "Basic API tests derived directly from the specification RAML"))
+        else:
+            tests.append("auto")
 
     for method_name in dir(class_def):
         if method_name.startswith("test_"):
@@ -668,7 +677,9 @@ class DataForm(Form):
                                                              .get("disable_auto"))
         test_data[test_id]["test_descriptions"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"], describe=True,
                                                                   disable_auto=TEST_DEFINITIONS[test_id]
-                                                                  .get("disable_auto"))
+                                                                  .get("disable_auto"),
+                                                                  auto_description=TEST_DEFINITIONS[test_id]
+                                                                  .get("auto_description"))
 
     hidden_options = HiddenField(default=max_endpoints)
     hidden_tests = HiddenField(default=json.dumps(test_data))
@@ -1069,7 +1080,8 @@ def validate_args(args, access_type="cli"):
                 msg += test_name + '\n'
         elif args.describe_tests:
             tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"], describe=True,
-                                    disable_auto=TEST_DEFINITIONS[args.suite].get("disable_auto"))
+                                    disable_auto=TEST_DEFINITIONS[args.suite].get("disable_auto"),
+                                    auto_description=TEST_DEFINITIONS[args.suite].get("auto_description"))
             for test_description in tests:
                 msg += test_description + '\n'
         elif getattr(args, "selection", "all") not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"],
