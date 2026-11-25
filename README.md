@@ -2,7 +2,7 @@
 
 [![LICENSE](https://img.shields.io/github/license/amwa-tv/nmos-testing.svg?color=blue&logo=apache)](https://github.com/amwa-tv/nmos-testing/blob/master/LICENSE)
 [![Lint Status](https://github.com/AMWA-TV/nmos-testing/workflows/Lint/badge.svg)](https://github.com/AMWA-TV/nmos-testing/actions?query=workflow%3ALint)
-[![Render Status](https://github.com/AMWA-TV/nmos-testing/workflows/Render/badge.svg)](https://github.com/AMWA-TV/nmos-testing/actions?query=workflow%3ARender)
+[![Zensical Render Status](https://github.com/AMWA-TV/nmos-testing/actions/workflows/docs.yml/badge.svg)](https://github.com/AMWA-TV/nmos-testing/actions/workflows/docs.yml)
 [![Deploy Status](https://github.com/AMWA-TV/nmos-testing/workflows/Deploy/badge.svg)](https://github.com/AMWA-TV/nmos-testing/actions?query=workflow%3ADeploy)
 
 <!-- INTRO-START -->
@@ -32,6 +32,9 @@ The following test suites are currently supported.
 | IS-09-01 | IS-09 System API | | (X) | | System Parameters Server |
 | IS-09-02 | IS-09 System API Discovery | X | | | |
 | IS-10-01 | IS-10 Authorization API | | | | Authorization Server |
+| IS-11-01 | IS-11 Stream Compatibility Management API | X | | | |
+| IS-12-01 | IS-12 Control Protocol API | X | | | See [Invasive Device Model Testing](docs/2.10%20Usage%20-%20Invasive%20Device%20Model%20Testing.md) |
+| IS-14-01 | IS-14 Device Configuration API | X | | | See [Invasive Device Model Testing](docs/2.10%20Usage%20-%20Invasive%20Device%20Model%20Testing.md) |
 | - | BCP-002-01 Natural Grouping | X | | | Included in IS-04 Node API suite |
 | - | BCP-002-02 Asset Distinguishing Information | X | | | Included in IS-04 Node API suite |
 | BCP-003-01 | BCP-003-01 Secure Communication | X | X | | See [Testing TLS](docs/2.2.%20Usage%20-%20Testing%20BCP-003-01%20TLS.md) |
@@ -39,6 +42,9 @@ The following test suites are currently supported.
 | - | BCP-004-01 Receiver Capabilities | X | | | Included in IS-04 Node API and IS-05 Interaction with IS-04 suites |
 | BCP-006-01-01 | BCP-006-01 NMOS With JPEG XS | X | | | |
 | BCP-006-01-02 | BCP-006-01 Controller | | | X | See [Testing Controllers](docs/2.8.%20Usage%20-%20Testing%20Controllers.md) |
+| BCP-006-04 | BCP-006-04 NMOS With MPEG-TS | X | | | |
+| BCP-008-01-01 | BCP-008-01 Receiver Status Monitoring | X | | | |
+| BCP-008-02-01 | BCP-008-02 Sender Status Monitoring | X | | | |
 
 When testing any of the above APIs it is important that they contain representative data. The test results will generate 'Could Not Test' results if no testable entities can be located. In addition, if devices support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
 

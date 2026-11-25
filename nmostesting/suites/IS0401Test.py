@@ -24,7 +24,7 @@ from dnslib import QTYPE
 from copy import deepcopy
 from collections import defaultdict
 from pathlib import Path
-from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
+from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf
 
 from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener
@@ -89,6 +89,10 @@ class IS0401Test(GenericTest):
             self.zc = None
         if self.dns_server:
             self.dns_server.reset()
+
+    def _strict_service_name(self, info):
+        # avoid zeroconf._exceptions.BadTypeInNameException: Service name (nmos-registration) must be <= 15 bytes
+        return len(info.type[1:info.type.find('.')]) <= 15
 
     def _mdns_info(self, port, service_type, txt={}, api_ver=None, api_proto=None, api_auth=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
@@ -188,9 +192,9 @@ class IS0401Test(GenericTest):
         if CONFIG.DNS_SD_MODE == "multicast":
             # Advertise the primary registry and invalid ones at pri 0, and allow the Node to do a basic registration
             if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.0") != 0:
-                self.zc.register_service(registry_mdns[0])
-                self.zc.register_service(registry_mdns[1])
-            self.zc.register_service(registry_mdns[2])
+                self.zc.register_service(registry_mdns[0], strict=self._strict_service_name(registry_mdns[0]))
+                self.zc.register_service(registry_mdns[1], strict=self._strict_service_name(registry_mdns[1]))
+            self.zc.register_service(registry_mdns[2], strict=self._strict_service_name(registry_mdns[2]))
 
         # Wait for n seconds after advertising the service for the first POST from a Node
         start_time = time.time()
@@ -222,7 +226,7 @@ class IS0401Test(GenericTest):
 
             if CONFIG.DNS_SD_MODE == "multicast":
                 for info in registry_mdns[3:]:
-                    self.zc.register_service(info)
+                    self.zc.register_service(info, strict=self._strict_service_name(info))
 
             # Kill registries one by one to collect data around failover
             self.invalid_registry.disable()
@@ -1188,6 +1192,8 @@ class IS0401Test(GenericTest):
                 return test.FAIL("Unexpected response from the Node API: {}".format(response))
             try:
                 for binder in response.json():
+                    if not IS04Utils.transport_uses_interface_bindings(binder["transport"]):
+                        continue
                     interface_bindings = binder["interface_bindings"]
                     if len(interface_bindings) == 0:
                         return test.FAIL("{} '{}' does not list any interface_bindings"
@@ -1302,11 +1308,14 @@ class IS0401Test(GenericTest):
                         api_endpoint_host_warn = True
             for service in node_self["services"]:
                 href = service["href"]
+                # Only warn about these at the end so that more major failures are flagged first
+                # Protocols other than HTTP and WebSocket may be used, so don't incorrectly flag those too
                 if href.startswith("http") and not href.startswith(self.protocol + "://"):
-                    # Only warn about these at the end so that more major failures are flagged first
-                    # Protocols other than HTTP may be used, so don't incorrectly flag those too
                     service_href_scheme_warn = True
-                if href.startswith("https://") and is_ip_address(urlparse(href).hostname):
+                if href.startswith("ws") and not href.startswith(self.ws_protocol + "://"):
+                    service_href_scheme_warn = True
+                if (href.startswith("https://") or href.startswith("wss://")) and \
+                        is_ip_address(urlparse(href).hostname):
                     service_href_hostname_warn = True
                 if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0 and \
                         service["type"].startswith("urn:x-nmos:"):
@@ -1332,11 +1341,14 @@ class IS0401Test(GenericTest):
                 for device in node_devices:
                     for control in device["controls"]:
                         href = control["href"]
+                        # Only warn about these at the end so that more major failures are flagged first
+                        # Protocols other than HTTP and WebSocket may be used, so don't incorrectly flag those too
                         if href.startswith("http") and not href.startswith(self.protocol + "://"):
-                            # Only warn about these at the end so that more major failures are flagged first
-                            # Protocols other than HTTP may be used, so don't incorrectly flag those too
                             control_href_scheme_warn = True
-                        if href.startswith("https://") and is_ip_address(urlparse(href).hostname):
+                        if href.startswith("ws") and not href.startswith(self.ws_protocol + "://"):
+                            control_href_scheme_warn = True
+                        if (href.startswith("https://") or href.startswith("wss://")) and \
+                                is_ip_address(urlparse(href).hostname):
                             control_href_hostname_warn = True
                         if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0 and \
                                 control["type"].startswith("urn:x-nmos:"):
@@ -1451,7 +1463,7 @@ class IS0401Test(GenericTest):
 
         if CONFIG.DNS_SD_MODE == "multicast":
             # Advertise a registry at pri 0 and allow the Node to do a basic registration
-            self.zc.register_service(registry_info)
+            self.zc.register_service(registry_info, strict=self._strict_service_name(registry_info))
 
         # Wait for n seconds after advertising the service for the first POST and then DELETE from a Node
         self.primary_registry.wait_for_registration(CONFIG.DNS_SD_ADVERT_TIMEOUT)
@@ -2156,7 +2168,7 @@ class IS0401Test(GenericTest):
 
         if CONFIG.DNS_SD_MODE == "multicast":
             # Advertise a registry at pri 0 and allow the Node to do a basic registration
-            self.zc.register_service(registry_info)
+            self.zc.register_service(registry_info, strict=self._strict_service_name(registry_info))
 
         # Wait for n seconds after advertising the service for the first POST from a Node
         self.primary_registry.wait_for_registration(CONFIG.DNS_SD_ADVERT_TIMEOUT)

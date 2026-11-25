@@ -18,10 +18,11 @@
 
 import time
 import inspect
-import random
 import textwrap
 
-from ..ControllerTest import ControllerTest, TestingFacadeException, exitTestEvent
+from ..ControllerTest import ControllerTest, TestingFacadeException
+from ..NMOSUtils import NMOSUtils
+from ..TestingFacadeUtils import exitTestEvent
 
 
 class IS0503Test(ControllerTest):
@@ -40,7 +41,7 @@ class IS0503Test(ControllerTest):
                         {'label': 's5/andrews', 'description': 'Mock sender 5', 'registered': False}]
 
         # Randomly select some senders to register
-        register_senders = self._generate_random_indices(len(self.senders))
+        register_senders = self.generate_random_indices(len(self.senders))
 
         for i in register_senders:
             self.senders[i]['registered'] = True
@@ -58,7 +59,7 @@ class IS0503Test(ControllerTest):
                            'connectable': False, 'registered': True}]
 
         # Randomly select some receivers to be connectable
-        connectable_receivers = self._generate_random_indices(len(self.receivers), min_index_count=2, max_index_count=4)
+        connectable_receivers = self.generate_random_indices(len(self.receivers), min_index_count=2, max_index_count=4)
 
         for i in connectable_receivers:
             self.receivers[i]['connectable'] = True
@@ -107,7 +108,7 @@ class IS0503Test(ControllerTest):
             expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers)
                                 if r['registered'] and r['connectable']]
 
-            actual_answers = self._invoke_testing_facade(
+            actual_answers = self.testing_facade_utils.invoke_testing_facade(
                 question, possible_answers, test_type="multi_choice")['answer_response']
 
             if len(actual_answers) != len(expected_answers):
@@ -134,9 +135,9 @@ class IS0503Test(ControllerTest):
             self.node.clear_staged_requests()
             # Choose random sender and receiver to be connected
             registered_senders = [s for s in self.senders if s['registered']]
-            sender = random.choice(registered_senders)
+            sender = NMOSUtils.RANDOM.choice(registered_senders)
             registered_receivers = [r for r in self.receivers if r['registered'] and r['connectable']]
-            receiver = random.choice(registered_receivers)
+            receiver = NMOSUtils.RANDOM.choice(registered_receivers)
 
             question = textwrap.dedent(f"""\
                        All flows that are available in a Sender should be able to be connected to a Receiver.
@@ -163,7 +164,8 @@ class IS0503Test(ControllerTest):
                          'label': receiver['label'],
                          'description': receiver['description']}}
 
-            self._invoke_testing_facade(question, possible_answers, test_type="action", metadata=metadata)
+            self.testing_facade_utils.invoke_testing_facade(question, possible_answers,
+                                                            test_type="action", metadata=metadata)
 
             # Check the staged API endpoint received the correct PATCH request
             patch_requests = [r for r in self.node.staged_requests
@@ -171,6 +173,9 @@ class IS0503Test(ControllerTest):
             if len(patch_requests) < 1:
                 return test.FAIL('No PATCH request was received by the node')
             elif len(patch_requests) == 1:
+                self.assert_valid_staged_patch_schema(test, patch_requests[0])
+                self.assert_valid_staged_patch_url(test, patch_requests[0])
+
                 if patch_requests[0]['resource_id'] != receiver['id']:
                     return test.FAIL('Connection request sent to incorrect receiver')
 
@@ -223,9 +228,9 @@ class IS0503Test(ControllerTest):
         try:
             # Choose random sender and receiver to be connected
             registered_senders = [s for s in self.senders if s['registered']]
-            sender = random.choice(registered_senders)
+            sender = NMOSUtils.RANDOM.choice(registered_senders)
             registered_receivers = [r for r in self.receivers if r['registered'] and r['connectable']]
-            receiver = random.choice(registered_receivers)
+            receiver = NMOSUtils.RANDOM.choice(registered_receivers)
 
             # Set up connection on the mock node
             valid, response = self.do_request('GET', self.mock_node_base_url
@@ -266,7 +271,8 @@ class IS0503Test(ControllerTest):
                          'label': receiver['label'],
                          'description': receiver['description']}}
 
-            self._invoke_testing_facade(question, possible_answers, test_type="action", metadata=metadata)
+            self.testing_facade_utils.invoke_testing_facade(question, possible_answers,
+                                                            test_type="action", metadata=metadata)
 
             # Check the staged API endpoint received a PATCH request
             patch_requests = [r for r in self.node.staged_requests
@@ -276,6 +282,9 @@ class IS0503Test(ControllerTest):
             elif len(patch_requests) > 1:
                 return test.FAIL('Multiple PATCH requests were received by the node')
             else:
+                self.assert_valid_staged_patch_schema(test, patch_requests[0])
+                self.assert_valid_staged_patch_url(test, patch_requests[0])
+
                 # Should be one PATCH request for disconnection
                 if patch_requests[0]['resource_id'] != receiver['id']:
                     return test.FAIL('Disconnection request sent to incorrect receiver')
@@ -320,9 +329,9 @@ class IS0503Test(ControllerTest):
         try:
             # Choose random sender and receiver to be connected
             registered_senders = [s for s in self.senders if s['registered']]
-            sender = random.choice(registered_senders)
+            sender = NMOSUtils.RANDOM.choice(registered_senders)
             registered_receivers = [r for r in self.receivers if r['registered'] and r['connectable']]
-            receiver = random.choice(registered_receivers)
+            receiver = NMOSUtils.RANDOM.choice(registered_receivers)
 
             # Set up connection on the mock node
             valid, response = self.do_request('GET', self.mock_node_base_url
@@ -349,7 +358,7 @@ class IS0503Test(ControllerTest):
             expected_answer = ['answer_' + str(i) for i, r in enumerate(registered_receivers)
                                if r['display_answer'] == receiver['display_answer']][0]
 
-            actual_answer = self._invoke_testing_facade(
+            actual_answer = self.testing_facade_utils.invoke_testing_facade(
                 question, possible_answers, test_type="single_choice")['answer_response']
 
             if actual_answer != expected_answer:
@@ -373,9 +382,9 @@ class IS0503Test(ControllerTest):
                          'label': receiver['label'],
                          'description': receiver['description']}}
 
-            actual_answer = self._invoke_testing_facade(
-                question, possible_answers, test_type="single_choice",
-                multipart_test=1, metadata=metadata)['answer_response']
+            actual_answer = self.testing_facade_utils.invoke_testing_facade(
+                question, possible_answers, test_type="single_choice", multipart_test=1,
+                metadata=metadata)['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Incorrect sender identified')
@@ -398,16 +407,19 @@ class IS0503Test(ControllerTest):
                        """)
             possible_answers = []
 
-            # Get the name of the calling test method to use as an identifier
+            # Get the name and the description of this test method to use as an identifier
             test_method_name = inspect.currentframe().f_code.co_name
+            method = getattr(self, test_method_name)
+            test_method_description = inspect.getdoc(method)
 
             # Send the question to the Testing Façade
-            sent_json = self._send_testing_facade_questions(
-                test_method_name, question, possible_answers, test_type="action", multipart_test=2, metadata=metadata)
+            sent_json = self.testing_facade_utils.send_testing_facade_questions(
+                test_method_name, test_method_description, question, possible_answers,
+                test_type="action", multipart_test=2, metadata=metadata)
 
             # Wait a random amount of time before disconnecting
             exitTestEvent.clear()
-            time_delay = random.randint(10, max_time_until_online)
+            time_delay = NMOSUtils.RANDOM.randint(10, max_time_until_online)
             expected_time_online = time.time() + time_delay
             exitTestEvent.wait(time_delay)
 
@@ -416,7 +428,7 @@ class IS0503Test(ControllerTest):
                                "activation": {"mode": "activate_immediate"}}
             self.node.patch_staged('receivers', receiver['id'], deactivate_json)
 
-            response = self._wait_for_testing_facade(sent_json['question_id'], 'action')
+            response = self.testing_facade_utils.wait_for_testing_facade(sent_json['question_id'], 'action')
 
             if response['time_received'] < expected_time_online:  # Answered before connection was removed
                 return test.FAIL('Connection not handled: Connection still active')

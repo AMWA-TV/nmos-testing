@@ -1,0 +1,21 @@
+{
+    "description": "",
+    "format": "urn:x-nmos:format:video",
+    "tags": {},
+    "label": "AMWA Test MXL Receiver",
+    "subscription": {
+        "active": false,
+        "sender_id": null
+    },
+    "version": "1539094459:773471072",
+    "caps": {
+        "media_types": [
+            "video/v210"
+        ],
+        "constraint_sets": []
+    },
+    "interface_bindings": [],
+    "id": "d51d7cc7-9a84-4e5b-a2a3-49d5db61a67a",
+    "transport": "urn:x-nmos:transport:mxl",
+    "device_id": "3f30d310-681f-4533-b919-18b000de7716"
+}

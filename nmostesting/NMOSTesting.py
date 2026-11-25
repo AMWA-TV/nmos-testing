@@ -29,9 +29,7 @@ import inspect
 import ipaddress
 import socket
 import ssl
-import subprocess
 import pkgutil
-import shlex
 import re
 
 from flask import Flask, render_template, flash, request, make_response, jsonify
@@ -48,9 +46,10 @@ from requests.compat import json
 from . import Config as CONFIG
 from .DNS import DNS
 from .GenericTest import NMOSInitException
-from . import ControllerTest
+from . import TestingFacadeUtils
 from .TestResult import TestStates
 from .TestHelper import get_default_ip
+from .ExternalTools import check_external_requirements
 from .NMOSUtils import DEFAULT_ARGS
 from .CRL import CRL, CRL_API
 from .OCSP import OCSP, OCSP_API
@@ -58,7 +57,7 @@ from .mocks.Node import NODE, NODE_API
 from .mocks.Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from .mocks.System import NUM_SYSTEMS, SYSTEMS, SYSTEM_API
 from .mocks.Auth import AUTH_API, PRIMARY_AUTH, SECONDARY_AUTH
-from zeroconf_monkey import Zeroconf
+from zeroconf import Zeroconf
 
 # Make ANSI escape character sequences (for producing coloured terminal text) work under Windows
 try:
@@ -82,9 +81,18 @@ from .suites import IS0802Test
 from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
+from .suites import IS1101Test
+from .suites import IS1201Test
+from .suites import IS1401Test
 from .suites import BCP00301Test
+from .suites import BCP0050101Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
+from .suites import BCP0070302Test
+from .suites import BCP00604Test
+from .suites import BCP0070301Test
+from .suites import BCP0080101Test
+from .suites import BCP0080201Test
 
 
 FLASK_APPS = []
@@ -105,7 +113,7 @@ core_app.config['TEST_ACTIVE'] = False
 core_app.config['PORT'] = CONFIG.PORT_BASE
 core_app.config['SECURE'] = False
 core_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
-core_app.register_blueprint(ControllerTest.TEST_API)
+core_app.register_blueprint(TestingFacadeUtils.TEST_API)
 FLASK_APPS.append(core_app)
 
 for instance in range(NUM_REGISTRIES):
@@ -142,6 +150,9 @@ CORS(sender_app)
 sender_app.debug = False
 sender_app.config['PORT'] = NODE.port
 sender_app.config['SECURE'] = CONFIG.ENABLE_HTTPS
+# Respond 404 to a doubled slash rather than redirect, so that Controller tests detect URLs built from
+# device control hrefs without allowing for a trailing slash
+sender_app.url_map.merge_slashes = False
 sender_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
 FLASK_APPS.append(sender_app)
 
@@ -162,6 +173,7 @@ FLASK_APPS.append(ocsp_app)
 # Primary Authorization server
 if CONFIG.ENABLE_AUTH:
     auth_app = Flask(__name__)
+    CORS(auth_app)
     auth_app.debug = False
     auth_app.config['AUTH_INSTANCE'] = 0
     auth_app.config['PORT'] = PRIMARY_AUTH.port
@@ -214,7 +226,7 @@ TEST_DEFINITIONS = {
     "IS-04-04": {
         "name": "IS-04 Controller",
         "specs": [{
-            "spec_key": "controller-tests",
+            "spec_key": "testing-facade",
             "api_key": "testquestion"
         }, {
             "spec_key": "is-04",
@@ -246,7 +258,7 @@ TEST_DEFINITIONS = {
     "IS-05-03": {
         "name": "IS-05 Controller",
         "specs": [{
-            "spec_key": "controller-tests",
+            "spec_key": "testing-facade",
             "api_key": "testquestion"
         }, {
             "spec_key": "is-04",
@@ -343,6 +355,71 @@ TEST_DEFINITIONS = {
     #     }],
     #     "class": IS1001Test.IS1001Test
     # },
+    "IS-11-01": {
+        "name": "IS-11 Stream Compatibility Management API",
+        "specs": [{
+            "spec_key": "is-11",
+            "api_key": "streamcompatibility"
+        }, {
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
+        }],
+        "class": IS1101Test.IS1101Test
+    },
+    "IS-12-01": {
+        "name": "IS-12 NMOS Control Protocol",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node",
+            "disable_fields": ["urlpath"]
+        }, {
+            "spec_key": "is-12",
+            "api_key": "ncp",
+            "websocket": True,
+        }, {
+            "spec_key": "ms-05-02",
+            "api_key": "controlframework",
+            "disable_fields": ["host", "port", "urlpath"]
+        }, {
+            "spec_key": "testing-facade",
+            "api_key": "testquestion",
+            "disable_fields": ["urlpath"] if CONFIG.MS05_INTERACTIVE_TESTING else ["host", "port", "urlpath"]
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-control-feature-sets",
+            "api_key": "featuresets"
+        }],
+        "class": IS1201Test.IS1201Test,
+        "urlpath": True
+    },
+    "IS-14-01": {
+        "name": "IS-14 Device Configuration",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node",
+            "disable_fields": ["selector"]
+        }, {
+            "spec_key": "is-14",
+            "api_key": "configuration"
+        }, {
+            "spec_key": "ms-05-02",
+            "api_key": "controlframework",
+            "disable_fields": ["host", "port", "selector"]
+        }, {
+            "spec_key": "testing-facade",
+            "api_key": "testquestion",
+            "disable_fields": ["selector"] if CONFIG.MS05_INTERACTIVE_TESTING else ["host", "port", "selector"]
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-control-feature-sets",
+            "api_key": "featuresets"
+        }],
+        "class": IS1401Test.IS1401Test,
+        "selector": True
+    },
     "BCP-003-01": {
         "name": "BCP-003-01 Secure Communication",
         "specs": [{
@@ -351,6 +428,14 @@ TEST_DEFINITIONS = {
         }],
         "disable_auto": True,
         "class": BCP00301Test.BCP00301Test
+    },
+    "BCP-005-01-01": {
+        "name": "BCP-005-01 EDID to Receiver Capabilities Mapping",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
+        "class": BCP0050101Test.BCP0050101Test
     },
     "BCP-006-01-01": {
         "name": "BCP-006-01 NMOS With JPEG XS",
@@ -370,7 +455,7 @@ TEST_DEFINITIONS = {
     "BCP-006-01-02": {
         "name": "BCP-006-01 Controller",
         "specs": [{
-            "spec_key": "controller-tests",
+            "spec_key": "testing-facade",
             "api_key": "testquestion"
         }, {
             "spec_key": "is-04",
@@ -383,6 +468,124 @@ TEST_DEFINITIONS = {
         }],
         "class": BCP0060102Test.BCP0060102Test
     },
+    "BCP-007-03-01": {
+        "name": "BCP-007-03 NMOS With MXL",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
+        }],
+        "extra_specs": [{
+            "spec_key": "bcp-004-01",
+            "api_key": "receiver-caps"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "caps-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "formats-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "media-types-register"
+        }, {
+            "spec_key": "bcp-007-03",
+            "api_key": "mxl-schemas"
+        }],
+        "class": BCP0070301Test.BCP0070301Test
+    },
+    "BCP-007-03-02": {
+        "name": "BCP-007-03 Controller",
+        "specs": [{
+            "spec_key": "testing-facade",
+            "api_key": "testquestion"
+        }, {
+            "spec_key": "is-04",
+            "api_key": "query",
+            "disable_fields": ["host", "port"]
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection",
+            "disable_fields": ["host", "port"]
+        }],
+        "class": BCP0070302Test.BCP0070302Test
+    },
+    "BCP-008-01-01": {
+        "name": "BCP-008-01 Receiver Status Monitoring",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node",
+            "disable_fields": ["urlpath"]
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection",
+            "disable_fields": ["urlpath"]
+        }, {
+            "spec_key": "is-12",
+            "api_key": "ncp",
+            "websocket": True,
+        }, {
+            "spec_key": "ms-05-02",
+            "api_key": "controlframework",
+            "disable_fields": ["host", "port", "urlpath"]
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-control-feature-sets",
+            "api_key": "featuresets"
+        }, {
+            "spec_key": "bcp-008-01",
+            "api_key": "receivermonitor",
+            "disable_fields": ["host", "port", "urlpath"]
+        }],
+        "class": BCP0080101Test.BCP0080101Test,
+        "urlpath": True
+    },
+    "BCP-008-02-01": {
+        "name": "BCP-008-02 Sender Status Monitoring",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node",
+            "disable_fields": ["urlpath"]
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection",
+            "disable_fields": ["urlpath"]
+        }, {
+            "spec_key": "is-12",
+            "api_key": "ncp",
+            "websocket": True,
+        }, {
+            "spec_key": "ms-05-02",
+            "api_key": "controlframework",
+            "disable_fields": ["host", "port", "urlpath"]
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-control-feature-sets",
+            "api_key": "featuresets"
+        }, {
+            "spec_key": "bcp-008-02",
+            "api_key": "sendermonitor",
+            "disable_fields": ["host", "port", "urlpath"]
+        }],
+        "class": BCP0080201Test.BCP0080201Test,
+        "urlpath": True
+    },
+    "BCP-006-04": {
+        "name": "BCP-006-04 NMOS With MPEG TS",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "flow-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "sender-register"
+        }],
+        "class": BCP00604Test.BCP00604Test
+    }
 }
 
 
@@ -431,6 +634,8 @@ class EndpointForm(Form):
                                                                       ("v1.3", "v1.3")])
     selector = StringField(label="API Selector:", validators=[validators.optional()])
 
+    urlpath = StringField(label="URL Path:", validators=[validators.optional()])
+
 
 class DataForm(Form):
     # Define the primary test selection dropdown
@@ -471,7 +676,6 @@ class DataForm(Form):
 # Index page
 @core_app.route('/', methods=["GET", "POST"])
 def index_page():
-    global CMD_ARGS
     form = DataForm(request.form)
     if request.method == "POST" and not core_app.config['TEST_ACTIVE']:
         if form.validate():
@@ -479,19 +683,18 @@ def index_page():
             try:
                 if test in TEST_DEFINITIONS:
                     test_def = TEST_DEFINITIONS[test]
-                    # selectors must be explicitly enabled on the test suite
-                    selector = "selector" in test_def and test_def["selector"]
                     endpoints = []
                     for index, spec in enumerate(test_def["specs"]):
-                        # "disable_fields" is optional, none are disabled by default
-                        disable_fields = spec["disable_fields"] if "disable_fields" in spec else []
-                        endpoint = {}
-                        for field in ["host", "port", "version", "selector"]:
-                            if field in disable_fields or (field == "selector" and not selector):
-                                endpoint[field] = None
-                            else:
-                                endpoint[field] = request.form.get("endpoints-{}-{}".format(index, field), None)
-                        endpoints.append(endpoint)
+                        disable_fields = []
+                        disable_fields += spec.get("disable_fields", [])
+                        # selector and urlpath must be explicitly enabled on the test suite
+                        disable_fields += ["selector"] if not test_def.get("selector") else []
+                        disable_fields += ["urlpath"] if not test_def.get("urlpath") else []
+                        fields = ["host", "port", "version", "selector", "urlpath"]
+                        ignore_endpoint = {field: None for field in disable_fields}
+                        endpoint = {field: request.form.get("endpoints-{}-{}".format(index, field), None)
+                                    for field in fields if field not in disable_fields}
+                        endpoints.append({**endpoint, **ignore_endpoint})
 
                     test_selection = request.form.getlist("test_selection")
                     results = run_tests(test, endpoints, test_selection)
@@ -547,12 +750,13 @@ def index_page():
 def run_tests(test, endpoints, test_selection=["all"]):
     if test in TEST_DEFINITIONS:
         test_def = TEST_DEFINITIONS[test]
-        protocol = "http"
-        if CONFIG.ENABLE_HTTPS:
-            protocol = "https"
         apis = {}
         tested_urls = []
         for index, spec in enumerate(test_def["specs"]):
+            if spec.get("websocket"):
+                protocol = "wss" if CONFIG.ENABLE_HTTPS else "ws"
+            else:
+                protocol = "https" if CONFIG.ENABLE_HTTPS else "http"
             spec_key = spec["spec_key"]
             api_key = spec["api_key"]
             if endpoints[index]["host"] == "" or endpoints[index]["port"] == "":
@@ -563,12 +767,15 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 base_url = None
             if base_url is not None:
                 url = base_url + "/"
-                if api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
-                    url += "x-nmos/{}/".format(api_key)
-                    if endpoints[index]["version"] is not None:
-                        url += "{}/".format(endpoints[index]["version"])
-                if endpoints[index]["selector"] not in [None, ""]:
-                    url += "{}/".format(endpoints[index]["selector"])
+                if test_def.get("urlpath") and "urlpath" not in spec.get("disable_fields", []):
+                    url = os.path.join(url, endpoints[index]["urlpath"].lstrip("/\\"))
+                else:
+                    if api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
+                        url += "x-nmos/{}/".format(api_key)
+                        if endpoints[index]["version"] is not None:
+                            url += "{}/".format(endpoints[index]["version"])
+                    if endpoints[index]["selector"] not in [None, ""]:
+                        url += "{}/".format(endpoints[index]["selector"])
                 tested_urls.append(url)
             else:
                 url = None
@@ -592,6 +799,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 "url": url,
                 "version": endpoints[index]["version"],
                 "selector": endpoints[index]["selector"],
+                "urlpath": endpoints[index]["urlpath"],
                 "spec": None,  # Used inside GenericTest
                 "spec_path": CONFIG.CACHE_PATH + '/' + spec_key
             }
@@ -611,6 +819,9 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 "spec": None,  # Used inside GenericTest
                 "spec_path": CONFIG.CACHE_PATH + '/' + spec_key
             }
+            # extra path metadata used by nmos-feature-sets-register
+            if "repo_paths" in CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]:
+                apis[api_key]["repo_paths"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["repo_paths"]
             if CONFIG.SPECIFICATIONS[spec_key]["repo"] is not None \
                     and api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
                 spec_api = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]
@@ -734,7 +945,8 @@ def format_test_results(results, endpoints, format, args):
                 "name": test_result.name,
                 "state": str(TestStates.DISABLED if test_result.name in ignored_tests else test_result.state),
                 "detail": test_result.detail,
-                "duration": test_result.elapsed_time
+                "duration": test_result.elapsed_time,
+                "description": test_result.description
             })
         formatted = json.dumps(formatted, sort_keys=True, indent=4)
     elif format == "junit":
@@ -824,6 +1036,8 @@ def parse_arguments():
                               help="space separated versions of the APIs under test")
     suite_parser.add_argument('--selector', default=DEFAULT_ARGS["selector"], nargs="*",
                               help="space separated device selector names of the APIs under test")
+    suite_parser.add_argument('--urlpath', default=DEFAULT_ARGS["urlpath"], nargs="*",
+                              help="space separated device urlpaths of the APIs under test")
     suite_parser.add_argument('--ignore', default=DEFAULT_ARGS["ignore"], nargs="*",
                               help="space separated test names to ignore the results from")
     suite_parser.add_argument('--output', default=DEFAULT_ARGS["output"],
@@ -874,6 +1088,15 @@ def validate_args(args, access_type="cli"):
         elif "selector" in TEST_DEFINITIONS[args.suite] and TEST_DEFINITIONS[args.suite]["selector"] is True and \
                 len(args.host) != len(args.selector):
             msg = "ERROR: Hostname(s)/IP address(es), Port(s), Version(s) and Selector(s) must contain the same " \
+                  "number of elements"
+            return_type = ExitCodes.ERROR
+        elif "urlpath" in TEST_DEFINITIONS[args.suite] and TEST_DEFINITIONS[args.suite]["urlpath"] is True and not \
+                args.urlpath:
+            msg = "ERROR: No Override URL(s) specified"
+            return_type = ExitCodes.ERROR
+        elif "urlpath" in TEST_DEFINITIONS[args.suite] and TEST_DEFINITIONS[args.suite]["urlpath"] is True and \
+                len(args.host) != len(args.urlpath):
+            msg = "ERROR: Hostname(s)/IP address(es), Port(s), Version(s) and Override URL(s) must contain the same " \
                   "number of elements"
             return_type = ExitCodes.ERROR
         elif len(args.host) != len(TEST_DEFINITIONS[args.suite]["specs"]):
@@ -963,8 +1186,11 @@ def run_noninteractive_tests(args):
         selector = None
         if len(args.selector) == len(args.host) and args.selector[i] != "null":
             selector = args.selector[i]
+        urlpath = None
+        if len(args.urlpath) == len(args.host) and args.urlpath[i] != "null":
+            urlpath = args.urlpath[i]
         endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i],
-                          "selector": selector})
+                          "selector": selector, "urlpath": urlpath})
     try:
         results = run_tests(args.suite, endpoints, [args.selection])
         if args.output:
@@ -977,6 +1203,14 @@ def run_noninteractive_tests(args):
     return exit_code
 
 
+def get_package_name(requirement):
+    pattern = r'^([^\s>=<]+)'
+    match = re.match(pattern, requirement)
+    if match:
+        return match.group(1)
+    return None
+
+
 def check_internal_requirements():
     corrections = {"gitpython": "git",
                    "pyopenssl": "OpenSSL",
@@ -987,7 +1221,7 @@ def check_internal_requirements():
     installed_pkgs = [pkg[1] for pkg in pkgutil.iter_modules()]
     with open("requirements.txt") as requirements_file:
         for requirement in requirements_file.readlines():
-            requirement_name = requirement.strip().split(">")[0]
+            requirement_name = get_package_name(requirement)
             if requirement_name in corrections:
                 corrected_req = corrections[requirement_name]
             else:
@@ -995,20 +1229,6 @@ def check_internal_requirements():
             if corrected_req not in installed_pkgs:
                 print(" * ERROR: Could not find Python requirement '{}'".format(requirement_name))
                 sys.exit(ExitCodes.ERROR)
-
-
-def check_external_requirements():
-    deps = {
-        "sdpoker": ("sdpoker --version", "0.3.0"),
-        "testssl": ("{} testssl/testssl.sh -v".format(shlex.quote(CONFIG.TEST_SSL_BASH)), "3.0.7")
-    }
-    for dep_name, dep_ver in deps.items():
-        try:
-            output = subprocess.check_output(dep_ver[0], stderr=subprocess.STDOUT, shell=True)
-            if dep_ver[1] not in str(output):
-                print(" * WARNING: Version of '{}' does not match the expected '{}'".format(dep_name, dep_ver[1]))
-        except subprocess.CalledProcessError:
-            print(" * WARNING: Could not find an installation of '{}'. Some tests will be disabled.".format(dep_name))
 
 
 class ExitCodes(IntEnum):
@@ -1028,6 +1248,7 @@ def api():
         example_dict["port"] = [80]
         example_dict["version"] = ["v1.2"]
         example_dict["selector"] = [None]
+        example_dict["urlpath"] = [None]
         example_dict["output"] = "xml"
         example_dict["ignore"] = ["test_23"]
         return jsonify(example_dict), 200
@@ -1089,8 +1310,11 @@ def run_api_tests(args, data_format):
         selector = None
         if len(args.selector) == len(args.host):
             selector = args.selector[i]
+        urlpath = None
+        if len(args.urlpath) == len(args.host):
+            urlpath = args.urlpath[i]
         endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i],
-                          "selector": selector})
+                          "selector": selector, "urlpath": urlpath})
     results = run_tests(args.suite, endpoints, [args.selection])
     if data_format == "xml":
         formatted_test_results = format_test_results(results, endpoints, "junit", args)
@@ -1149,6 +1373,13 @@ def main(args):
 
     print(" * Testing tool running on 'http://{}:{}'. Version '{}'"
           .format(get_default_ip(), core_app.config['PORT'], TOOL_VERSION))
+
+    # Give an API or client that is already running a chance to use the mock services
+    # before running any test cases
+    if CONFIG.MOCK_SERVICES_WARM_UP_DELAY:
+        print(" * Waiting for {} seconds to allow discovery of mock services"
+              .format(CONFIG.MOCK_SERVICES_WARM_UP_DELAY))
+        time.sleep(CONFIG.MOCK_SERVICES_WARM_UP_DELAY)
 
     exit_code = 0
     if "suite" not in vars(CMD_ARGS):

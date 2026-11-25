@@ -15,16 +15,21 @@
 import time
 import flask
 import json
-import re
 import uuid
 import functools
 
+from urllib.parse import quote
 from flask import request, jsonify, abort, Blueprint, Response
 from threading import Event, Lock
+
+from ..IS10Utils import IS10Utils
 from ..Config import PORT_BASE, ENABLE_AUTH, \
     WEBSOCKET_PORT_BASE, ENABLE_HTTPS, SPECIFICATIONS
 from authlib.jose import jwt
 from ..IS04Utils import IS04Utils
+from ..RQLUtils import (
+    RQLParseError, UnsupportedRQLOperator, has_unsupported_query_params, parse_query, resource_matches_query_params
+)
 from ..TestHelper import SubscriptionWebsocketWorker, get_default_ip, get_mocks_hostname
 from .Auth import PRIMARY_AUTH
 
@@ -78,6 +83,7 @@ class Registry(object):
         self.query_api_called = False
         self.paging_limit = 100
         self.pagination_used = False
+        self.auth_cache = {}
 
     def add(self, headers, payload, version):
         self.last_time = time.time()
@@ -162,38 +168,26 @@ class Registry(object):
                 return None
         return None
 
-    def _check_path_match(self, path, path_wildcards):
-        path_match = False
-        for path_wildcard in path_wildcards:
-            pattern = path_wildcard.replace("*", ".*")
-            if re.search(pattern, path):
-                path_match = True
-                break
-        return path_match
+    def check_authorization(self, auth, path, scope, write=False):
+        if not ENABLE_AUTH:
+            return True, ""
 
-    def check_authorized(self, headers, path, write=False):
-        if ENABLE_AUTH:
-            try:
-                if not request.headers["Authorization"].startswith("Bearer "):
-                    return 400
-                token = request.headers["Authorization"].split(" ")[1]
-                claims = jwt.decode(token, PRIMARY_AUTH.generate_jwk())
-                claims.validate()
-                if claims["iss"] != PRIMARY_AUTH.make_issuer():
-                    return 401
-                # TODO: Check 'aud' claim matches 'mocks.<domain>'
-                if not self._check_path_match(path, claims["x-nmos-registration"]["read"]):
-                    return 403
-                if write:
-                    if not self._check_path_match(path, claims["x-nmos-registration"]["write"]):
-                        return 403
-            except KeyError:
-                # TODO: Add debug which can be returned in the error response JSON
-                return 400
-            except Exception:
-                # TODO: Add debug which can be returned in the error response JSON
-                return 400
-        return True
+        if "Authorization" in request.headers and request.headers["Authorization"].startswith("Bearer ") \
+                and scope in self.auth_cache and \
+                ((write and self.auth_cache[scope]["Write"]) or self.auth_cache[scope]["Read"]):
+            return True, ""
+
+        authorized, error_message = IS10Utils.check_authorization(auth,
+                                                                  path,
+                                                                  scope=scope,
+                                                                  write=write)
+        if authorized:
+            if scope not in self.auth_cache:
+                self.auth_cache[scope] = {"Read": True, "Write": write}
+            else:
+                self.auth_cache[scope]["Read"] = True
+                self.auth_cache[scope]["Write"] = self.auth_cache[scope]["Write"] or write
+        return authorized, error_message
 
     # Query API subscription support methods
 
@@ -215,7 +209,8 @@ class Registry(object):
                                 if self._get_resource_type(subscription['resource_path']) == resource_type
                                 and subscription['max_update_rate_ms'] == subscription_request['max_update_rate_ms']
                                 and subscription['persist'] == subscription_request['persist']
-                                and subscription['secure'] == subscription_request['secure']]), None)
+                                and subscription['secure'] == subscription_request['secure']
+                                and subscription['params'] == subscription_request['params']]), None)
 
             if subscription:
                 return subscription, False
@@ -275,12 +270,45 @@ class Registry(object):
             # Guard against concurrent subscription creation
             self.subscription_lock.acquire()
 
-            subscription_ids = [id for id, subscription in self.get_resources()['subscription'].items()
-                                if self._get_resource_type(subscription['resource_path']) == resource_type]
+            subscriptions = {subscription_id: subscription
+                             for subscription_id, subscription in self.get_resources()['subscription'].items()
+                             if self._get_resource_type(subscription['resource_path']) == resource_type}
 
             timestamp = IS04Utils.get_TAI_time()
 
-            for subscription_id in subscription_ids:
+            for subscription_id, subscription in subscriptions.items():
+                query_params = subscription.get('params', {})
+                rql_query_string = query_params.get('query.rql')
+                rql_expression = parse_query(rql_query_string) if rql_query_string else None
+                grain_entries = []
+                api_version = self.subscription_websockets[subscription_id]['api_version']
+                all_resources = self.get_resources()
+
+                for resource_id in resource_ids:
+                    pre_resource = pre_resources.get(resource_id)
+                    post_resource = post_resources.get(resource_id)
+                    pre_match = pre_resource and resource_matches_query_params(
+                        pre_resource, query_params, all_resources, rql_expression)
+                    post_match = post_resource and resource_matches_query_params(
+                        post_resource, query_params, all_resources, rql_expression)
+
+                    if not pre_match and not post_match:
+                        continue
+
+                    data = {'path': resource_id}
+                    if pre_match:
+                        data['pre'] = IS04Utils.downgrade_resource(resource_type,
+                                                                   pre_resource,
+                                                                   api_version)
+                    if post_match:
+                        data['post'] = IS04Utils.downgrade_resource(resource_type,
+                                                                    post_resource,
+                                                                    api_version)
+                    grain_entries.append(data)
+
+                if not grain_entries:
+                    continue
+
                 data_grain = {'grain_type': 'event',
                               'source_id': self.query_api_id,
                               'flow_id': subscription_id,
@@ -290,21 +318,7 @@ class Registry(object):
                               'rate': {'denominator': 1, 'numerator': 0},
                               'duration': {'denominator': 1, 'numerator': 0},
                               'grain': {'type': 'urn:x-nmos:format:data.event',
-                                        'topic': '/' + resource_type + 's/', 'data': []}}
-
-                api_version = self.subscription_websockets[subscription_id]['api_version']
-
-                for resource_id in resource_ids:
-                    data = {'path': resource_id}
-                    if pre_resources.get(resource_id):
-                        data['pre'] = IS04Utils.downgrade_resource(resource_type,
-                                                                   pre_resources[resource_id],
-                                                                   api_version)
-                    if post_resources.get(resource_id):
-                        data['post'] = IS04Utils.downgrade_resource(resource_type,
-                                                                    post_resources[resource_id],
-                                                                    api_version)
-                    data_grain["grain"]["data"].append(data)
+                                        'topic': '/' + resource_type + 's/', 'data': grain_entries}}
 
                 self.subscription_websockets[subscription_id]['server'].queue_message(json.dumps(data_grain))
 
@@ -335,26 +349,35 @@ REGISTRIES = [Registry(REGISTRY_COMMON, i + 1) for i in range(NUM_REGISTRIES)]
 REGISTRY_API = Blueprint('registry_api', __name__)
 
 
-@REGISTRY_API.route('/x-nmos', methods=["GET"], strict_slashes=False)
-def x_nmos():
-    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
+# Authorization decorator
+def check_enabled_and_authorization(func):
+    def wrapper(*args, **kwargs):
+        registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
+        if not registry.enabled:
+            abort(503)
+        authorized, error_message = registry.check_authorization(PRIMARY_AUTH,
+                                                                 request.path,
+                                                                 scope="x-nmos-registration")
+        if authorized is not True:
+            abort(authorized, description=error_message)
 
+        return func(*args, **kwargs)
+    # Rename wrapper to allow decoration of decorator
+    wrapper.__name__ = func.__name__
+    return wrapper
+
+
+@REGISTRY_API.route('/x-nmos', methods=["GET"], strict_slashes=False)
+@check_enabled_and_authorization
+def x_nmos():
     base_data = ['query/', 'registration/']
 
     return Response(json.dumps(base_data), mimetype='application/json')
 
 
 @REGISTRY_API.route('/x-nmos/registration', methods=["GET"], strict_slashes=False)
+@check_enabled_and_authorization
 def registration_root():
-    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
-    if authorized is not True:
-        abort(authorized)
-
     base_data = [version + '/' for version in SPECIFICATIONS["is-04"]["versions"]]
 
     return Response(json.dumps(base_data), mimetype='application/json')
@@ -362,13 +385,8 @@ def registration_root():
 
 # IS-04 resources
 @REGISTRY_API.route('/x-nmos/registration/<version>', methods=["GET"], strict_slashes=False)
+@check_enabled_and_authorization
 def base_resource(version):
-    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
-    if authorized is not True:
-        abort(authorized)
     base_data = ["resource/", "health/"]
     # Using json.dumps to support older Flask versions http://flask.pocoo.org/docs/1.0/security/#json-security
 
@@ -376,13 +394,9 @@ def base_resource(version):
 
 
 @REGISTRY_API.route('/x-nmos/registration/<version>/resource', methods=["POST"])
+@check_enabled_and_authorization
 def post_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(500)
-    authorized = registry.check_authorized(request.headers, request.path, True)
-    if authorized is not True:
-        abort(authorized)
     if not registry.test_first_reg:
         registered = False
         try:
@@ -406,13 +420,9 @@ def post_resource(version):
 
 
 @REGISTRY_API.route('/x-nmos/registration/<version>/resource/<resource_type>/<resource_id>', methods=["DELETE"])
+@check_enabled_and_authorization
 def delete_resource(version, resource_type, resource_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(500)
-    authorized = registry.check_authorized(request.headers, request.path, True)
-    if authorized is not True:
-        abort(authorized)
     resource_type = resource_type.rstrip("s")
     if not registry.test_first_reg:
         registered = False
@@ -440,13 +450,9 @@ def delete_resource(version, resource_type, resource_id):
 
 
 @REGISTRY_API.route('/x-nmos/registration/<version>/health/nodes/<node_id>', methods=["POST"])
+@check_enabled_and_authorization
 def heartbeat(version, node_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(500)
-    authorized = registry.check_authorized(request.headers, request.path, True)
-    if authorized is not True:
-        abort(authorized)
     if node_id in registry.get_resources()["node"]:
         # store raw request payload, in order to check for empty request bodies later
         try:
@@ -459,28 +465,17 @@ def heartbeat(version, node_id):
 
 
 @REGISTRY_API.route('/x-nmos/query', methods=["GET"], strict_slashes=False)
+@check_enabled_and_authorization
 def query_root():
-    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
-    if authorized is not True:
-        abort(authorized)
-
     base_data = [version + '/' for version in SPECIFICATIONS["is-04"]["versions"]]
 
     return Response(json.dumps(base_data), mimetype='application/json')
 
 
 @REGISTRY_API.route('/x-nmos/query/<version>', methods=["GET"], strict_slashes=False)
+@check_enabled_and_authorization
 def query(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
-    if authorized is not True:
-        abort(authorized)
-
     registry.requested_query_api_version = version
 
     base_data = ['devices/', 'flows/', 'nodes/', 'receivers/', 'senders/', 'sources/', 'subscriptions/']
@@ -497,23 +492,13 @@ def compare_resources(resource1, resource2):
 
 
 @REGISTRY_API.route('/x-nmos/query/<version>/<resource>', methods=["GET"], strict_slashes=False)
+@check_enabled_and_authorization
 def query_resource(version, resource):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
-    if authorized is not True:
-        abort(authorized)
-
     registry.requested_query_api_version = version
 
-    # NOTE: Advanced Query Syntax (RQL) is not currently supported
-    # Only paging and id parameters have been implemented in the Basic Query Syntax
-    # All other Basic Query Syntax parameters will be ignored, such that this endpoint will currently either:
-    # * return all resources of a specified type subject to paging constraints
-    # * e.g. http://<host>:<port>/x-nmos/query/<version>/nodes will return all registered nodes
-    # * or return a specific resource according to the resource id
-    # * e.g. http://<host>:<port>/x-nmos/query/<version>/nodes?id=<resource_id> will return a single registered node
+    # Basic Query Syntax: paging, id, transport, basic field matching, and query.rql are implemented.
+    # Unsupported query.* parameters return 501. Malformed RQL returns 400.
 
     MIN_SINCE = "0:0"
     MAX_UNTIL = IS04Utils.get_TAI_time()
@@ -543,19 +528,54 @@ def query_resource(version, resource):
 
     registry.query_api_called = True
 
-    # Reject RQL queries
-    for param in request.args:
-        if param.startswith('query.rql'):
-            abort(501)
+    query_params = request.args.to_dict(flat=False)
+    flat_query_params = {key: values[0] if len(values) == 1 else values
+                         for key, values in query_params.items()}
+
+    if has_unsupported_query_params(flat_query_params):
+        abort(501)
+
+    rql_expression = None
+    try:
+        if flat_query_params.get('query.rql'):
+            rql_expression = parse_query(flat_query_params['query.rql'])
+    except UnsupportedRQLOperator:
+        abort(501)
+    except RQLParseError:
+        abort(400)
+
+    transport_filter = request.args.get('transport')
+    transport_query = ""
+    if transport_filter is not None and resource_type in ('sender', 'receiver'):
+        transport_query = "&transport=" + quote(transport_filter, safe='')
+
+    rql_filter = flat_query_params.get('query.rql')
+    if rql_filter is not None:
+        transport_query += "&query.rql=" + quote(rql_filter, safe='')
+
+    def resource_matches_transport_filter(resource):
+        if transport_filter is None or resource_type not in ('sender', 'receiver'):
+            return True
+        return resource.get('transport', '').startswith(transport_filter)
+
+    def resource_matches_filters(resource):
+        if not resource_matches_transport_filter(resource):
+            return False
+        try:
+            return resource_matches_query_params(
+                resource, flat_query_params, registry.get_resources(), rql_expression)
+        except UnsupportedRQLOperator:
+            return False
 
     # Check to see if resource is being requested as a query
     if request.args.get('id'):
         resource_id = request.args.get('id')
-        base_data.append(IS04Utils.downgrade_resource(resource_type,
-                                                      registry.get_resources()[resource_type][resource_id],
-                                                      version))
+        resource_data = registry.get_resources()[resource_type][resource_id]
+        if resource_matches_filters(resource_data):
+            base_data.append(IS04Utils.downgrade_resource(resource_type, resource_data, version))
     else:
-        data = registry.get_resources()[resource_type]
+        data = {resource_id: resource for resource_id, resource in registry.get_resources()[resource_type].items()
+                if resource_matches_filters(resource)}
 
         # only paginate for version v1.1 and up
         if IS04Utils.compare_api_version("v1.1", version) > 0:
@@ -603,15 +623,15 @@ def query_resource(version, resource):
 
         link = "<" + protocol + "://" + host + ":" + port \
             + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=" + until \
-            + "&paging.limit=" + str(limit) + ">; rel=\"next\""
+            + "&paging.limit=" + str(limit) + transport_query + ">; rel=\"next\""
 
         link += ",<" + protocol + "://" + host + ":" + port \
             + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.until=" + since \
-            + "&paging.limit=" + str(limit) + ">; rel=\"prev\""
+            + "&paging.limit=" + str(limit) + transport_query + ">; rel=\"prev\""
 
         link += ",<" + protocol + "://" + host + ":" + port \
             + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=0:0&paging.limit=" \
-            + str(limit) + ">; rel=\"first\""
+            + str(limit) + transport_query + ">; rel=\"first\""
 
         response.headers["Link"] = link
         response.headers["X-Paging-Limit"] = limit
@@ -622,14 +642,9 @@ def query_resource(version, resource):
 
 
 @REGISTRY_API.route('/x-nmos/query/<version>/<resource>/<resource_id>', methods=['GET'], strict_slashes=False)
+@check_enabled_and_authorization
 def get_resource(version, resource, resource_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
-    if authorized is not True:
-        abort(authorized)
-
     registry.requested_query_api_version = version
     registry.query_api_called = True
 
@@ -647,15 +662,9 @@ def get_resource(version, resource, resource_id):
 
 
 @REGISTRY_API.route('/x-nmos/query/<version>/subscriptions', methods=["POST"])
+@check_enabled_and_authorization
 def post_subscription(version):
-
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
-    if authorized is not True:
-        abort(authorized)
-
     registry.requested_query_api_version = version
     subscription_request = request.json
 
@@ -666,9 +675,11 @@ def post_subscription(version):
         # Note: 'secure' not required in request, but is required in response
         secure = subscription_request['secure'] if 'secure' in subscription_request else ENABLE_HTTPS
 
-        # The current implementation of WebSockets in this mock Registry does not support query parameters in request
-        if len(subscription_request['params']) > 0:
+        subscription_params = subscription_request.get('params', {})
+        if has_unsupported_query_params(subscription_params):
             abort(501)
+        if subscription_params.get('query.rql'):
+            parse_query(subscription_params['query.rql'])
 
         subscription, created = registry.subscribe_to_query_api(version, subscription_request, secure)
 
@@ -682,6 +693,10 @@ def post_subscription(version):
 
     except SubscriptionException:
         abort(400)
+    except UnsupportedRQLOperator:
+        abort(501)
+    except RQLParseError:
+        abort(400)
 
     status_code = 201 if created else 200
 
@@ -691,15 +706,9 @@ def post_subscription(version):
 
 
 @REGISTRY_API.route('/x-nmos/query/<version>/subscriptions/<subscription_id>', methods=["DELETE"])
+@check_enabled_and_authorization
 def delete_subscription(version, subscription_id):
-
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
-    if not registry.enabled:
-        abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
-    if authorized is not True:
-        abort(authorized)
-
     registry.requested_query_api_version = version
 
     try:

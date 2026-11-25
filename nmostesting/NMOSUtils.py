@@ -15,6 +15,7 @@
 import time
 import functools
 import random
+import zlib
 from urllib.parse import urlparse
 from requests.compat import json
 
@@ -69,6 +70,7 @@ DEFAULT_ARGS = {
     "port": [],
     "version": [],
     "selector": [],
+    "urlpath": [],
     "ignore": [],
     "output": None,
     "selection": "all"
@@ -80,8 +82,40 @@ class NMOSUtils(object):
     # Seedable instance of random for deterministic testing
     RANDOM = random.Random()
 
+    @staticmethod
+    def seed_random(name):
+        """Seed RANDOM from CONFIG.RANDOM_SEED and a name, such as a test name"""
+        # The built-in hash() of a str differs between processes unless PYTHONHASHSEED is set,
+        # so it would not reproduce the same values for a given RANDOM_SEED
+        NMOSUtils.RANDOM.seed(CONFIG.RANDOM_SEED ^ zlib.crc32(name.encode()))
+
     def __init__(self, url):
         self.url = url
+
+    def checkCleanRequest(self, method, dest, data=None, codes=[200]):
+        """Checks a request can be made"""
+        status, response = TestHelper.do_request(method, self.url + dest, json=data)
+        if not status:
+            return status, response
+
+        message = "Expected status code {} from {}, got {}.".format(codes[0], dest, response.status_code)
+        if response.status_code in codes:
+            return True, response
+        else:
+            return False, message
+
+    def checkCleanRequestJSON(self, method, dest, data=None, code=200):
+        """Checks a request can be made and the resulting json can be parsed"""
+        valid, response = self.checkCleanRequest(method, dest, data, [code])
+        # print(response.content)
+        if valid:
+            try:
+                return True, response.json()
+            except Exception:
+                # Failed parsing JSON
+                return False, "Invalid JSON received"
+        else:
+            return valid, response
 
     @staticmethod
     def from_UTC(secs, nanos, is_leap=False):

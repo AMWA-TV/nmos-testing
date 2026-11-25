@@ -1,0 +1,32 @@
+name: Documentation (Zensical)
+
+on:
+  push:
+    branches:
+      - master
+      - 'publish-*'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Optional branch or tag to rebuild
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: amwa-documentation-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  docs:
+    uses: AMWA-TV/amwa-spec-docs/.github/workflows/docs.yml@main
+    with:
+      versioned: false
+      site-name: nmos-testing
+      public-docs-root: https://specs.amwa.tv/nmos-testing
+      source-ref: ${{ inputs.ref || github.ref_name }}
+      # Pin this to a released toolkit tag or commit SHA once available.
+      toolkit-ref: main
+    secrets: inherit

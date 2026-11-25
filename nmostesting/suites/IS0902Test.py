@@ -14,7 +14,7 @@
 
 import time
 import socket
-from zeroconf_monkey import ServiceInfo, Zeroconf
+from zeroconf import ServiceInfo, Zeroconf
 
 from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener

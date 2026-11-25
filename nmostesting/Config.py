@@ -19,6 +19,9 @@ import sys
 # Please consult the documentation for instructions on how to adjust these values for common testing setups including
 # unicast DNS-SD and HTTPS testing.
 
+# Number of seconds to wait after starting the mock DNS server, authorization server, etc. before running tests.
+# This gives the API or client under test a chance to use these services before any test case is run.
+MOCK_SERVICES_WARM_UP_DELAY = 0
 
 # Enable or disable DNS-SD advertisements. Browsing is always permitted.
 # The IS-04 Node tests create a mock registry on the network unless the `ENABLE_DNS_SD` parameter is set to `False`.
@@ -57,6 +60,16 @@ API_PROCESSING_TIMEOUT = 1
 
 # Number of seconds to wait before timing out Controller test. Set to None to disable timeout mechanism
 CONTROLLER_TESTING_TIMEOUT = 120
+
+# When True invasive MS-05 tests will be run as part of MS0501Test test suite
+MS05_INVASIVE_TESTING = False
+
+# Used when MS05_INVASIVE_TESTING is set to True.
+# When True invasive MS-05 tests will use the TestingFacade to allow user interaction
+MS05_INTERACTIVE_TESTING = False
+
+# When True, MS-05 tests exercise all blocks and every class instance rather than sampling or deduplicating by class
+MS05_EXHAUSTIVE_TESTING = False
 
 # Set a Query API hostname/IP and port for use when operating without DNS-SD
 QUERY_API_HOST = "127.0.0.1"
@@ -190,7 +203,20 @@ MQTT_PASSWORD = None
 # Bash shell to use for running testssl.sh
 TEST_SSL_BASH = "bash"
 
+# URLs of Node API and Connection API of a Node with reference Senders
+# for testing IS-11 Receivers under live streaming conditions.
+# Expected URL format is "{http|https}://{api_host}:{api_port}/x-nmos/{api_name}/v{api_version}/"
+IS11_REFERENCE_SENDER_NODE_API_URL = ""
+IS11_REFERENCE_SENDER_CONNECTION_API_URL = ""
+
+# Stability delay for any request on IS-11
+STABLE_STATE_DELAY = 3
+STABLE_STATE_ATTEMPTS = 5
+
 # Definition of each API specification and its versions.
+# .github/scripts/cache_specifications.py reads this dict when the image is
+# built. For each version it fetches the branches matching "<version>*" and
+# checks that one of "<version>.x", "<version>-dev" and "<version>" exists.
 SPECIFICATIONS = {
     "is-04": {
         "repo": "is-04",
@@ -213,7 +239,7 @@ SPECIFICATIONS = {
     },
     "is-05": {
         "repo": "is-05",
-        "versions": ["v1.0", "v1.1"],
+        "versions": ["v1.0", "v1.1", "v1.2"],
         "default_version": "v1.1",
         "apis": {
             "connection": {
@@ -277,6 +303,59 @@ SPECIFICATIONS = {
             }
         }
     },
+    "is-11": {
+        "repo": "is-11",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "streamcompatibility": {
+                "name": "Stream Compatibility Management API",
+                "raml": "StreamCompatibilityManagementAPI.raml"
+            }
+        }
+    },
+    "is-12": {
+        "repo": "is-12",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "ncp": {
+                "name": "Control Protocol"
+            },
+        }
+    },
+    "is-14": {
+        "repo": "is-14",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "configuration": {
+                "name": "Device Configuration",
+                "raml": "ConfigurationAPI.raml"
+            },
+        }
+    },
+    "ms-05-02": {
+        "repo": "ms-05-02",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "controlframework": {
+                "name": "Control Framework"
+            },
+        }
+    },
+    "nmos-control-feature-sets": {
+        "repo": "nmos-control-feature-sets",
+        "versions": ["main"],
+        "default_version": "main",
+        "apis": {
+            "featuresets": {
+                "name": "Control Feature Sets",
+                "repo_paths": ["identification", "monitoring", "device-configuration"]
+            }
+        }
+    },
     "bcp-002-01": {
         "repo": "bcp-002-01",
         "versions": ["v1.0"],
@@ -313,6 +392,42 @@ SPECIFICATIONS = {
             }
         }
     },
+    "bcp-008-01": {
+        "repo": "bcp-008-01",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "receivermonitor": {
+                "name": "Receiver Monitor"
+            }
+        }
+    },
+    "bcp-008-02": {
+        "repo": "bcp-008-02",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "sendermonitor": {
+                "name": "Sender Monitor"
+            }
+        }
+    },
+    "bcp-005-01": {
+        "repo": "bcp-005-01",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {}
+    },
+    "bcp-007-03": {
+        "repo": "bcp-007-03",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "mxl-schemas": {
+                "name": "BCP-007-03 MXL JSON Schemas"
+            }
+        }
+    },
     "nmos-parameter-registers": {
         "repo": "nmos-parameter-registers",
         "versions": ["main"],
@@ -326,10 +441,16 @@ SPECIFICATIONS = {
             },
             "sender-register": {
                 "name": "Sender Attributes Register"
+            },
+            "formats-register": {
+                "name": "Formats Register"
+            },
+            "media-types-register": {
+                "name": "Media Types Register"
             }
         }
     },
-    "controller-tests": {
+    "testing-facade": {
         "repo": None,
         "versions": ["v1.0"],
         "default_version": "v1.0",

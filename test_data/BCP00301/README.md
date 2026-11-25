@@ -5,7 +5,7 @@ purpose. Typically storing private keys in a code repository would be bad practi
 be used in production this is not a requirement.
 
 [This CA](ca) was generated with the assistance of <https://jamielinux.com/docs/openssl-certificate-authority>, and can be
-re-generated using the './generateCA' script. Note that re-generating the CA will invalidate any existing certificates.
+re-generated using the `./generateCA` script. Note that re-generating the CA will invalidate any existing certificates.
 
 Please consult the guides below which indicate which keys and certificates need to be installed where, and any other
 modifications which may be necessary to your system in order to use the test suite in HTTPS mode.
@@ -25,8 +25,8 @@ The trusted certificate is held in the following file:
 ## Installing Certificates
 
 In order for requests made to the device under test to be trusted by the test suite, the following private keys and
-certificates must be loaded into the device. This will provide the device with the hostname 'api.testsuite.nmos.tv',
-and the hostname 'nmos-api.local' for mDNS.
+certificates must be loaded into the device. This will provide the device with the hostname `api.testsuite.nmos.tv`,
+and the hostname `nmos-api.local` for mDNS.
 
 **IMPORTANT:** Do not leave these private keys and certificates installed on a device once testing is complete.
 
@@ -55,18 +55,18 @@ In mDNS mode, as the test suite does not have control over your default DNS serv
 hostnames, you will need to add some temporary entries to the hosts file on your machine(s) when performing testing.
 The mechanism to modify hosts files varies by operating system.
 
-On the host running the test suite, add an entry to the hosts file for 'api.testsuite.nmos.tv' pointing at the IP
+On the host running the test suite, add an entry to the hosts file for `api.testsuite.nmos.tv` pointing at the IP
 address of the host under test.
 
-On the host under test, add the following entries to the hosts file for 'mocks.testsuite.nmos.tv', 'crl.testsuite.nmos.tv' and 'ocsp.testsuite.nmos.tv'
+On the host under test, add the following entries to the hosts file for `mocks.testsuite.nmos.tv`, `crl.testsuite.nmos.tv` and `ocsp.testsuite.nmos.tv`
 pointing at the IP address of the host running the test suite. At present this is only required for the IS-04 Node tests which
 require that the unit under test communicate directly with entities which are 'mocked' by the test suite and for the BCP-003-01 Secure Communication
 tests which require that the unit under test communicate directly with the test suite's OCSP server.
 
 ## Additional Certificates
 
-Additional certificates can be generated using this CA if required, using the './generateCerts' script followed by a
-hostname, domain name and an optional additional fully-qualified domain name ending in '.local' for mDNS usage.
+Additional certificates can be generated using this CA if required, using the `./generateCerts` script followed by a
+hostname, domain name and an optional additional fully-qualified domain name ending in `.local` for mDNS usage.
 
 Example: `./generateCerts myapi testsuite.nmos.tv myapi.local`
 
@@ -76,7 +76,7 @@ When an ephemeral Diffie-Hellman cipher is used, the server and the client negot
 Diffie-Hellman algorithm. This algorithm requires that the server sends the client a prime number and a generator.
 Neither are confidential, and are sent in clear text.
 
-The './generateDHParams' script may be used to generate appropriate parameters.
+The `./generateDHParams` script may be used to generate appropriate parameters.
 
 Alternatively, since they do not need to be unique or private, the server under test may use the provided file:
 *   [intermediate/private/dhparam.pem](ca/intermediate/private/dhparam.pem)
@@ -89,7 +89,7 @@ CA and intermediate are valid for 50 years
 CA/Intermediate CN: ca.testsuite.nmos.tv
 
 Any web servers activated by the test suite itself should use the following private keys and certificates. These use the
-hostname 'mocks.testsuite.nmos.tv', and the hostname 'nmos-mocks.local' for mDNS.
+hostname `mocks.testsuite.nmos.tv`, and the hostname `nmos-mocks.local` for mDNS.
 *   [intermediate/private/rsa.mocks.testsuite.nmos.tv.key.pem](ca/intermediate/private/rsa.mocks.testsuite.nmos.tv.key.pem)
 *   [intermediate/private/ecdsa.mocks.testsuite.nmos.tv.key.pem](ca/intermediate/private/ecdsa.mocks.testsuite.nmos.tv.key.pem)
 *   [intermediate/certs/rsa.mocks.testsuite.nmos.tv.cert.chain.pem](ca/intermediate/certs/rsa.mocks.testsuite.nmos.tv.cert.chain.pem)
