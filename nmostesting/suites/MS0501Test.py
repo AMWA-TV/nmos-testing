@@ -77,7 +77,7 @@ class MS0501Test(GenericTest):
         # Remove the Testing Facade spec_path as there are no corresponding GitHub repos for the Testing Facade API
         apis[TESTING_FACADE_API_KEY].pop("spec_path", None)
 
-        GenericTest.__init__(self, apis, disable_auto=False, **kwargs)
+        GenericTest.__init__(self, apis, **kwargs)
         self.ms05_utils = utils
         self.testing_facade_utils = TestingFacadeUtils(apis)
 
