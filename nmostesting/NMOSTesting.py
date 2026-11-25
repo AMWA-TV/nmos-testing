@@ -466,6 +466,7 @@ TEST_DEFINITIONS = {
             "api_key": "connection",
             "disable_fields": ["host", "port"]
         }],
+        "disable_auto": True,
         "class": BCP0060102Test.BCP0060102Test
     },
     "BCP-007-03-01": {
@@ -509,6 +510,7 @@ TEST_DEFINITIONS = {
             "api_key": "connection",
             "disable_fields": ["host", "port"]
         }],
+        "disable_auto": True,
         "class": BCP0070302Test.BCP0070302Test
     },
     "BCP-008-01-01": {
@@ -1071,7 +1073,9 @@ def validate_args(args, access_type="cli"):
                                     describe=True)
             for test_description in tests:
                 msg += test_description + '\n'
-        elif getattr(args, "selection", "all") not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
+        elif getattr(args, "selection", "all") not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"],
+                                                                      disable_auto=TEST_DEFINITIONS[args.suite]
+                                                                      .get("disable_auto")):
             msg = "ERROR: Test with name '{}' does not exist in test suite '{}'".format(args.selection,
                                                                                         args.suite)
             return_type = ExitCodes.ERROR
