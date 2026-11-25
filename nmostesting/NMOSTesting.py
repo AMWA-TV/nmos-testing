@@ -1068,9 +1068,8 @@ def validate_args(args, access_type="cli"):
             for test_name in tests:
                 msg += test_name + '\n'
         elif args.describe_tests:
-            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"],
-                                    disable_auto=TEST_DEFINITIONS[args.suite].get("disable_auto"),
-                                    describe=True)
+            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"], describe=True,
+                                    disable_auto=TEST_DEFINITIONS[args.suite].get("disable_auto"))
             for test_description in tests:
                 msg += test_description + '\n'
         elif getattr(args, "selection", "all") not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"],
