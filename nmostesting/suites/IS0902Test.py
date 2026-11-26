@@ -30,7 +30,7 @@ class IS0902Test(GenericTest):
     Runs IS-09-02-Test
     """
     def __init__(self, apis, systems, dns_server, **kwargs):
-        GenericTest.__init__(self, apis, disable_auto=True)
+        GenericTest.__init__(self, apis, **kwargs)
         self.authorization = False  # System API doesn't use auth, so don't send tokens in every request
         self.invalid_system = systems[0]
         self.primary_system = systems[1]

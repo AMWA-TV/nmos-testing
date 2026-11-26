@@ -233,6 +233,7 @@ TEST_DEFINITIONS = {
             "api_key": "query",
             "disable_fields": ["host", "port"]
         }],
+        "disable_auto": True,
         "class": IS0404Test.IS0404Test
     },
     "IS-05-01": {
@@ -268,6 +269,7 @@ TEST_DEFINITIONS = {
             "api_key": "connection",
             "disable_fields": ["host", "port"]
         }],
+        "disable_auto": True,
         "class": IS0503Test.IS0503Test
     },
     "IS-06-01": {
@@ -341,6 +343,7 @@ TEST_DEFINITIONS = {
             "api_key": "system",
             "disable_fields": ["host", "port"]
         }],
+        "disable_auto": True,
         "class": IS0902Test.IS0902Test
     },
     # IS-10 testing is disabled until testing can be refactored to deal with commercial servers
@@ -389,6 +392,7 @@ TEST_DEFINITIONS = {
             "spec_key": "nmos-control-feature-sets",
             "api_key": "featuresets"
         }],
+        "auto_description": "Validates MS-05-02 class and datatype definitions advertised by the Class Manager",
         "class": IS1201Test.IS1201Test,
         "urlpath": True
     },
@@ -414,6 +418,8 @@ TEST_DEFINITIONS = {
             "spec_key": "nmos-control-feature-sets",
             "api_key": "featuresets"
         }],
+        "auto_description": "Basic API tests derived from the IS-14 specification RAML, and validates MS-05-02 "
+                            "class and datatype definitions advertised by the Class Manager",
         "class": IS1401Test.IS1401Test,
         "selector": True
     },
@@ -423,6 +429,7 @@ TEST_DEFINITIONS = {
             "spec_key": "bcp-003-01",
             "api_key": "secure"
         }],
+        "disable_auto": True,
         "class": BCP00301Test.BCP00301Test
     },
     "BCP-005-01-01": {
@@ -462,6 +469,7 @@ TEST_DEFINITIONS = {
             "api_key": "connection",
             "disable_fields": ["host", "port"]
         }],
+        "disable_auto": True,
         "class": BCP0060102Test.BCP0060102Test
     },
     "BCP-007-03-01": {
@@ -505,6 +513,7 @@ TEST_DEFINITIONS = {
             "api_key": "connection",
             "disable_fields": ["host", "port"]
         }],
+        "disable_auto": True,
         "class": BCP0070302Test.BCP0070302Test
     },
     "BCP-008-01-01": {
@@ -534,6 +543,7 @@ TEST_DEFINITIONS = {
             "api_key": "receivermonitor",
             "disable_fields": ["host", "port", "urlpath"]
         }],
+        "auto_description": "Validates MS-05-02 class and datatype definitions advertised by the Class Manager",
         "class": BCP0080101Test.BCP0080101Test,
         "urlpath": True
     },
@@ -564,6 +574,7 @@ TEST_DEFINITIONS = {
             "api_key": "sendermonitor",
             "disable_fields": ["host", "port", "urlpath"]
         }],
+        "auto_description": "Validates MS-05-02 class and datatype definitions advertised by the Class Manager",
         "class": BCP0080201Test.BCP0080201Test,
         "urlpath": True
     },
@@ -585,12 +596,15 @@ TEST_DEFINITIONS = {
 }
 
 
-def enumerate_tests(class_def, describe=False):
-    if describe:
-        tests = ["all: Runs all tests in the suite",
-                 "auto: Basic API tests derived directly from the specification RAML"]
-    else:
-        tests = ["all", "auto"]
+def enumerate_tests(class_def, describe=False, disable_auto=False, auto_description=None):
+    tests = ["all: Runs all tests in the suite" if describe else "all"]
+    if not disable_auto:
+        if describe:
+            tests.append("auto: " + (auto_description or
+                                     "Basic API tests derived directly from the specification RAML"))
+        else:
+            tests.append("auto")
+
     for method_name in dir(class_def):
         if method_name.startswith("test_"):
             method = getattr(class_def, method_name)
@@ -658,8 +672,14 @@ class DataForm(Form):
     for test_id in TEST_DEFINITIONS:
         test_data[test_id] = copy.deepcopy(TEST_DEFINITIONS[test_id])
         test_data[test_id].pop("class")
-        test_data[test_id]["test_methods"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"])
-        test_data[test_id]["test_descriptions"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"], describe=True)
+        test_data[test_id]["test_methods"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"],
+                                                             disable_auto=TEST_DEFINITIONS[test_id]
+                                                             .get("disable_auto"))
+        test_data[test_id]["test_descriptions"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"], describe=True,
+                                                                  disable_auto=TEST_DEFINITIONS[test_id]
+                                                                  .get("disable_auto"),
+                                                                  auto_description=TEST_DEFINITIONS[test_id]
+                                                                  .get("auto_description"))
 
     hidden_options = HiddenField(default=max_endpoints)
     hidden_tests = HiddenField(default=json.dumps(test_data))
@@ -828,7 +848,8 @@ def run_tests(test, endpoints, test_selection=["all"]):
                                      registries=REGISTRIES,
                                      node=NODE,
                                      dns_server=DNS_SERVER,
-                                     auths=[PRIMARY_AUTH, SECONDARY_AUTH])
+                                     auths=[PRIMARY_AUTH, SECONDARY_AUTH],
+                                     disable_auto=test_def.get("disable_auto"))
 
         core_app.config['TEST_ACTIVE'] = time.time()
         try:
@@ -1053,14 +1074,19 @@ def validate_args(args, access_type="cli"):
             msg = "ERROR: The requested test suite '{}' does not exist".format(args.suite)
             return_type = ExitCodes.ERROR
         elif args.list_tests:
-            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"])
+            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"],
+                                    disable_auto=TEST_DEFINITIONS[args.suite].get("disable_auto"))
             for test_name in tests:
                 msg += test_name + '\n'
         elif args.describe_tests:
-            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"], describe=True)
+            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"], describe=True,
+                                    disable_auto=TEST_DEFINITIONS[args.suite].get("disable_auto"),
+                                    auto_description=TEST_DEFINITIONS[args.suite].get("auto_description"))
             for test_description in tests:
                 msg += test_description + '\n'
-        elif getattr(args, "selection", "all") not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
+        elif getattr(args, "selection", "all") not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"],
+                                                                      disable_auto=TEST_DEFINITIONS[args.suite]
+                                                                      .get("disable_auto")):
             msg = "ERROR: Test with name '{}' does not exist in test suite '{}'".format(args.selection,
                                                                                         args.suite)
             return_type = ExitCodes.ERROR

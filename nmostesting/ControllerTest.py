@@ -43,14 +43,14 @@ class ControllerTest(GenericTest):
     Testing initial set up of new test suite for controller testing
     """
 
-    def __init__(self, apis, registries, node, dns_server, auths, disable_auto=True, **kwargs):
+    def __init__(self, apis, registries, node, dns_server, auths, **kwargs):
         # Remove the Testing Facade spec_path as there are no corresponding GitHub repos for the Testing Facade API
         apis[TESTING_FACADE_API_KEY].pop("spec_path", None)
         # Ensure registration scope is added to JWT to allow authenticated
         # registration of mock resources with secure mock registry
         if CONFIG.ENABLE_AUTH:
             apis[REG_API_KEY] = {}
-        GenericTest.__init__(self, apis, auths=auths, disable_auto=disable_auto, **kwargs)
+        GenericTest.__init__(self, apis, auths=auths, **kwargs)
         self.testing_facade_utils = TestingFacadeUtils(apis)
         self.primary_registry = registries[1] if registries else None
         self.node = node
@@ -139,10 +139,6 @@ class ControllerTest(GenericTest):
 
     def execute_tests(self, test_names):
         """Perform tests defined within this class"""
-
-        # If auto tests the only test and auto tests disabled then return immediately
-        if len(test_names) == 1 and test_names[0] == "auto" and self.disable_auto:
-            return
 
         if self.primary_registry:
             self.primary_registry.query_api_called = False
